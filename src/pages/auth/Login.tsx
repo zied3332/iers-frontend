@@ -1,26 +1,51 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { loginUser } from "../../services/auth.service";
 import "../../index.css";
 
 export default function Login() {
   const nav = useNavigate();
   const [email, setEmail] = useState("hr@company.com");
   const [password, setPassword] = useState("demo1234");
-  const [role, setRole] = useState<"hr" | "manager" | "employee">("hr");
 
-  function onSubmit(e: React.FormEvent) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
+    setLoading(true);
 
-    // ✅ Fake login routing (replace later with API + token)
-    if (role === "hr") nav("/hr/dashboard");
-    if (role === "manager") nav("/manager/dashboard");
-    if (role === "employee") nav("/employee/profile");
+    try {
+      const res = await loginUser({ email, password });
+
+      // ✅ store token + user
+      localStorage.setItem("token", res.access_token);
+      localStorage.setItem("user", JSON.stringify(res.user));
+
+      const role = (res.user.role || "").toLowerCase();
+
+      // ✅ redirect based on role
+      if (role === "hr") nav("/hr/dashboard");
+      else if (role === "manager") nav("/manager/dashboard");
+      else nav("/me/profile");
+    } catch (err: any) {
+      setError(err?.message || "Login failed");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <div className="auth-body">
       <div className="auth-title">Sign in</div>
       <div className="auth-sub muted">Use your company account to continue.</div>
+
+      {error && (
+        <div style={{ marginTop: 12, padding: 10, border: "1px solid #ef4444", borderRadius: 10 }}>
+          <span style={{ color: "#ef4444", fontWeight: 700 }}>{error}</span>
+        </div>
+      )}
 
       <form className="auth-form" onSubmit={onSubmit}>
         <div className="auth-field">
@@ -30,6 +55,8 @@ export default function Login() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="name@company.com"
+            type="email"
+            required
           />
         </div>
 
@@ -41,25 +68,13 @@ export default function Login() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
+            required
           />
         </div>
 
         <div className="auth-row">
-          <div className="auth-field" style={{ flex: 1 }}>
-            <label className="auth-label">Role (demo)</label>
-            <select
-              className="select w-full"
-              value={role}
-              onChange={(e) => setRole(e.target.value as any)}
-            >
-              <option value="hr">HR</option>
-              <option value="manager">Manager</option>
-              <option value="employee">Employee</option>
-            </select>
-          </div>
-
-          <button className="btn btn-primary" type="submit" style={{ minWidth: 140 }}>
-            Sign in
+          <button className="btn btn-primary w-full" type="submit" disabled={loading}>
+            {loading ? "Signing in..." : "Sign in"}
           </button>
         </div>
 
