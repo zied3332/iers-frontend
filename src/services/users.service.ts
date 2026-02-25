@@ -43,7 +43,7 @@ export type User = {
   _id: string;
   name: string;
   email: string;
-  role: "hr" | "manager" | "employee";
+  role: "HR" | "MANAGER" | "EMPLOYEE";
   department?: string;
   matricule?: string;
   telephone?: string;
@@ -87,6 +87,20 @@ export async function deleteUser(userId: string) {
   const res = await fetch(`${BASE}/users/${userId}`, {
     method: "DELETE",
     headers: authHeaders(),
+  });
+  return handle(res);
+}
+export type UpdateUserPayload = Partial<Pick<
+  User,
+  "name" | "email" | "role" | "department" | "matricule" | "telephone" | "date_embauche"
+>>;
+
+// ✅ Update any user (HR)
+export async function updateUser(userId: string, payload: UpdateUserPayload) {
+  const res = await fetch(`${BASE}/users/${userId}`, {
+    method: "PUT", // ✅ use PATCH (recommended for partial updates)
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
   });
   return handle(res);
 }

@@ -1,16 +1,28 @@
+// src/services/auth.service.ts
 const BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
+type ApiError = Error & { status?: number };
 
 async function handle(res: Response) {
   if (!res.ok) {
     const txt = await res.text();
+
+    let message = txt || "Request failed";
     try {
       const j = JSON.parse(txt);
-      throw new Error(Array.isArray(j.message) ? j.message.join(", ") : j.message);
+      message = Array.isArray(j.message) ? j.message.join(", ") : (j.message || j.error || message);
     } catch {
-      throw new Error(txt || "Request failed");
+      // keep message as txt
     }
+
+    const err: ApiError = new Error(message);
+    err.status = res.status; // ✅ keep status (401 vs 403)
+    throw err;
   }
-  return res.json();
+
+  // Some endpoints may return empty body
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
 }
 
 export async function registerUser(data: {
@@ -36,17 +48,14 @@ export async function loginUser(data: { email: string; password: string }) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
+
   return handle(res) as Promise<{
     access_token: string;
     user: { id: string; email: string; name: string; role: string };
   }>;
 }
 
-/* =========================================================
-   ✅ ADDED FOR /profile (keep everything above unchanged)
-   ========================================================= */
-
-export type Role = "hr" | "manager" | "employee";
+export type Role = "HR" | "MANAGER" | "EMPLOYEE";
 
 export type CurrentUser = {
   _id: string;
@@ -73,18 +82,35 @@ export function logout() {
   localStorage.removeItem("token");
 }
 
+/**
+ * POST /auth/profile
+ */
 export async function getCurrentUser(): Promise<CurrentUser> {
   const token = localStorage.getItem("token");
-  if (!token) throw new Error("No token found. Please login.");
+  if (!token) {
+    const err: ApiError = new Error("No token found. Please login.");
+    err.status = 401;
+    throw err;
+  }
 
-  // ✅ Backend endpoint for current user
-  const res = await fetch(`${BASE}/users/me`, {
-    method: "GET",
+  const res = await fetch(`${BASE}/auth/profile`, {
+    method: "POST",
     headers: authHeaders(),
   });
 
-  // optional: auto logout if token invalid
-  if (res.status === 401) logout();
+  // ✅ IMPORTANT: distinguish 401 vs 403
+  if (res.status === 401) {
+    logout();
+    // optional: redirect to login
+    // window.location.href = "/auth/login";
+  }
+
+  if (res.status === 403) {
+    // DO NOT logout
+    // redirect to an Access Denied page
+    window.location.href = "/403";
+    // still throw so callers know request failed
+  }
 
   return handle(res);
 }
