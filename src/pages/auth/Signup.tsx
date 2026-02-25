@@ -1,7 +1,11 @@
+// src/pages/auth/Signup.tsx
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { registerUser } from "../../services/auth.service";
-import "../../index.css";
+import "../../auth-pages.css";
+
+// ✅ Import image from src/assets
+import authBg from "../../assets/logbackimg.png";
 
 export default function Signup() {
   const nav = useNavigate();
@@ -34,8 +38,7 @@ export default function Signup() {
         date_embauche: dateEmbauche,
       });
 
-      
-      nav("/employee/profile");
+      nav("/auth/login");
     } catch (err: any) {
       setError(err?.message || "Signup failed");
     } finally {
@@ -44,56 +47,111 @@ export default function Signup() {
   }
 
   return (
-    <div className="auth-split-layout">
-      {/* Left side - 30% green gradient */}
-      <div className="auth-gradient-side">
-        <div className="auth-gradient-content">
-          <div className="auth-gradient-logo">IntelliHR</div>
-          <h1 className="auth-gradient-title">Welcome to IntelliHR</h1>
+    <div className="auth-split">
+      {/* LEFT */}
+      <div
+        className="auth-left"
+        style={{
+          backgroundImage: `
+            linear-gradient(rgba(12, 79, 61, 0.85), rgba(12, 79, 61, 0.85)),
+            url(${authBg})
+          `,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+        }}
+      >
+        <div className="auth-left-inner">
+          <div className="auth-brand-mark">IntelliHR</div>
+
+          <h1 className="auth-hero-title">Welcome to IntelliHR</h1>
+          <p className="auth-hero-sub">
+            Internal access for company staff. Create your account to start using
+            your workspace.
+          </p>
+
+          <div className="auth-bullets">
+            <div className="auth-bullet">
+              <span className="auth-check">✓</span> Secure internal access
+            </div>
+            <div className="auth-bullet">
+              <span className="auth-check">✓</span> Workforce intelligence
+            </div>
+            <div className="auth-bullet">
+              <span className="auth-check">✓</span> Performance & skill tracking
+            </div>
+          </div>
+
+          <div className="auth-left-foot">
+            © {new Date().getFullYear()} IntelliHR
+          </div>
         </div>
       </div>
 
-      {/* Right side - 70% form centered */}
-      <div className="auth-form-side">
-        <div className="auth-form-container">
-          <div className="auth-title">Create account</div>
-          <div className="auth-sub muted">Internal access only (company users).</div>
+      {/* RIGHT */}
+      <div className="auth-right">
+        <div className="auth-card">
+          <div className="auth-card-top">
+            <div className="auth-card-brand">IntelliHR</div>
+          </div>
 
-          {error && (
-            <div style={{ marginTop: 12, padding: 10, border: "1px solid #ef4444", borderRadius: 10 }}>
-              <span style={{ color: "#ef4444", fontWeight: 700 }}>{error}</span>
-            </div>
-          )}
+          <div className="auth-title">Create account</div>
+          <div className="auth-sub">Internal access only (company users).</div>
+
+          {error ? <div className="auth-alert">{error}</div> : null}
 
           <form className="auth-form" onSubmit={onSubmit}>
             <div className="auth-grid2">
               <div className="auth-field">
                 <label className="auth-label">Full name</label>
-                <input className="input w-full" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                <input
+                  className="auth-input"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="John Doe"
+                  required
+                />
               </div>
 
               <div className="auth-field">
                 <label className="auth-label">Department</label>
-                <input className="input w-full" value={dept} onChange={(e) => setDept(e.target.value)} />
+                <input
+                  className="auth-input"
+                  value={dept}
+                  onChange={(e) => setDept(e.target.value)}
+                  placeholder="HR / IT / Sales..."
+                />
               </div>
             </div>
 
             <div className="auth-grid2">
               <div className="auth-field">
                 <label className="auth-label">Matricule</label>
-                <input className="input w-full" value={matricule} onChange={(e) => setMatricule(e.target.value)} required />
+                <input
+                  className="auth-input"
+                  value={matricule}
+                  onChange={(e) => setMatricule(e.target.value)}
+                  placeholder="EMP-1023"
+                  required
+                />
               </div>
 
               <div className="auth-field">
                 <label className="auth-label">Telephone</label>
-                <input className="input w-full" value={telephone} onChange={(e) => setTelephone(e.target.value)} required />
+                <input
+                  className="auth-input"
+                  value={telephone}
+                  onChange={(e) => setTelephone(e.target.value)}
+                  placeholder="+216 XX XXX XXX"
+                  required
+                />
               </div>
             </div>
 
             <div className="auth-field">
-              <label className="auth-label">Date d&apos;embauche</label>
+              <label className="auth-label">Hire date</label>
               <input
-                className="input w-full"
+                className="auth-input"
                 type="date"
                 value={dateEmbauche}
                 onChange={(e) => setDateEmbauche(e.target.value)}
@@ -103,23 +161,41 @@ export default function Signup() {
 
             <div className="auth-field">
               <label className="auth-label">Email</label>
-              <input className="input w-full" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <input
+                className="auth-input"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@company.com"
+                required
+              />
             </div>
 
             <div className="auth-field">
               <label className="auth-label">Password</label>
-              <input className="input w-full" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <input
+                className="auth-input"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+              />
             </div>
 
-            <div className="auth-row">
-              <button className="btn btn-primary w-full" type="submit" disabled={loading}>
-                {loading ? "Creating..." : "Create account"}
-              </button>
-            </div>
+            <button className="auth-btn" type="submit" disabled={loading}>
+              {loading ? "Creating..." : "Create account"}
+            </button>
 
             <div className="auth-links">
-              <span className="muted">Already have an account?</span>{" "}
-              <Link className="auth-link" to="/auth/login">Sign in</Link>
+              <span className="auth-muted">Already have an account?</span>
+              <Link className="auth-link" to="/auth/login">
+                Sign in
+              </Link>
+            </div>
+
+            <div className="auth-help">
+              Having trouble? <b>Contact HR:</b> hr@company.com
             </div>
           </form>
         </div>
