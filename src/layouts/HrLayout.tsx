@@ -1,9 +1,23 @@
 // src/layouts/HrLayout.tsx
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import AppShell from "./AppShell";
+import { getSidebarUserCard } from "../utils/sidebarUser";
 import "../index.css";
 
 export default function HrLayout() {
+  const [avatarRefresh, setAvatarRefresh] = useState(0);
+
+  useEffect(() => {
+    const onAvatarUpdated = () => setAvatarRefresh((r) => r + 1);
+    window.addEventListener("avatar-updated", onAvatarUpdated);
+    return () => window.removeEventListener("avatar-updated", onAvatarUpdated);
+  }, []);
+
+  const userCard = useMemo(
+    () => getSidebarUserCard("HR Manager", "Admin & HR tools"),
+    [avatarRefresh]
+  );
+
   return (
     <AppShell
       badge="HR"
@@ -11,13 +25,10 @@ export default function HrLayout() {
       subtitle="Employees, skills, and recommendations"
       profilePath="/hr/profile"
       nav={[
-        // ✅ keep same sidebar labels, but send most links to a blank page
         { to: "/hr/blank", label: "Dashboard" },
         { to: "/hr/blank", label: "Employees" },
         { to: "/hr/blank", label: "Skills" },
         { to: "/hr/blank", label: "Recommendations" },
-
-        // ✅ only this route stays working normally
         { to: "/hr/users", label: "User Management" },
       ]}
       topbarRight={
@@ -27,11 +38,7 @@ export default function HrLayout() {
           <button className="btn btn-primary">Add Employee</button>
         </>
       }
-      userCard={{
-        name: "HR Manager",
-        sub: "Admin & HR tools",
-        avatarUrl: "https://randomuser.me/api/portraits/women/44.jpg",
-      }}
+      userCard={userCard}
     />
   );
 }

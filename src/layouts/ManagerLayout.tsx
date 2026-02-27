@@ -1,9 +1,23 @@
 // src/layouts/ManagerLayout.tsx
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import AppShell from "./AppShell";
+import { getSidebarUserCard } from "../utils/sidebarUser";
 import "../index.css";
 
 export default function ManagerLayout() {
+  const [avatarRefresh, setAvatarRefresh] = useState(0);
+
+  useEffect(() => {
+    const onAvatarUpdated = () => setAvatarRefresh((r) => r + 1);
+    window.addEventListener("avatar-updated", onAvatarUpdated);
+    return () => window.removeEventListener("avatar-updated", onAvatarUpdated);
+  }, []);
+
+  const userCard = useMemo(
+    () => getSidebarUserCard("Manager", "Team overview"),
+    [avatarRefresh]
+  );
+
   return (
     <AppShell
       badge="Manager"
@@ -11,14 +25,9 @@ export default function ManagerLayout() {
       subtitle="Team, approvals, and analytics"
       profilePath="/manager/profile"
       nav={[
-        // ✅ these keep the sidebar same labels but open a blank page
         { to: "/manager/blank", label: "Dashboard" },
         { to: "/manager/blank", label: "Approvals" },
-
-        // ✅ only this route keeps working normally (user/team management)
         { to: "/manager/team", label: "My Team" },
-
-        // ✅ blank
         { to: "/manager/blank", label: "Analytics" },
       ]}
       topbarRight={
@@ -28,11 +37,7 @@ export default function ManagerLayout() {
           <button className="btn btn-primary">New Review</button>
         </>
       }
-      userCard={{
-        name: "Manager",
-        sub: "Team overview",
-        avatarUrl: "https://randomuser.me/api/portraits/men/12.jpg",
-      }}
+      userCard={userCard}
     />
   );
 }

@@ -22,13 +22,44 @@ async function handle(res: Response) {
   return res.json();
 }
 
+const PROFILE_UPDATE_PATH = import.meta.env.VITE_PROFILE_UPDATE_PATH as string | undefined;
+
 export async function patchMe(payload: { telephone?: string; avatarUrl?: string }) {
-  const res = await fetch(`${BASE}/users/me`, {
-    method: "PATCH",
-    headers: authHeaders(),
-    body: JSON.stringify(payload),
-  });
-  return handle(res);
+  const pathsToTry = PROFILE_UPDATE_PATH
+    ? [PROFILE_UPDATE_PATH]
+    : ["/users/me", "/auth/profile", "/auth/me", "/profile"];
+
+  let lastError: Error | null = null;
+  for (const path of pathsToTry) {
+    try {
+      const res = await fetch(`${BASE}${path}`, {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) return (await res.json().catch(() => ({}))) ?? {};
+      if (res.status === 404) {
+        lastError = new Error(`Cannot PATCH ${path}`);
+        continue;
+      }
+      const txt = await res.text();
+      let msg = txt;
+      try {
+        const j = JSON.parse(txt);
+        msg = Array.isArray(j.message) ? j.message.join(", ") : (j.message || j.error || txt);
+      } catch {
+        /* use txt */
+      }
+      throw new Error(msg);
+    } catch (e: any) {
+      if (e?.message?.includes("Cannot PATCH") || e?.message?.includes("404")) {
+        lastError = e;
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastError ?? new Error("Cannot update profile (no endpoint available).");
 }
 
 export async function patchUserById(userId: string, payload: any) {

@@ -181,6 +181,18 @@
   font-weight: 800;
 }
 
+.auth-success {
+  margin-top: 14px;
+  padding: 14px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(16,185,129,0.35);
+  background: rgba(16,185,129,0.08);
+  color: #047857;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 /* Form */
 .auth-form {
   margin-top: 18px;

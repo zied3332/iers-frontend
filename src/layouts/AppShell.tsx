@@ -14,6 +14,54 @@ function linkClass({ isActive }: { isActive: boolean }) {
   return `side-link ${isActive ? "active" : ""}`;
 }
 
+const FALLBACK_AVATAR = "https://randomuser.me/api/portraits/men/35.jpg";
+
+function SidebarAvatar({ avatarUrl, name }: { avatarUrl?: string; name: string }) {
+  const [loadError, setLoadError] = React.useState(false);
+
+  if (!avatarUrl) {
+    return (
+      <img
+        className="avatar-sm"
+        src={FALLBACK_AVATAR}
+        alt={name}
+      />
+    );
+  }
+
+  if (loadError) {
+    const initial = (name || "U").trim().charAt(0).toUpperCase();
+    return (
+      <div
+        className="avatar-sm"
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 999,
+          background: "var(--color-primary, #0f8f66)",
+          color: "#fff",
+          display: "grid",
+          placeItems: "center",
+          fontWeight: 900,
+          fontSize: 16,
+        }}
+        title={name}
+      >
+        {initial}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      className="avatar-sm"
+      src={avatarUrl}
+      alt={name}
+      onError={() => setLoadError(true)}
+    />
+  );
+}
+
 // Simple inline profile icon (no extra libs)
 function ProfileIcon() {
   return (
@@ -129,13 +177,9 @@ export default function AppShell({
               </div>
 
               <div className="side-user">
-                <img
-                  className="avatar-sm"
-                  src={
-                    userCard.avatarUrl ??
-                    "https://randomuser.me/api/portraits/men/35.jpg"
-                  }
-                  alt={userCard.name}
+                <SidebarAvatar
+                  avatarUrl={userCard.avatarUrl}
+                  name={userCard.name}
                 />
                 <div>
                   <div className="side-name">{userCard.name}</div>

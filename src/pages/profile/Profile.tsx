@@ -1,10 +1,69 @@
 // src/pages/Profile.tsx
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getCurrentUser, type CurrentUser, type Role } from "../../services/auth.service";
 import { signOut } from "../../utils/auth";
 
 import { changeMyPassword, patchMe, patchUserById } from "./profile.api";
+
+const AVATAR_STORAGE_KEY = "intellihr_avatar";
+
+function getStoredAvatarUrl(userId: string): string | null {
+  try {
+    return localStorage.getItem(`${AVATAR_STORAGE_KEY}_${userId}`);
+  } catch {
+    return null;
+  }
+}
+
+function setStoredAvatarUrl(userId: string, url: string) {
+  try {
+    if (url) localStorage.setItem(`${AVATAR_STORAGE_KEY}_${userId}`, url);
+    else localStorage.removeItem(`${AVATAR_STORAGE_KEY}_${userId}`);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Redimensionne une image et la convertit en data URL (pour enregistrement en base). */
+function resizeImageToDataUrl(file: File, maxSize = 400, quality = 0.85): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      let width = w;
+      let height = h;
+      if (w > maxSize || h > maxSize) {
+        if (w >= h) {
+          width = maxSize;
+          height = Math.round((h * maxSize) / w);
+        } else {
+          height = maxSize;
+          width = Math.round((w * maxSize) / h);
+        }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Canvas not supported"));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL("image/jpeg", quality);
+      resolve(dataUrl);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Invalid image"));
+    };
+    img.src = url;
+  });
+}
 import { BTN_STYLES, PILL_TONES, S, type BtnVariant, type Tone } from "./profile.styles";
 
 /* =======================
@@ -107,6 +166,22 @@ function Pill({ text, tone = "neutral" }: { text: string; tone?: Tone }) {
     </span>
   );
 }
+
+const IconCamera = ({ size = 20, color = "currentColor" }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+    <circle cx="12" cy="13" r="4" />
+  </svg>
+);
+
+const IconTrash = ({ size = 20, color = "currentColor" }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <line x1="10" y1="11" x2="10" y2="17" />
+    <line x1="14" y1="11" x2="14" y2="17" />
+  </svg>
+);
 
 function Card({
   title,
@@ -374,6 +449,12 @@ export default function Profile() {
 
   const [avatarUrl, setAvatarUrl] = useState("");
   const [telephone, setTelephone] = useState("");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [showRemovePhotoConfirm, setShowRemovePhotoConfirm] = useState(false);
+  const [removingAvatar, setRemovingAvatar] = useState(false);
+  const [avatarHover, setAvatarHover] = useState(false);
+  const [showPhotoLightbox, setShowPhotoLightbox] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
@@ -396,11 +477,17 @@ export default function Profile() {
         const me = await getCurrentUser();
         if (cancelled) return;
 
+        const uAny = me as any;
+        const storedAvatar = getStoredAvatarUrl(me._id);
+        const effectiveAvatar = uAny.avatarUrl ?? storedAvatar ?? "";
+        if (effectiveAvatar) {
+          uAny.avatarUrl = effectiveAvatar;
+          setStoredAvatarUrl(me._id, effectiveAvatar);
+        }
         setUser(me);
         setStatus("ready");
 
-        const uAny = me as any;
-        setAvatarUrl(uAny.avatarUrl ?? "");
+        setAvatarUrl(effectiveAvatar);
         setTelephone(me.telephone ?? "");
 
         setEditName(me.name ?? "");
@@ -516,9 +603,12 @@ export default function Profile() {
       });
 
       const next = { ...user, telephone: telephone.trim() || undefined } as any;
-      next.avatarUrl = avatarUrl.trim() || undefined;
-
+      const newAvatar = avatarUrl.trim() || undefined;
+      next.avatarUrl = newAvatar;
       setUser(next);
+      if (newAvatar) setStoredAvatarUrl(user._id, newAvatar);
+      else setStoredAvatarUrl(user._id, "");
+      window.dispatchEvent(new CustomEvent("avatar-updated"));
       setToast("Saved!");
       setIsEditingBasics(false);
     } catch (e: any) {
@@ -528,6 +618,60 @@ export default function Profile() {
       setSavingBasics(false);
     }
   }, [user, canEditSelfBasics, telephone, avatarUrl]);
+
+  const onAvatarFileSelect = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = "";
+      if (!file || !file.type.startsWith("image/")) return;
+      if (!user || !canEditSelfBasics) return;
+
+      setUploadingAvatar(true);
+      setError("");
+      try {
+        const dataUrl = await resizeImageToDataUrl(file, 400, 0.85);
+        setAvatarUrl(dataUrl);
+        await patchMe({
+          telephone: telephone.trim() || undefined,
+          avatarUrl: dataUrl,
+        });
+        const next = { ...user } as any;
+        next.avatarUrl = dataUrl;
+        setUser(next);
+        setStoredAvatarUrl(user._id, dataUrl);
+        window.dispatchEvent(new CustomEvent("avatar-updated"));
+        setToast("Photo enregistrée !");
+      } catch (err: any) {
+        setError(err?.message ?? "Erreur lors de l'upload.");
+        setToast("Échec de l'upload");
+      } finally {
+        setUploadingAvatar(false);
+      }
+    },
+    [user, canEditSelfBasics, telephone]
+  );
+
+  const onRemoveAvatar = useCallback(async () => {
+    if (!user || !canEditSelfBasics) return;
+    setShowRemovePhotoConfirm(false);
+    setRemovingAvatar(true);
+    setError("");
+    try {
+      await patchMe({ telephone: telephone.trim() || undefined, avatarUrl: "" });
+      setAvatarUrl("");
+      const next = { ...user } as any;
+      next.avatarUrl = undefined;
+      setUser(next);
+      setStoredAvatarUrl(user._id, "");
+      window.dispatchEvent(new CustomEvent("avatar-updated"));
+      setToast("Photo supprimée");
+    } catch (err: any) {
+      setError(err?.message ?? "Erreur lors de la suppression.");
+      setToast("Échec");
+    } finally {
+      setRemovingAvatar(false);
+    }
+  }, [user, canEditSelfBasics, telephone]);
 
   const onSaveHr = useCallback(async () => {
     if (!user) return;
@@ -682,10 +826,118 @@ export default function Profile() {
 
       {status === "ready" && user && (
         <>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={onAvatarFileSelect}
+          />
           {/* HERO */}
           <div style={L.hero}>
             <div style={L.heroTop}>
-              <Avatar name={user.name} email={user.email} avatarUrl={(user as any)?.avatarUrl} size={92} />
+              <div
+                style={{
+                  position: "relative",
+                  display: "inline-block",
+                  cursor: ((user as any)?.avatarUrl ?? avatarUrl) ? "pointer" : "default",
+                }}
+                onMouseEnter={() => canEditSelfBasics && setAvatarHover(true)}
+                onMouseLeave={() => setAvatarHover(false)}
+                onClick={(e) => {
+                  if ((e.target as HTMLElement).closest("button")) return;
+                  const url = (user as any)?.avatarUrl ?? avatarUrl;
+                  if (url) setShowPhotoLightbox(true);
+                }}
+              >
+                <Avatar
+                  name={user.name}
+                  email={user.email}
+                  avatarUrl={(user as any)?.avatarUrl ?? (avatarUrl || undefined)}
+                  size={92}
+                />
+                {canEditSelfBasics && (avatarHover || uploadingAvatar || removingAvatar) && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      borderRadius: 999,
+                      background: "rgba(0,0,0,0.6)",
+                      display: "flex",
+                      flexDirection: "row",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      gap: 16,
+                      transition: "opacity 0.2s ease",
+                    }}
+                  >
+                    {uploadingAvatar || removingAvatar ? (
+                      <span style={{ color: "#fff", fontWeight: 800, fontSize: 13 }}>
+                        {uploadingAvatar ? "Envoi…" : "Suppression…"}
+                      </span>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => avatarInputRef.current?.click()}
+                          style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: 999,
+                            border: "2px solid rgba(255,255,255,0.5)",
+                            background: "rgba(255,255,255,0.15)",
+                            color: "#fff",
+                            cursor: "pointer",
+                            display: "grid",
+                            placeItems: "center",
+                            transition: "background 0.15s, transform 0.1s",
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.background = "rgba(255,255,255,0.28)";
+                            e.currentTarget.style.transform = "scale(1.05)";
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.background = "rgba(255,255,255,0.15)";
+                            e.currentTarget.style.transform = "scale(1)";
+                          }}
+                          title="Changer la photo"
+                        >
+                          <IconCamera size={22} color="#fff" />
+                        </button>
+                        {((user as any)?.avatarUrl ?? avatarUrl) && (
+                          <button
+                            type="button"
+                            onClick={() => setShowRemovePhotoConfirm(true)}
+                            style={{
+                              width: 44,
+                              height: 44,
+                              borderRadius: 999,
+                              border: "2px solid rgba(255,255,255,0.4)",
+                              background: "rgba(239,68,68,0.85)",
+                              color: "#fff",
+                              cursor: "pointer",
+                              display: "grid",
+                              placeItems: "center",
+                              transition: "background 0.15s, transform 0.1s",
+                            }}
+                            onMouseOver={(e) => {
+                              e.currentTarget.style.background = "rgba(239,68,68,1)";
+                              e.currentTarget.style.transform = "scale(1.05)";
+                            }}
+                            onMouseOut={(e) => {
+                              e.currentTarget.style.background = "rgba(239,68,68,0.85)";
+                              e.currentTarget.style.transform = "scale(1)";
+                            }}
+                            title="Supprimer la photo"
+                          >
+                            <IconTrash size={20} color="#fff" />
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
 
               <div>
                 <div style={L.heroName}>{user.name}</div>
@@ -1079,8 +1331,11 @@ export default function Profile() {
                 >
                   {!isEditingBasics ? (
                     <div style={{ display: "grid", gap: 10 }}>
-                      <Field label="Avatar URL" value={(user as any)?.avatarUrl || "—"} />
-                      <Field label="Phone number" value={user.telephone || "—"} />
+                      <Field
+                        label="Photo de profil"
+                        value={(user as any)?.avatarUrl ? "Définie" : "Non définie"}
+                      />
+                      <Field label="Téléphone" value={user.telephone || "—"} />
 
                       <Button variant="primary" onClick={() => setIsEditingBasics(true)} disabled={!canEditSelfBasics}>
                         Edit profile
@@ -1092,13 +1347,66 @@ export default function Profile() {
                     </div>
                   ) : (
                     <div style={S.actionsCol}>
+                      <div style={{ display: "grid", gap: 6 }}>
+                        <div style={{ fontSize: 12, fontWeight: 900, color: "#475569" }}>Photo de profil</div>
+                        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                          <button
+                            type="button"
+                            onClick={() => avatarInputRef.current?.click()}
+                            disabled={!canEditSelfBasics || uploadingAvatar}
+                            style={{
+                              padding: "10px 18px",
+                              borderRadius: 12,
+                              border: "1px solid rgba(16,185,129,0.4)",
+                              background: "linear-gradient(180deg, rgba(16,185,129,0.12) 0%, rgba(16,185,129,0.06) 100%)",
+                              color: "#0d9668",
+                              fontWeight: 800,
+                              fontSize: 14,
+                              cursor: canEditSelfBasics && !uploadingAvatar ? "pointer" : "not-allowed",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 8,
+                              boxShadow: "0 1px 2px rgba(16,185,129,0.1)",
+                            }}
+                          >
+                            <IconCamera size={18} color="currentColor" />
+                            {uploadingAvatar ? "Envoi…" : "Choisir une photo"}
+                          </button>
+                          {((user as any)?.avatarUrl ?? avatarUrl) && (
+                            <button
+                              type="button"
+                              onClick={() => setShowRemovePhotoConfirm(true)}
+                              disabled={removingAvatar}
+                              style={{
+                                padding: "10px 18px",
+                                borderRadius: 12,
+                                border: "1px solid rgba(239,68,68,0.35)",
+                                background: "rgba(239,68,68,0.08)",
+                                color: "#dc2626",
+                                fontWeight: 800,
+                                fontSize: 14,
+                                cursor: removingAvatar ? "wait" : "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 8,
+                              }}
+                            >
+                              <IconTrash size={18} color="currentColor" />
+                              {removingAvatar ? "Suppression…" : "Supprimer la photo"}
+                            </button>
+                          )}
+                          <span style={{ fontSize: 12, color: "#64748b" }}>
+                            JPG, PNG. Enregistrée dans votre profil (base de données).
+                          </span>
+                        </div>
+                      </div>
                       <Input
-                        label="Avatar URL"
+                        label="Avatar URL (optionnel)"
                         value={avatarUrl}
                         onChange={setAvatarUrl}
-                        placeholder="https://..."
+                        placeholder="Ou coller une URL d'image..."
                         disabled={!canEditSelfBasics}
-                        hint="Upload feature later; for now use a public image URL."
+                        hint="Lien vers une image, ou utilisez « Choisir une photo » pour envoyer un fichier."
                       />
 
                       <Input
@@ -1189,6 +1497,153 @@ export default function Profile() {
               </Card>
             </div>
           </div>
+
+          {/* Lightbox photo agrandie (style Instagram) */}
+          {showPhotoLightbox && ((user as any)?.avatarUrl ?? avatarUrl) && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Photo de profil agrandie"
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 10000,
+                background: "rgba(0,0,0,0.92)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 24,
+              }}
+              onClick={() => setShowPhotoLightbox(false)}
+            >
+              <button
+                type="button"
+                onClick={() => setShowPhotoLightbox(false)}
+                aria-label="Fermer"
+                style={{
+                  position: "absolute",
+                  top: 20,
+                  right: 20,
+                  width: 44,
+                  height: 44,
+                  borderRadius: 999,
+                  border: "none",
+                  background: "rgba(255,255,255,0.15)",
+                  color: "#fff",
+                  fontSize: 22,
+                  cursor: "pointer",
+                  display: "grid",
+                  placeItems: "center",
+                  fontWeight: 300,
+                }}
+              >
+                ×
+              </button>
+              <img
+                src={(user as any)?.avatarUrl ?? avatarUrl}
+                alt={user.name}
+                style={{
+                  maxWidth: "min(90vw, 560px)",
+                  maxHeight: "85vh",
+                  objectFit: "contain",
+                  borderRadius: 12,
+                  boxShadow: "0 24px 80px rgba(0,0,0,0.5)",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          )}
+
+          {/* Modal confirmation suppression photo (style Instagram) */}
+          {showRemovePhotoConfirm && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 9999,
+                background: "rgba(0,0,0,0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 20,
+              }}
+              onClick={() => setShowRemovePhotoConfirm(false)}
+            >
+              <div
+                style={{
+                  background: "#fff",
+                  borderRadius: 20,
+                  padding: "28px 24px",
+                  maxWidth: 340,
+                  width: "100%",
+                  boxShadow: "0 24px 64px rgba(0,0,0,0.28)",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ textAlign: "center", marginBottom: 24 }}>
+                  <div
+                    style={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: 999,
+                      background: "rgba(239,68,68,0.12)",
+                      display: "grid",
+                      placeItems: "center",
+                      margin: "0 auto 14px",
+                    }}
+                  >
+                    <IconTrash size={28} color="#dc2626" />
+                  </div>
+                  <div style={{ fontWeight: 900, fontSize: 18, color: "#0f172a" }}>
+                    Supprimer la photo ?
+                  </div>
+                  <div style={{ fontSize: 14, color: "#64748b", marginTop: 8, lineHeight: 1.5 }}>
+                    Ta photo de profil sera retirée. Tu pourras en ajouter une autre quand tu veux.
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowRemovePhotoConfirm(false)}
+                    style={{
+                      padding: "12px 22px",
+                      borderRadius: 12,
+                      border: "1px solid #e2e8f0",
+                      background: "#f8fafc",
+                      fontWeight: 800,
+                      fontSize: 14,
+                      cursor: "pointer",
+                      color: "#475569",
+                    }}
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onRemoveAvatar()}
+                    disabled={removingAvatar}
+                    style={{
+                      padding: "12px 22px",
+                      borderRadius: 12,
+                      border: "none",
+                      background: "#dc2626",
+                      color: "#fff",
+                      fontWeight: 800,
+                      fontSize: 14,
+                      cursor: removingAvatar ? "wait" : "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 8,
+                      boxShadow: "0 2px 8px rgba(220,38,38,0.35)",
+                    }}
+                  >
+                    <IconTrash size={18} color="#fff" />
+                    {removingAvatar ? "Suppression…" : "Supprimer"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

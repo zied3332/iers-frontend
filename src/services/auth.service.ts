@@ -55,6 +55,32 @@ export async function loginUser(data: { email: string; password: string }) {
   }>;
 }
 
+/**
+ * POST /auth/forgot-password
+ * Demande d'envoi d'un email avec lien de réinitialisation.
+ */
+export async function requestPasswordReset(email: string) {
+  const res = await fetch(`${BASE}/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: email.trim() }),
+  });
+  return handle(res);
+}
+
+/**
+ * POST /auth/reset-password
+ * Réinitialise le mot de passe avec le token reçu par email.
+ */
+export async function resetPassword(token: string, newPassword: string) {
+  const res = await fetch(`${BASE}/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, newPassword: newPassword.trim() }),
+  });
+  return handle(res);
+}
+
 export type Role = "HR" | "MANAGER" | "EMPLOYEE";
 
 export type CurrentUser = {
