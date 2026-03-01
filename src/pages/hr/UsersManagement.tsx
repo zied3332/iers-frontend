@@ -1,3 +1,4 @@
+// src/pages/hr/users/UsersManagementPage.tsx
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -8,6 +9,7 @@ import {
   updateUser,
   type User,
 } from "../../services/users.service";
+import { ImportUsersModal } from "./components/ImportUsersModal";
 
 /** Normalize DB roles like "HR" -> "hr" */
 function normalizeRole(r: any): User["role"] {
@@ -309,10 +311,8 @@ export default function UsersManagement() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
-  // view modal
   const [selected, setSelected] = useState<User | null>(null);
 
-  // edit modal
   const [editOpen, setEditOpen] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [editErr, setEditErr] = useState("");
@@ -327,9 +327,10 @@ export default function UsersManagement() {
   // search
   const [q, setQ] = useState("");
 
-  // delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [deleting, setDeleting] = useState(false);
+const [importOpen, setImportOpen] = useState(false);
+
 
   // Open add modal when navigating with state.openAdd
   useEffect(() => {
@@ -347,12 +348,7 @@ export default function UsersManagement() {
     setLoading(true);
     try {
       const data = await getUsers();
-
-      const normalized = (data as any[]).map((u) => ({
-        ...u,
-        role: normalizeRole(u.role),
-      }));
-
+      const normalized = (data as any[]).map((u) => ({ ...u, role: normalizeRole(u.role) }));
       setUsers(normalized as User[]);
     } catch (e: any) {
       setErr(e?.message || "Failed to load users");
@@ -381,14 +377,9 @@ export default function UsersManagement() {
   const onChangeRole = useCallback(
     async (userId: string, role: User["role"]) => {
       setErr("");
-
       const fixedRole = normalizeRole(role);
-
       const old = [...users];
-      setUsers((prev) =>
-        prev.map((u) => (u._id === userId ? { ...u, role: fixedRole } : u))
-      );
-
+      setUsers((prev) => prev.map((u) => (u._id === userId ? { ...u, role: fixedRole } : u)));
       try {
         await updateUserRole(userId, fixedRole);
       } catch (e: any) {
@@ -402,8 +393,10 @@ export default function UsersManagement() {
   const onConfirmDelete = useCallback(async () => {
     if (!deleteTarget) return;
     const userId = deleteTarget._id;
+
     setDeleting(true);
     setErr("");
+
     try {
       await deleteUser(userId);
       setUsers((prev) => prev.filter((u) => u._id !== userId));
@@ -436,16 +429,10 @@ export default function UsersManagement() {
     setForm(null);
   }, []);
 
-  // ✅ IMPORTANT:
-  // This function assumes you ALREADY have a backend endpoint to update user fields.
-  // You can connect it to your service like: updateUser(userId, payload)
-  // For now, we keep it as a safe placeholder so the file compiles.
   const saveEdit = useCallback(async () => {
     if (!form) return;
 
     setEditErr("");
-
-    // comprehensive client validation
     let validationErr = "";
     if (!form.name.trim()) validationErr = "Le nom est requis.";
     else if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) validationErr = "Un email valide est requis.";
@@ -453,15 +440,12 @@ export default function UsersManagement() {
     else if (!form.date_embauche) validationErr = "La date d'embauche est requise.";
     else if (!(form.matricule || "").trim()) validationErr = "Le matricule est requis.";
     else if (!(form.telephone || "").trim() || !/^[+0-9\s-]+$/.test(form.telephone || "")) validationErr = "Un téléphone valide est requis.";
-
     if (validationErr) return setEditErr(validationErr);
 
     setEditSaving(true);
 
-    // optimistic snapshot
     const snapshot = [...users];
 
-    // optimistic UI update
     setUsers((prev) =>
       prev.map((u: any) =>
         u._id === form._id
@@ -480,19 +464,6 @@ export default function UsersManagement() {
     );
 
     try {
-      // TODO: replace this with your real API call
-      // await updateUser(form._id, {
-      //   name: form.name,
-      //   email: form.email,
-      //   telephone: form.telephone,
-      //   matricule: form.matricule,
-      //   department: form.department,
-      //   date_embauche: form.date_embauche,
-      //   role: normalizeRole(form.role),
-      // });
-
-      // If you DON'T have updateUser yet, do not silently succeed.
-      // We throw to remind you to connect the service properly.
       await updateUser(form._id, {
         name: form.name,
         email: form.email,
@@ -502,11 +473,9 @@ export default function UsersManagement() {
         date_embauche: form.date_embauche || undefined,
         role: normalizeRole(form.role),
       });
-
       setEditOpen(false);
       setForm(null);
     } catch (e: any) {
-      // rollback
       setUsers(snapshot);
       setEditErr(e?.message || "Update failed");
     } finally {
@@ -562,7 +531,6 @@ export default function UsersManagement() {
 
   return (
     <div style={S.pageCard}>
-      {/* Stats — nombre à gauche, libellé à droite */}
       <div style={S.statsRow}>
         <div style={{ ...S.statCard, borderLeftColor: "rgba(59,130,246,0.5)" }}>
           <div style={S.statCardInner}>
@@ -570,12 +538,14 @@ export default function UsersManagement() {
             <span style={S.statLabel}>Total utilisateurs</span>
           </div>
         </div>
+
         <div style={{ ...S.statCard, borderLeftColor: "rgba(22,163,74,0.5)" }}>
           <div style={S.statCardInner}>
             <span style={{ ...S.statValue, color: "#16a34a" }}>{onlineCount}</span>
             <span style={S.statLabel}>En ligne</span>
           </div>
         </div>
+
         <div style={{ ...S.statCard, borderLeftColor: "rgba(100,116,139,0.4)" }}>
           <div style={S.statCardInner}>
             <span style={{ ...S.statValue, color: "#64748b" }}>{users.length - onlineCount}</span>
@@ -584,7 +554,6 @@ export default function UsersManagement() {
         </div>
       </div>
 
-      {/* Header */}
       <div style={S.headerRow}>
         <div>
           <div style={S.pageTitle}>User Management</div>
@@ -594,17 +563,27 @@ export default function UsersManagement() {
         <div style={S.headerActions}>
           <div style={S.searchWrap}>
             <span style={S.searchIcon}>🔍</span>
-            <input
-              className="input"
-              placeholder="Nom, email, matricule…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              style={S.searchInput}
-            />
+            <input className="input" placeholder="Nom, email, matricule…" value={q} onChange={(e) => setQ(e.target.value)} style={S.searchInput} />
           </div>
+
           <button className="btn btn-primary" onClick={load} disabled={loading} style={S.refreshBtn}>
             {loading ? "Chargement…" : "Actualiser"}
           </button>
+
+          <button
+  className="btn"
+  onClick={() => setImportOpen(true)}
+  disabled={loading}
+  style={{ ...S.refreshBtn, background: "#0ea5e9", border: "none", color: "#fff" }}
+>
+  Import Excel
+</button>
+<ImportUsersModal
+  open={importOpen}
+  onClose={() => setImportOpen(false)}
+  onImported={load}
+/>
+
         </div>
       </div>
 
@@ -614,7 +593,6 @@ export default function UsersManagement() {
         </div>
       )}
 
-      {/* Table */}
       <div style={S.tableWrap}>
         <table style={S.table}>
           <thead>
@@ -631,33 +609,34 @@ export default function UsersManagement() {
               <th style={{ ...S.th, width: 160, minWidth: 160 }}>Actions</th>
             </tr>
           </thead>
+
           <tbody>
             {filtered.map((u: any, i) => (
               <tr key={u._id} style={{ ...S.tr, background: i % 2 === 1 ? "rgba(248,250,252,0.8)" : "#fff" }}>
                 <td style={S.td}>
                   <UserAvatar name={u.name} email={u.email} avatarUrl={u.avatarUrl} size={40} />
                 </td>
+
                 <td style={{ ...S.td, fontWeight: 800, color: "#0f172a" }}>{u.name}</td>
                 <td style={{ ...S.td, color: "#64748b", fontSize: 13 }}>{u.email}</td>
                 <td style={S.td}>{u.matricule || "—"}</td>
                 <td style={S.td}>{u.telephone || "—"}</td>
                 <td style={S.td}>{fmtDate(u.date_embauche)}</td>
+
                 <td style={S.td}>
-                  <select
-                    className="select"
-                    value={normalizeRole(u.role)}
-                    onChange={(e) => onChangeRole(u._id, normalizeRole(e.target.value))}
-                    style={S.roleSelect}
-                  >
+                  <select className="select" value={normalizeRole(u.role)} onChange={(e) => onChangeRole(u._id, normalizeRole(e.target.value))} style={S.roleSelect}>
                     <option value="EMPLOYEE">Employee</option>
                     <option value="MANAGER">Manager</option>
                     <option value="HR">HR</option>
                   </select>
                 </td>
+
                 <td style={S.td}>
                   <Pill text={u.en_ligne ? "En ligne" : "Hors ligne"} tone={u.en_ligne ? "success" : "neutral"} />
                 </td>
+
                 <td style={{ ...S.td, color: "#64748b", fontSize: 13 }}>{fmtDateTime(u.lastLogin) === "-" ? "—" : fmtDateTime(u.lastLogin)}</td>
+
                 <td style={{ ...S.td, whiteSpace: "nowrap" }}>
                   <div style={S.actionsGroup}>
                     <button type="button" onClick={() => openView(u)} style={S.actionBtn} title="Voir">
@@ -685,7 +664,6 @@ export default function UsersManagement() {
         </table>
       </div>
 
-      {/* Delete confirmation modal */}
       {deleteTarget && (
         <div style={S.modalBackdrop} onClick={() => !deleting && setDeleteTarget(null)}>
           <div style={S.deleteModalCard} onClick={(e) => e.stopPropagation()}>
@@ -695,17 +673,12 @@ export default function UsersManagement() {
                 <strong>{deleteTarget.name}</strong> ({deleteTarget.email}) sera supprimé définitivement.
               </div>
             </div>
+
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
               <button type="button" className="btn" onClick={() => !deleting && setDeleteTarget(null)} disabled={deleting}>
                 Annuler
               </button>
-              <button
-                type="button"
-                className="btn btn-danger"
-                onClick={onConfirmDelete}
-                disabled={deleting}
-                style={{ background: "#dc2626", color: "#fff", border: "none" }}
-              >
+              <button type="button" className="btn btn-danger" onClick={onConfirmDelete} disabled={deleting} style={{ background: "#dc2626", color: "#fff", border: "none" }}>
                 {deleting ? "Suppression…" : "Supprimer"}
               </button>
             </div>
@@ -713,7 +686,6 @@ export default function UsersManagement() {
         </div>
       )}
 
-      {/* VIEW MODAL */}
       <Modal
         open={!!selected}
         title={selected ? `${selected.name} — Details` : "User Details"}
@@ -730,7 +702,6 @@ export default function UsersManagement() {
         {selected && <UserDetailsGrid user={selected as any} />}
       </Modal>
 
-      {/* EDIT MODAL */}
       <Modal
         open={editOpen}
         title={form ? `Edit — ${form.name || "User"}` : "Edit User"}
@@ -748,13 +719,7 @@ export default function UsersManagement() {
           </div>
         )}
 
-        {form && (
-          <EditForm
-            value={form}
-            onChange={setForm}
-            onChangeRole={(role) => setForm((p) => (p ? { ...p, role } : p))}
-          />
-        )}
+        {form && <EditForm value={form} onChange={setForm} onChangeRole={(role) => setForm((p) => (p ? { ...p, role } : p))} />}
       </Modal>
 
       {/* ADD EMPLOYEE MODAL */}
