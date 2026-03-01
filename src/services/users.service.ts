@@ -24,16 +24,15 @@ async function handle(res: Response) {
   const txt = await res.text();
 
   if (!res.ok) {
+    let msg = "Erreur serveur";
     try {
       const j = JSON.parse(txt);
-      throw new Error(
-        Array.isArray(j.message)
-          ? j.message.join(", ")
-          : j.message || j.error || "Request failed"
-      );
+      const raw = Array.isArray(j.message) ? j.message.join(", ") : (j.message || j.error);
+      if (typeof raw === "string") msg = raw;
     } catch {
-      throw new Error(txt || "Request failed");
+      if (txt && txt.length < 150) msg = txt;
     }
+    throw new Error(msg);
   }
 
   return txt ? JSON.parse(txt) : null;
@@ -94,6 +93,27 @@ export type UpdateUserPayload = Partial<Pick<
   User,
   "name" | "email" | "role" | "department" | "matricule" | "telephone" | "date_embauche"
 >>;
+
+export type CreateUserPayload = {
+  name: string;
+  email: string;
+  password?: string;
+  role: User["role"];
+  avatarUrl?: string;
+  matricule?: string;
+  telephone?: string;
+  date_embauche?: string;
+};
+
+// ✅ Create new user (HR)
+export async function createUser(payload: CreateUserPayload) {
+  const res = await fetch(`${BASE}/users`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  return handle(res);
+}
 
 // ✅ Update any user (HR)
 export async function updateUser(userId: string, payload: UpdateUserPayload) {

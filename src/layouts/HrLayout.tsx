@@ -1,10 +1,12 @@
 // src/layouts/HrLayout.tsx
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import AppShell from "./AppShell";
 import { getSidebarUserCard } from "../utils/sidebarUser";
 import "../index.css";
 
 export default function HrLayout() {
+  const navigate = useNavigate();
   const [avatarRefresh, setAvatarRefresh] = useState(0);
 
   useEffect(() => {
@@ -35,7 +37,9 @@ export default function HrLayout() {
         <>
           <input className="input" placeholder="Search employees, skills…" />
           <button className="btn btn-ghost">Export</button>
-          <button className="btn btn-primary">Add Employee</button>
+          <button className="btn btn-primary" onClick={() => navigate("/hr/users", { state: { openAdd: true } })}>
+            Add Employee
+          </button>
         </>
       }
       userCard={userCard}

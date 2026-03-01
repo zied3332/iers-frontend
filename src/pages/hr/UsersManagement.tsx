@@ -1,8 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
+  createUser,
   deleteUser,
   getUsers,
-  updateUserRole,updateUser,
+  updateUserRole,
+  updateUser,
   type User,
 } from "../../services/users.service";
 
@@ -250,12 +253,21 @@ type EditableUser = Pick<
   User,
   "_id" | "name" | "email" | "telephone" | "matricule" | "department" | "date_embauche" | "role"
 > & {
-  // some backends use these names; we keep them optional
   departement_id?: string;
   manager_id?: string;
   status?: string;
   isActive?: boolean;
   emailVerified?: boolean;
+};
+
+type NewUserForm = {
+  name: string;
+  email: string;
+  password: string;
+  telephone: string;
+  matricule: string;
+  date_embauche: string;
+  role: User["role"];
 };
 
 function toEditable(u: any): EditableUser {
@@ -280,7 +292,19 @@ function toEditable(u: any): EditableUser {
    MAIN PAGE
    ======================= */
 
+const INITIAL_NEW_USER: NewUserForm = {
+  name: "",
+  email: "",
+  password: "",
+  telephone: "",
+  matricule: "",
+  date_embauche: "",
+  role: "EMPLOYEE",
+};
+
 export default function UsersManagement() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -294,12 +318,29 @@ export default function UsersManagement() {
   const [editErr, setEditErr] = useState("");
   const [form, setForm] = useState<EditableUser | null>(null);
 
+  // add modal
+  const [addOpen, setAddOpen] = useState(false);
+  const [addSaving, setAddSaving] = useState(false);
+  const [addErr, setAddErr] = useState("");
+  const [addForm, setAddForm] = useState<NewUserForm>(INITIAL_NEW_USER);
+
   // search
   const [q, setQ] = useState("");
 
   // delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Open add modal when navigating with state.openAdd
+  useEffect(() => {
+    const state = location.state as { openAdd?: boolean } | null;
+    if (state?.openAdd) {
+      setAddOpen(true);
+      setAddForm(INITIAL_NEW_USER);
+      setAddErr("");
+      navigate("/hr/users", { replace: true, state: {} });
+    }
+  }, [location.state, navigate]);
 
   const load = useCallback(async () => {
     setErr("");
@@ -338,25 +379,25 @@ export default function UsersManagement() {
   }, [users, q]);
 
   const onChangeRole = useCallback(
-  async (userId: string, role: User["role"]) => {
-    setErr("");
+    async (userId: string, role: User["role"]) => {
+      setErr("");
 
-    const fixedRole = normalizeRole(role);
+      const fixedRole = normalizeRole(role);
 
-    const old = [...users];
-    setUsers((prev) =>
-      prev.map((u) => (u._id === userId ? { ...u, role: fixedRole } : u))
-    );
+      const old = [...users];
+      setUsers((prev) =>
+        prev.map((u) => (u._id === userId ? { ...u, role: fixedRole } : u))
+      );
 
-    try {
-      await updateUserRole(userId, fixedRole);
-    } catch (e: any) {
-      setUsers(old);
-      setErr(e?.message || "Role update failed");
-    }
-  },
-  [users]
-);
+      try {
+        await updateUserRole(userId, fixedRole);
+      } catch (e: any) {
+        setUsers(old);
+        setErr(e?.message || "Role update failed");
+      }
+    },
+    [users]
+  );
 
   const onConfirmDelete = useCallback(async () => {
     if (!deleteTarget) return;
@@ -404,9 +445,16 @@ export default function UsersManagement() {
 
     setEditErr("");
 
-    // basic client validation
-    if (!form.name.trim()) return setEditErr("Name is required.");
-    if (!form.email.trim()) return setEditErr("Email is required.");
+    // comprehensive client validation
+    let validationErr = "";
+    if (!form.name.trim()) validationErr = "Le nom est requis.";
+    else if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) validationErr = "Un email valide est requis.";
+    else if (!(form.department || "").trim()) validationErr = "Le département est requis.";
+    else if (!form.date_embauche) validationErr = "La date d'embauche est requise.";
+    else if (!(form.matricule || "").trim()) validationErr = "Le matricule est requis.";
+    else if (!(form.telephone || "").trim() || !/^[+0-9\s-]+$/.test(form.telephone || "")) validationErr = "Un téléphone valide est requis.";
+
+    if (validationErr) return setEditErr(validationErr);
 
     setEditSaving(true);
 
@@ -418,15 +466,15 @@ export default function UsersManagement() {
       prev.map((u: any) =>
         u._id === form._id
           ? {
-              ...u,
-              name: form.name,
-              email: form.email,
-              telephone: form.telephone,
-              matricule: form.matricule,
-              department: form.department,
-              date_embauche: form.date_embauche,
-              role: normalizeRole(form.role),
-            }
+            ...u,
+            name: form.name,
+            email: form.email,
+            telephone: form.telephone || "",
+            matricule: form.matricule || "",
+            department: form.department || "",
+            date_embauche: form.date_embauche || "",
+            role: normalizeRole(form.role),
+          }
           : u
       )
     );
@@ -445,18 +493,18 @@ export default function UsersManagement() {
 
       // If you DON'T have updateUser yet, do not silently succeed.
       // We throw to remind you to connect the service properly.
-     await updateUser(form._id, {
-  name: form.name,
-  email: form.email,
-  telephone: form.telephone,
-  matricule: form.matricule,
-  department: form.department,
-  date_embauche: form.date_embauche,
-  role: normalizeRole(form.role),
-});
+      await updateUser(form._id, {
+        name: form.name,
+        email: form.email,
+        telephone: form.telephone || undefined,
+        matricule: form.matricule || undefined,
+        department: form.department || undefined,
+        date_embauche: form.date_embauche || undefined,
+        role: normalizeRole(form.role),
+      });
 
-setEditOpen(false);
-setForm(null);
+      setEditOpen(false);
+      setForm(null);
     } catch (e: any) {
       // rollback
       setUsers(snapshot);
@@ -467,6 +515,50 @@ setForm(null);
   }, [form, users]);
 
   const onlineCount = useMemo(() => users.filter((u: any) => u.en_ligne).length, [users]);
+
+  const closeAdd = useCallback(() => {
+    setAddOpen(false);
+    setAddErr("");
+    setAddSaving(false);
+    setAddForm(INITIAL_NEW_USER);
+  }, []);
+
+  const saveCreate = useCallback(async () => {
+    setAddErr("");
+
+    let validationErr = "";
+    if (!addForm.name.trim()) validationErr = "Le nom est requis.";
+    else if (!addForm.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addForm.email)) validationErr = "Un email valide est requis.";
+    else if (!addForm.password.trim()) validationErr = "Le mot de passe est requis.";
+    else if (addForm.password.length < 8) validationErr = "Le mot de passe doit contenir au moins 8 caractères.";
+    else if (!/\d/.test(addForm.password)) validationErr = "Le mot de passe doit contenir au moins un chiffre.";
+    else if (!addForm.date_embauche) validationErr = "La date d'embauche est requise.";
+    else if (!addForm.matricule.trim()) validationErr = "Le matricule est requis.";
+    else if (!addForm.telephone.trim() || !/^[+0-9\s-]+$/.test(addForm.telephone)) validationErr = "Un téléphone valide est requis.";
+
+    if (validationErr) return setAddErr(validationErr);
+
+    setAddSaving(true);
+    try {
+      const payload: any = {
+        name: addForm.name.trim(),
+        email: addForm.email.trim(),
+        password: addForm.password.trim(),
+        role: normalizeRole(addForm.role),
+        telephone: addForm.telephone || undefined,
+        matricule: addForm.matricule || undefined,
+        date_embauche: addForm.date_embauche || undefined,
+      };
+
+      const created = await createUser(payload);
+      setUsers((prev) => [...prev, { ...created, role: normalizeRole((created as any).role) } as User]);
+      closeAdd();
+    } catch (e: any) {
+      setAddErr(e?.message || "Échec de la création");
+    } finally {
+      setAddSaving(false);
+    }
+  }, [addForm, closeAdd]);
 
   return (
     <div style={S.pageCard}>
@@ -664,6 +756,26 @@ setForm(null);
           />
         )}
       </Modal>
+
+      {/* ADD EMPLOYEE MODAL */}
+      <Modal
+        open={addOpen}
+        title="Ajouter un employé"
+        subtitle="Créer un nouveau compte utilisateur"
+        onClose={closeAdd}
+        right={
+          <Button variant="primary" onClick={saveCreate} disabled={addSaving}>
+            {addSaving ? "Création…" : "Créer"}
+          </Button>
+        }
+      >
+        {addErr && (
+          <div style={S.errorBox}>
+            <span style={{ color: "#ef4444", fontWeight: 800 }}>{addErr}</span>
+          </div>
+        )}
+        <AddUserForm value={addForm} onChange={setAddForm} />
+      </Modal>
     </div>
   );
 }
@@ -684,68 +796,68 @@ function UserDetailsGrid({ user }: { user: any }) {
         </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-      <div className="card" style={{ padding: 12 }}>
-        <div style={S.blockTitle}>Identity</div>
+        <div className="card" style={{ padding: 12 }}>
+          <div style={S.blockTitle}>Identity</div>
 
-        <div className="muted">ID</div>
-        <div style={S.blockValue}>{user._id}</div>
+          <div className="muted">ID</div>
+          <div style={S.blockValue}>{user._id}</div>
 
-        <div className="muted">Matricule</div>
-        <div style={S.blockValue}>{user.matricule || "-"}</div>
+          <div className="muted">Matricule</div>
+          <div style={S.blockValue}>{user.matricule || "-"}</div>
 
-        <div className="muted">Telephone</div>
-        <div style={S.blockValue}>{user.telephone || "-"}</div>
-      </div>
-
-      <div className="card" style={{ padding: 12 }}>
-        <div style={S.blockTitle}>Account</div>
-
-        <div className="muted">Email</div>
-        <div style={S.blockValue}>{user.email}</div>
-
-        <div className="muted">Role</div>
-        <div style={S.blockValue}>{normalizeRole(user.role)}</div>
-
-        <div className="muted">Status</div>
-        <div style={S.blockValue}>
-          {user.status || (user.isActive ? "active" : "inactive") || "-"}
+          <div className="muted">Telephone</div>
+          <div style={S.blockValue}>{user.telephone || "-"}</div>
         </div>
-      </div>
 
-      <div className="card" style={{ padding: 12 }}>
-        <div style={S.blockTitle}>Work</div>
+        <div className="card" style={{ padding: 12 }}>
+          <div style={S.blockTitle}>Account</div>
 
-        <div className="muted">Department</div>
-        <div style={S.blockValue}>{user.department || user.departement_id || "-"}</div>
+          <div className="muted">Email</div>
+          <div style={S.blockValue}>{user.email}</div>
 
-        <div className="muted">Manager ID</div>
-        <div style={S.blockValue}>{user.manager_id || "-"}</div>
-      </div>
+          <div className="muted">Role</div>
+          <div style={S.blockValue}>{normalizeRole(user.role)}</div>
 
-      <div className="card" style={{ padding: 12 }}>
-        <div style={S.blockTitle}>Timeline</div>
-
-        <div className="muted">Date d’embauche</div>
-        <div style={S.blockValue}>{fmtDate(user.date_embauche)}</div>
-
-        <div className="muted">Created</div>
-        <div style={S.blockValue}>{fmtDateTime(user.createdAt)}</div>
-
-        <div className="muted">Updated</div>
-        <div style={S.blockValue}>{fmtDateTime(user.updatedAt)}</div>
-
-        <div className="muted">Last login</div>
-        <div style={S.blockValue}>{fmtDateTime(user.lastLogin)}</div>
-      </div>
-
-      <div className="card" style={{ padding: 12, gridColumn: "1 / -1" }}>
-        <div style={S.blockTitle}>Flags</div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Pill text={`En ligne : ${user.en_ligne ? "Oui" : "Non"}`} tone={user.en_ligne ? "success" : "neutral"} />
-          <Pill text={`Actif : ${user.isActive ? "Oui" : "Non"}`} />
-          <Pill text={`Email vérifié : ${user.emailVerified ? "Oui" : "Non"}`} />
+          <div className="muted">Status</div>
+          <div style={S.blockValue}>
+            {user.status || (user.isActive ? "active" : "inactive") || "-"}
+          </div>
         </div>
-      </div>
+
+        <div className="card" style={{ padding: 12 }}>
+          <div style={S.blockTitle}>Work</div>
+
+          <div className="muted">Department</div>
+          <div style={S.blockValue}>{user.department || user.departement_id || "-"}</div>
+
+          <div className="muted">Manager ID</div>
+          <div style={S.blockValue}>{user.manager_id || "-"}</div>
+        </div>
+
+        <div className="card" style={{ padding: 12 }}>
+          <div style={S.blockTitle}>Timeline</div>
+
+          <div className="muted">Date d’embauche</div>
+          <div style={S.blockValue}>{fmtDate(user.date_embauche)}</div>
+
+          <div className="muted">Created</div>
+          <div style={S.blockValue}>{fmtDateTime(user.createdAt)}</div>
+
+          <div className="muted">Updated</div>
+          <div style={S.blockValue}>{fmtDateTime(user.updatedAt)}</div>
+
+          <div className="muted">Last login</div>
+          <div style={S.blockValue}>{fmtDateTime(user.lastLogin)}</div>
+        </div>
+
+        <div className="card" style={{ padding: 12, gridColumn: "1 / -1" }}>
+          <div style={S.blockTitle}>Flags</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Pill text={`En ligne : ${user.en_ligne ? "Oui" : "Non"}`} tone={user.en_ligne ? "success" : "neutral"} />
+            <Pill text={`Actif : ${user.isActive ? "Oui" : "Non"}`} />
+            <Pill text={`Email vérifié : ${user.emailVerified ? "Oui" : "Non"}`} />
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -765,7 +877,7 @@ function EditForm({
       <div className="card" style={{ padding: 12 }}>
         <div style={S.blockTitle}>Basic</div>
 
-        <Label text="Name" />
+        <Label text="Name *" />
         <input
           className="input"
           value={value.name}
@@ -774,7 +886,7 @@ function EditForm({
 
         <div style={{ height: 10 }} />
 
-        <Label text="Email" />
+        <Label text="Email *" />
         <input
           className="input"
           value={value.email}
@@ -784,21 +896,21 @@ function EditForm({
         <div style={{ height: 10 }} />
 
         <Label text="Role" />
-      <select
-  className="select"
-  value={normalizeRole(value.role)}
-  onChange={(e) => onChangeRole(normalizeRole(e.target.value))}
->
-  <option value="EMPLOYEE">Employee</option>
-  <option value="MANAGER">Manager</option>
-  <option value="HR">HR</option>
-</select>
+        <select
+          className="select"
+          value={normalizeRole(value.role)}
+          onChange={(e) => onChangeRole(normalizeRole(e.target.value))}
+        >
+          <option value="EMPLOYEE">Employee</option>
+          <option value="MANAGER">Manager</option>
+          <option value="HR">HR</option>
+        </select>
       </div>
 
       <div className="card" style={{ padding: 12 }}>
         <div style={S.blockTitle}>Work</div>
 
-        <Label text="Department" />
+        <Label text="Department *" />
         <input
           className="input"
           value={value.department || ""}
@@ -807,7 +919,7 @@ function EditForm({
 
         <div style={{ height: 10 }} />
 
-        <Label text="Hire date" />
+        <Label text="Hire date *" />
         <input
           className="input"
           type="date"
@@ -817,7 +929,7 @@ function EditForm({
 
         <div style={{ height: 10 }} />
 
-        <Label text="Matricule" />
+        <Label text="Matricule *" />
         <input
           className="input"
           value={value.matricule || ""}
@@ -826,7 +938,7 @@ function EditForm({
 
         <div style={{ height: 10 }} />
 
-        <Label text="Telephone" />
+        <Label text="Telephone *" />
         <input
           className="input"
           value={value.telephone || ""}
@@ -841,6 +953,100 @@ function Label({ text }: { text: string }) {
   return (
     <div className="muted" style={{ fontSize: 12, fontWeight: 900, marginBottom: 6 }}>
       {text}
+    </div>
+  );
+}
+
+function AddUserForm({
+  value,
+  onChange,
+}: {
+  value: NewUserForm;
+  onChange: React.Dispatch<React.SetStateAction<NewUserForm>>;
+}) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div className="card" style={{ padding: 12 }}>
+        <div style={S.blockTitle}>Informations de base</div>
+
+        <Label text="Nom *" />
+        <input
+          className="input"
+          placeholder="Nom complet"
+          value={value.name}
+          onChange={(e) => onChange((p) => ({ ...p, name: e.target.value }))}
+        />
+
+        <div style={{ height: 10 }} />
+
+        <Label text="Email *" />
+        <input
+          className="input"
+          type="email"
+          placeholder="email@exemple.com"
+          value={value.email}
+          onChange={(e) => onChange((p) => ({ ...p, email: e.target.value }))}
+        />
+
+        <div style={{ height: 10 }} />
+
+        <Label text="Mot de passe *" />
+        <input
+          className="input"
+          type="password"
+          placeholder="Min. 8 caractères, au moins 1 chiffre"
+          value={value.password}
+          onChange={(e) => onChange((p) => ({ ...p, password: e.target.value }))}
+        />
+        <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+          Au moins 8 caractères et 1 chiffre requis
+        </div>
+
+        <div style={{ height: 10 }} />
+
+        <Label text="Rôle" />
+        <select
+          className="select"
+          value={value.role}
+          onChange={(e) => onChange((p) => ({ ...p, role: normalizeRole(e.target.value) }))}
+        >
+          <option value="EMPLOYEE">Employee</option>
+          <option value="MANAGER">Manager</option>
+          <option value="HR">HR</option>
+        </select>
+      </div>
+
+      <div className="card" style={{ padding: 12 }}>
+        <div style={S.blockTitle}>Informations professionnelles</div>
+
+        <Label text="Date d'embauche *" />
+        <input
+          className="input"
+          type="date"
+          value={value.date_embauche}
+          onChange={(e) => onChange((p) => ({ ...p, date_embauche: e.target.value }))}
+        />
+
+        <div style={{ height: 10 }} />
+
+        <Label text="Matricule *" />
+        <input
+          className="input"
+          placeholder="Ex: EMP-001"
+          value={value.matricule}
+          onChange={(e) => onChange((p) => ({ ...p, matricule: e.target.value }))}
+        />
+
+        <div style={{ height: 10 }} />
+
+        <Label text="Téléphone *" />
+        <input
+          className="input"
+          placeholder="Ex: +216 12 345 678"
+          value={value.telephone}
+          onChange={(e) => onChange((p) => ({ ...p, telephone: e.target.value }))}
+        />
+      </div>
     </div>
   );
 }
