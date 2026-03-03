@@ -1,73 +1,60 @@
-# React + TypeScript + Vite
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+# Intelligent Employee Management Platform
 
-Currently, two official plugins are available:
+## Overview
+This project was developed as part of the 4TWIN – Engineering Program at **Esprit School of Engineering** (Academic Year 2025–2026).
+It is a full-stack web application designed to help HR, managers, and employees manage profiles, activities, recommendations, and team collaboration efficiently.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Features
+- User authentication and role-based access (HR, Manager, Employee)
+- Employee profile management
+- Department management
+- Activity tracking
+- Recommendations system
+- Team and user management (HR/Manager views)
+- Import/export (Excel support)
+- Responsive UI with dashboards for each role
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Frontend
+- React.js (with TypeScript)
+- Vite
+- React Router
+- MUI (Material UI)
+- Axios
+- Tailwind CSS
 
-## Expanding the ESLint configuration
+### Backend
+- NestJS
+- MongoDB (Mongoose)
+- JWT Authentication
+- RESTful API
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Architecture
+- **Frontend**: SPA built with React, using role-based routing and modular layouts for HR, Manager, and Employee workspaces.
+- **Backend**: Modular NestJS API with separate modules for users, departments, and authentication. Uses MongoDB for data storage and Mongoose for schema modeling.
+- **Communication**: Frontend interacts with backend via REST API endpoints.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Contributors
+- Ahlem Bounasri
+- Yasmine ben abdelali
+- Malek Fridhi
+- Zied Alimi
+- Mohamed Nour Slimi
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Academic Context
+Developed at **Esprit School of Engineering – Tunisia**
+4TWIN | 2025–2026
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## Getting Started
+1. Clone the repository.
+2. Install dependencies for both frontend and backend.
+3. Configure environment variables (MongoDB URI, API URLs, etc.).
+4. Run backend (`npm run start:dev` in backend folder).
+5. Run frontend (`npm run dev` in frontend folder).
+6. Access the app via your browser.
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Acknowledgments
+- Special thanks to Esprit School of Engineering and all contributors.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
