@@ -1,12 +1,10 @@
 // src/layouts/HrLayout.tsx
-import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
 import AppShell from "./AppShell";
 import { getSidebarUserCard } from "../utils/sidebarUser";
 import "../index.css";
 
 export default function HrLayout() {
-  const navigate = useNavigate();
   const [avatarRefresh, setAvatarRefresh] = useState(0);
 
   useEffect(() => {
@@ -28,19 +26,14 @@ export default function HrLayout() {
       profilePath="/hr/profile"
       nav={[
         { to: "/hr/blank", label: "Dashboard" },
-        { to: "/hr/blank", label: "Employees" },
+        { to: "/hr/employees", label: "Employee Management" },
         { to: "/hr/blank", label: "Skills" },
         { to: "/hr/blank", label: "Recommendations" },
+        { to: "/hr/departments", label: "Departments" },
         { to: "/hr/users", label: "User Management" },
       ]}
       topbarRight={
-        <>
-          <input className="input" placeholder="Search employees, skills…" />
-          <button className="btn btn-ghost">Export</button>
-          <button className="btn btn-primary" onClick={() => navigate("/hr/users", { state: { openAdd: true } })}>
-            Add Employee
-          </button>
-        </>
+        <input className="input" placeholder="Search employees, skills…" />
       }
       userCard={userCard}
     />

@@ -1,5 +1,4 @@
 // src/router/router.tsx
-import React from "react";
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 
 import AuthLayout from "../pages/auth/AuthLayout";
@@ -20,6 +19,7 @@ import HrSkillsDashboard from "../pages/hr/HrSkillsDashboard";
 import HrRecommendations from "../pages/hr/Recommendations";
 import HrGenerateRecommendations from "../pages/hr/GenerateRecommendations";
 import UsersManagement from "../pages/hr/UsersManagement";
+import HrDepartments from "../pages/hr/Departments";
 
 // Manager pages
 import ManagerTeam from "../pages/manger/ManagerTeam";
@@ -99,12 +99,12 @@ export const router = createBrowserRouter([
         // ✅ default: show blank (keeps sidebar but empty page)
         { index: true, element: <Blank /> },
 
-        // ✅ explicit blank route used by sidebar links
+        // ✅ block these pages (even if URL typed)
         { path: "blank", element: <Blank /> },
 
         // ✅ block these pages (even if URL typed)
         { path: "dashboard", element: <Blank /> },
-        { path: "employees", element: <Blank /> },
+        { path: "employees", element: <HrEmployees /> },
         { path: "employees/:id", element: <Blank /> },
         { path: "skills-dashboard", element: <Blank /> },
         { path: "recommendations", element: <Blank /> },
@@ -112,6 +112,7 @@ export const router = createBrowserRouter([
 
         // ✅ keep working
         { path: "users", element: <UsersManagement /> },
+        { path: "departments", element: <HrDepartments /> },
 
         // (optional) keep profile working, or change to <Blank /> if you want it blocked too
         { path: "profile", element: <Profile /> },

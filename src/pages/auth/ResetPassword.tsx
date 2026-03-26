@@ -1,5 +1,5 @@
 // src/pages/auth/ResetPassword.tsx
-// Page utilisée quand l'utilisateur clique sur le lien reçu par email (token dans l'URL).
+// Page used when the user clicks the link received by email (token in the URL).
 import React, { useState, useEffect } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { resetPassword } from "../../services/auth.service";
@@ -18,14 +18,14 @@ export default function ResetPassword() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    if (!token.trim()) setError("Lien invalide ou expiré. Demandez un nouveau lien.");
+    if (!token.trim()) setError("Invalid or expired link. Request a new link.");
   }, [token]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     if (newPassword.length < 6) {
-      setError("Le mot de passe doit contenir au moins 6 caractères.");
+      setError("Password must contain at least 6 characters.");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -62,9 +62,9 @@ export default function ResetPassword() {
       >
         <div className="auth-left-inner">
           <div className="auth-brand-mark">IntelliHR</div>
-          <h1 className="auth-hero-title">Nouveau mot de passe</h1>
+          <h1 className="auth-hero-title">New Password</h1>
           <p className="auth-hero-sub">
-            Choisissez un mot de passe sécurisé pour accéder à votre compte.
+            Choose a secure password to access your account.
           </p>
           <div className="auth-left-foot">© {new Date().getFullYear()} IntelliHR</div>
         </div>
@@ -75,20 +75,20 @@ export default function ResetPassword() {
           <div className="auth-card-top">
             <div className="auth-card-brand">IntelliHR</div>
           </div>
-          <div className="auth-title">Définir un nouveau mot de passe</div>
+          <div className="auth-title">Set New Password</div>
           <div className="auth-sub">
-            {token ? "Entrez et confirmez votre nouveau mot de passe." : "Utilisez le lien reçu par email."}
+            {token ? "Enter and confirm your new password." : "Use the link you received by email."}
           </div>
 
           {error ? <div className="auth-alert">{error}</div> : null}
           {done ? (
             <div className="auth-success">
-              Mot de passe mis à jour. Redirection vers la page de connexion…
+              Password updated. Redirecting to login page…
             </div>
           ) : token ? (
             <form className="auth-form" onSubmit={onSubmit}>
               <div className="auth-field">
-                <label className="auth-label">Nouveau mot de passe</label>
+                <label className="auth-label">New Password</label>
                 <input
                   className="auth-input"
                   type="password"
@@ -101,7 +101,7 @@ export default function ResetPassword() {
                 />
               </div>
               <div className="auth-field">
-                <label className="auth-label">Confirmer le mot de passe</label>
+                <label className="auth-label">Confirm Password</label>
                 <input
                   className="auth-input"
                   type="password"
@@ -114,18 +114,18 @@ export default function ResetPassword() {
                 />
               </div>
               <button className="auth-btn" type="submit" disabled={loading}>
-                {loading ? "Enregistrement..." : "Réinitialiser le mot de passe"}
+                {loading ? "Saving..." : "Reset Password"}
               </button>
             </form>
           ) : null}
 
           <div className="auth-links" style={{ marginTop: 20 }}>
             <Link className="auth-link" to="/auth/login">
-              Retour à la connexion
+              Back to login
             </Link>
             <span className="auth-muted">•</span>
             <Link className="auth-link" to="/auth/forgot-password">
-              Renvoyer un lien
+              Resend link
             </Link>
           </div>
         </div>

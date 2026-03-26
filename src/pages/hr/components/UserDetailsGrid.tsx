@@ -74,9 +74,9 @@ export function UserDetailsGrid({ user }: { user: any }) {
         <div className="card" style={{ padding: 12, gridColumn: "1 / -1" }}>
           <div style={S.blockTitle}>Flags</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Pill text={`En ligne : ${user.en_ligne ? "Oui" : "Non"}`} tone={user.en_ligne ? "success" : "neutral"} />
-            <Pill text={`Actif : ${user.isActive ? "Oui" : "Non"}`} />
-            <Pill text={`Email vérifié : ${user.emailVerified ? "Oui" : "Non"}`} />
+            <Pill text={`Online: ${user.en_ligne ? "Yes" : "No"}`} tone={user.en_ligne ? "success" : "neutral"} />
+            <Pill text={`Active: ${user.isActive ? "Yes" : "No"}`} />
+            <Pill text={`Email Verified: ${user.emailVerified ? "Yes" : "No"}`} />
           </div>
         </div>
       </div>

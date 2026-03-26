@@ -240,7 +240,7 @@ export function ImportUsersModal({ open, onClose, onImported }: Props) {
   const [filter, setFilter] = useState<FilterMode>("ALL");
 
   const fileLabel = useMemo(() => {
-    if (!file) return "Aucun fichier sélectionné";
+    if (!file) return "No file selected";
     return `${file.name} (${Math.round(file.size / 1024)} KB)`;
   }, [file]);
 
@@ -453,7 +453,7 @@ export function ImportUsersModal({ open, onClose, onImported }: Props) {
       <Modal
         open={open}
         title="Importer des utilisateurs"
-        subtitle="Uploader un fichier Excel (.xlsx) pour créer les comptes."
+        subtitle="Upload an Excel file (.xlsx) to create accounts."
         onClose={closeAll}
         right={
           <Button variant="primary" onClick={onImport} disabled={busy || !file || validCount === 0}>
@@ -469,7 +469,7 @@ export function ImportUsersModal({ open, onClose, onImported }: Props) {
 
         <div style={{ display: "grid", gap: 12 }}>
           <div style={{ color: "#64748b", fontSize: 13 }}>
-            Colonnes recommandées: <b>name</b>, <b>email</b>, <b>matricule</b>, <b>telephone</b>, <b>date_embauche</b>, <b>role</b>
+            Recommended columns: <b>name</b>, <b>email</b>, <b>matricule</b>, <b>telephone</b>, <b>date_embauche</b>, <b>role</b>
           </div>
 
           <div style={P.topRow}>
@@ -494,7 +494,7 @@ export function ImportUsersModal({ open, onClose, onImported }: Props) {
             <span style={P.fileHint}>.xlsx / .xls</span>
 
             <button type="button" onClick={downloadTemplate} style={P.smallBtn} disabled={busy}>
-              ⬇️ Télécharger modèle
+              ⬇️ Download Template
             </button>
 
             <span
@@ -545,7 +545,7 @@ export function ImportUsersModal({ open, onClose, onImported }: Props) {
                 Invalides ({invalidCount})
               </button>
               <span style={{ fontSize: 12, color: "#64748b" }}>
-                (Les lignes invalides sont éditables)
+                (Invalid rows are editable)
               </span>
             </div>
           )}
@@ -560,7 +560,7 @@ export function ImportUsersModal({ open, onClose, onImported }: Props) {
                       <th style={P.th}>Name</th>
                       <th style={P.th}>Email</th>
                       <th style={P.th}>Matricule</th>
-                      <th style={P.th}>Téléphone</th>
+                      <th style={P.th}>Phone</th>
                       <th style={P.th}>Embauche</th>
                       <th style={P.th}>Role</th>
                       <th style={{ ...P.th, minWidth: 320 }}>Errors</th>
@@ -680,7 +680,7 @@ export function ImportUsersModal({ open, onClose, onImported }: Props) {
                     {!busy && displayRows.length === 0 && (
                       <tr>
                         <td colSpan={8} style={{ ...P.td, color: "#64748b" }}>
-                          Aucun résultat pour ce filtre.
+                          No results for this filter.
                         </td>
                       </tr>
                     )}
@@ -694,19 +694,19 @@ export function ImportUsersModal({ open, onClose, onImported }: Props) {
 
           {result && (
             <div style={{ border: "1px solid rgba(148,163,184,0.22)", borderRadius: 12, padding: 12 }}>
-              <div style={{ fontWeight: 900, color: "#0f172a", marginBottom: 6 }}>Résultat</div>
+              <div style={{ fontWeight: 900, color: "#0f172a", marginBottom: 6 }}>Result</div>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", color: "#334155" }}>
                 <span>
-                  <b>Créés:</b> {result.created ?? 0}
+                  <b>Created:</b> {result.created ?? 0}
                 </span>
                 {"skipped" in result && (
                   <span>
-                    <b>Ignorés:</b> {(result as any).skipped ?? 0}
+                    <b>Skipped:</b> {(result as any).skipped ?? 0}
                   </span>
                 )}
                 {"failed" in result && (
                   <span>
-                    <b>Échoués:</b> {(result as any).failed ?? 0}
+                    <b>Failed:</b> {(result as any).failed ?? 0}
                   </span>
                 )}
               </div>

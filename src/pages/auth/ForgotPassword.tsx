@@ -26,7 +26,7 @@ export default function ForgotPassword() {
         typeof raw === "string" &&
         (raw.includes("Cannot POST") || raw.includes("404") || raw.includes("Not Found"));
       const message = isBackendMissing
-        ? "Cette fonctionnalité n'est pas encore disponible sur le serveur. Contactez les RH pour réinitialiser votre mot de passe : hr@company.com"
+        ? "This feature is not yet available on the server. Contact HR to reset your password: hr@company.com"
         : raw;
       setError(message);
     } finally {
@@ -50,19 +50,19 @@ export default function ForgotPassword() {
       >
         <div className="auth-left-inner">
           <div className="auth-brand-mark">IntelliHR</div>
-          <h1 className="auth-hero-title">Mot de passe oublié</h1>
+          <h1 className="auth-hero-title">Forgot Password</h1>
           <p className="auth-hero-sub">
-            Entrez votre adresse email professionnelle. Si un compte existe, vous recevrez un lien pour réinitialiser votre mot de passe.
+            Enter your work email address. If an account exists, you will receive a link to reset your password.
           </p>
           <div className="auth-bullets">
             <div className="auth-bullet">
-              <span className="auth-check">✓</span> Lien sécurisé par email
+              <span className="auth-check">✓</span> Secure email link
             </div>
             <div className="auth-bullet">
-              <span className="auth-check">✓</span> Lien valide pendant 1 heure
+              <span className="auth-check">✓</span> Link valid for 1 hour
             </div>
             <div className="auth-bullet">
-              <span className="auth-check">✓</span> Aucun mot de passe envoyé en clair
+              <span className="auth-check">✓</span> No password sent in plain text
             </div>
           </div>
           <div className="auth-left-foot">© {new Date().getFullYear()} IntelliHR</div>
@@ -74,13 +74,13 @@ export default function ForgotPassword() {
           <div className="auth-card-top">
             <div className="auth-card-brand">IntelliHR</div>
           </div>
-          <div className="auth-title">Réinitialiser le mot de passe</div>
-          <div className="auth-sub">Indiquez l'email de votre compte.</div>
+          <div className="auth-title">Reset Password</div>
+          <div className="auth-sub">Please enter your account email.</div>
 
           {error ? <div className="auth-alert">{error}</div> : null}
           {sent ? (
             <div className="auth-success">
-              Un email a été envoyé à <strong>{email}</strong>. Consultez votre boîte de réception et suivez le lien pour définir un nouveau mot de passe.
+              An email has been sent to <strong>{email}</strong>. Check your inbox and click the link to set a new password.
             </div>
           ) : null}
 
@@ -99,22 +99,22 @@ export default function ForgotPassword() {
                 />
               </div>
               <button className="auth-btn" type="submit" disabled={loading}>
-                {loading ? "Envoi en cours..." : "Envoyer le lien"}
+                {loading ? "Sending..." : "Send Link"}
               </button>
             </form>
           )}
 
           <div className="auth-links" style={{ marginTop: 20 }}>
             <Link className="auth-link" to="/auth/login">
-              Retour à la connexion
+              Back to login
             </Link>
             <span className="auth-muted">•</span>
             <Link className="auth-link" to="/auth/signup">
-              Créer un compte
+              Create account
             </Link>
           </div>
           <div className="auth-help">
-            Problème ? <b>Contacter les RH :</b> hr@company.com
+            Problem? <b>Contact HR:</b> hr@company.com
           </div>
         </div>
       </div>

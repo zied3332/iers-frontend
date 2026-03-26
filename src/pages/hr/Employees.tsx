@@ -1,4 +1,6 @@
-import { Link } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { getAllEmployees, type EmployeeRecord } from "../../services/employee.service";
+import { getAllDepartments, type Department } from "../../services/departments.service";
 const card: React.CSSProperties = {
   background: "white",
   border: "1px solid #eaecef",
@@ -55,19 +57,91 @@ type Emp = {
   id: string;
   name: string;
   role: string;
+  departmentId: string;
   department: string;
-  globalScore: number;
-  risk: "Low" | "Medium" | "High";
+  email: string;
+  matricule: string;
+  seniority: string;
+  experienceYears: number;
 };
 
+function getDepartmentId(value: any): string {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object" && value._id) return String(value._id);
+  return "";
+}
+
 export default function HrEmployees() {
-  const employees: Emp[] = [
-    { id: "1", name: "Adam Taylor", role: "Software Engineer", department: "Engineering", globalScore: 78, risk: "Medium" },
-    { id: "2", name: "Charles Johnson", role: "DevOps Specialist", department: "IT Support", globalScore: 64, risk: "High" },
-    { id: "3", name: "Luke Evans", role: "Cloud Architect", department: "Engineering", globalScore: 81, risk: "Low" },
-    { id: "4", name: "Emma White", role: "Infrastructure Analyst", department: "IT Support", globalScore: 70, risk: "Medium" },
-    { id: "5", name: "Sara Anderson", role: "Java Developer", department: "Engineering", globalScore: 86, risk: "Low" },
-  ];
+  const [records, setRecords] = useState<EmployeeRecord[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [q, setQ] = useState("");
+  const [filterDepartment, setFilterDepartment] = useState("");
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const [employeesData, departmentsData] = await Promise.all([getAllEmployees(), getAllDepartments()]);
+        setRecords(employeesData || []);
+        setDepartments(departmentsData || []);
+      } catch (e: any) {
+        setError(e?.message || "Failed to load employees");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, []);
+
+  const departmentNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    departments.forEach((d) => {
+      if (d?._id && d?.name) map.set(String(d._id), String(d.name));
+    });
+    return map;
+  }, [departments]);
+
+  const employees = useMemo(() => {
+    const mapped = (records || []).map((r) => {
+      const user = typeof r.user_id === "object" ? r.user_id : null;
+      const depId = getDepartmentId(user?.departement_id);
+
+      return {
+        id: String(r._id || ""),
+        name: String(user?.name || "-"),
+        role: String(r.jobTitle || "Not Assigned"),
+        departmentId: depId,
+        department: departmentNameById.get(depId) || "No dept",
+        email: String(user?.email || "-"),
+        matricule: String(user?.matricule || "-"),
+        seniority: String(r.seniorityLevel || "JUNIOR"),
+        experienceYears: Number(r.experienceYears || 0),
+      } as Emp;
+    });
+
+    return mapped.filter((e) => {
+      const search = q.trim().toLowerCase();
+      const matchesSearch =
+        !search ||
+        [e.name, e.role, e.department, e.email, e.matricule].some((v) =>
+          v.toLowerCase().includes(search)
+        );
+      const matchesDepartment = !filterDepartment || e.departmentId === filterDepartment;
+      return matchesSearch && matchesDepartment;
+    });
+  }, [records, departmentNameById, q, filterDepartment]);
+
+  const departmentOptions = useMemo(() => {
+    return departments
+      .map((d) => ({ id: String(d._id), name: String(d.name || "") }))
+      .filter((d) => d.id && d.name)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [departments]);
 
   return (
     <div className="page">
@@ -81,34 +155,19 @@ export default function HrEmployees() {
           </div>
         </div>
 
-        <button style={btnGreen}>+ Add Employee</button>
+        <button style={btnGreen} onClick={() => window.location.assign('/hr/users')}>Manage Users</button>
       </div>
 
       {/* Filters */}
       <div style={{ ...card, marginTop: 14 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 1fr 1fr", gap: 10 }}>
-          <input style={input} placeholder="Search name / role..." />
+        <div style={{ display: "grid", gridTemplateColumns: "1.8fr 1fr", gap: 10 }}>
+          <input style={input} placeholder="Search name / role / email / matricule..." value={q} onChange={(e) => setQ(e.target.value)} />
 
-          <select style={select} defaultValue="all">
-            <option value="all">Department: All</option>
-            <option value="Engineering">Engineering</option>
-            <option value="IT Support">IT Support</option>
-            <option value="Marketing">Marketing</option>
-          </select>
-
-          <select style={select} defaultValue="all">
-            <option value="all">Skill: Any</option>
-            <option value="SQL">SQL</option>
-            <option value="Kubernetes">Kubernetes</option>
-            <option value="AWS">AWS</option>
-            <option value="Communication">Communication</option>
-          </select>
-
-          <select style={select} defaultValue="all">
-            <option value="all">Risk: Any</option>
-            <option value="Low">Low</option>
-            <option value="Medium">Medium</option>
-            <option value="High">High</option>
+          <select style={select} value={filterDepartment} onChange={(e) => setFilterDepartment(e.target.value)}>
+            <option value="">Department: All</option>
+            {departmentOptions.map((d) => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -117,53 +176,48 @@ export default function HrEmployees() {
       <div style={{ ...card, marginTop: 14, padding: 0, overflow: "hidden" }}>
         <div style={{ padding: 16, fontWeight: 900 }}>All Employees</div>
 
+        {error && (
+          <div style={{ margin: "0 16px 12px", padding: 12, borderRadius: 10, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.06)", color: "#b91c1c", fontWeight: 800 }}>
+            {error}
+          </div>
+        )}
+
         <div style={{ width: "100%", overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: "#f8fafc", textAlign: "left" }}>
                 <th style={{ padding: 14, color: "#64748b" }}>Employee</th>
-                <th style={{ padding: 14, color: "#64748b" }}>Role</th>
+                <th style={{ padding: 14, color: "#64748b" }}>Job Title</th>
                 <th style={{ padding: 14, color: "#64748b" }}>Department</th>
-                <th style={{ padding: 14, color: "#64748b" }}>Global Score</th>
-                <th style={{ padding: 14, color: "#64748b" }}>Risk</th>
-                <th style={{ padding: 14, color: "#64748b" }}>Actions</th>
+                <th style={{ padding: 14, color: "#64748b" }}>Email</th>
+                <th style={{ padding: 14, color: "#64748b" }}>Matricule</th>
+                <th style={{ padding: 14, color: "#64748b" }}>Seniority</th>
+                <th style={{ padding: 14, color: "#64748b" }}>Experience</th>
               </tr>
             </thead>
 
             <tbody>
+              {!loading && employees.length === 0 && (
+                <tr style={{ borderTop: "1px solid #eef2f7" }}>
+                  <td colSpan={7} style={{ padding: 14, color: "#64748b", fontWeight: 700 }}>No employees found.</td>
+                </tr>
+              )}
+
+              {loading && (
+                <tr style={{ borderTop: "1px solid #eef2f7" }}>
+                  <td colSpan={7} style={{ padding: 14, color: "#64748b", fontWeight: 700 }}>Loading employees...</td>
+                </tr>
+              )}
+
               {employees.map((e) => (
                 <tr key={e.id} style={{ borderTop: "1px solid #eef2f7" }}>
                   <td style={{ padding: 14, fontWeight: 900 }}>{e.name}</td>
                   <td style={{ padding: 14, fontWeight: 700, color: "#0f172a" }}>{e.role}</td>
                   <td style={{ padding: 14, fontWeight: 700, color: "#0f172a" }}>{e.department}</td>
-
-                  <td style={{ padding: 14 }}>
-                    <div style={{ fontWeight: 900 }}>{e.globalScore}</div>
-                    <div style={{ height: 10, background: "#eef2f7", borderRadius: 999, marginTop: 6 }}>
-                      <div
-                        style={{
-                          height: "100%",
-                          width: `${e.globalScore}%`,
-                          background: "#1f7a5a",
-                          borderRadius: 999,
-                        }}
-                      />
-                    </div>
-                  </td>
-
-                  <td style={{ padding: 14 }}>
-                    {e.risk === "High" && <span style={badge("#fee2e2", "#991b1b")}>High</span>}
-                    {e.risk === "Medium" && <span style={badge("#ffedd5", "#9a3412")}>Medium</span>}
-                    {e.risk === "Low" && <span style={badge("rgba(31,122,90,0.12)", "#1f7a5a")}>Low</span>}
-                  </td>
-
-                  <td style={{ padding: 14 }}>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-<Link to={`/hr/employees/${e.id}`} style={{ textDecoration: "none" }}>
-  <button style={btn}>View</button>
-</Link>                      <button style={btnGreen}>Invite</button>
-                    </div>
-                  </td>
+                  <td style={{ padding: 14, fontWeight: 700, color: "#0f172a" }}>{e.email}</td>
+                  <td style={{ padding: 14, fontWeight: 700, color: "#0f172a" }}>{e.matricule}</td>
+                  <td style={{ padding: 14 }}><span style={badge("#e0f2fe", "#0369a1")}>{e.seniority}</span></td>
+                  <td style={{ padding: 14, fontWeight: 700, color: "#0f172a" }}>{e.experienceYears}y</td>
                 </tr>
               ))}
             </tbody>
@@ -172,10 +226,7 @@ export default function HrEmployees() {
 
         <div style={{ padding: 16, display: "flex", justifyContent: "space-between", color: "#64748b", fontWeight: 700 }}>
           <div>Showing {employees.length} employees</div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button style={btn}>Prev</button>
-            <button style={btn}>Next</button>
-          </div>
+          <div>All departments included</div>
         </div>
       </div>
          </div>

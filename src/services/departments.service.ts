@@ -28,3 +28,42 @@ export async function getAllDepartments(): Promise<Department[]> {
   });
   return handle(res);
 }
+
+export async function createDepartment(data: {
+  name: string;
+  code: string;
+  description?: string;
+  manager_id?: string;
+}): Promise<Department> {
+  const res = await fetch(`${BASE}/departments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handle(res);
+}
+
+export async function updateDepartment(
+  id: string,
+  data: {
+    name?: string;
+    code?: string;
+    description?: string;
+    manager_id?: string;
+  }
+): Promise<Department> {
+  const res = await fetch(`${BASE}/departments/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handle(res);
+}
+
+export async function deleteDepartment(id: string): Promise<void> {
+  const res = await fetch(`${BASE}/departments/${id}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
+  await handle(res);
+}

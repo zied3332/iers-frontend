@@ -3,8 +3,22 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link, useNavigate } from "react-router-dom";
 import { getCurrentUser, type CurrentUser, type Role } from "../../services/auth.service";
 import { signOut } from "../../utils/auth";
+import {
+  FiHome,
+  FiLogOut,
+  FiCopy,
+  FiGrid,
+  FiLock,
+  FiShield,
+  FiClock,
+  FiEdit2,
+  FiCheck,
+  FiAlertCircle,
+  FiUser,
+} from "react-icons/fi";
 
 import { changeMyPassword, patchMe, patchUserById } from "./profile.api";
+import { getEmployeeByUserId, patchEmployeeById } from "../../services/employee.service";
 
 const AVATAR_STORAGE_KEY = "intellihr_avatar";
 
@@ -476,6 +490,10 @@ export default function Profile() {
   const [editRole, setEditRole] = useState<Role>("EMPLOYEE" as Role);
   const [editStatus, setEditStatus] = useState("");
   const [editIsActive, setEditIsActive] = useState<boolean>(true);
+  const [employeeRecordId, setEmployeeRecordId] = useState("");
+  const [editJobTitle, setEditJobTitle] = useState("");
+  const [editExperienceYears, setEditExperienceYears] = useState(0);
+  const [editSeniorityLevel, setEditSeniorityLevel] = useState<"JUNIOR" | "MID" | "SENIOR">("JUNIOR");
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -512,6 +530,20 @@ export default function Profile() {
 
         const hd = me.date_embauche ? new Date(me.date_embauche) : null;
         setEditHireDate(hd ? hd.toISOString().slice(0, 10) : "");
+
+        if (safeUpper(me.role as any) === "EMPLOYEE") {
+          try {
+            const employeeRecord = await getEmployeeByUserId(me._id);
+            if (!cancelled && employeeRecord) {
+              setEmployeeRecordId(employeeRecord._id);
+              setEditJobTitle(String(employeeRecord.jobTitle || ""));
+              setEditExperienceYears(Number(employeeRecord.experienceYears || 0));
+              setEditSeniorityLevel((employeeRecord.seniorityLevel || "JUNIOR") as "JUNIOR" | "MID" | "SENIOR");
+            }
+          } catch {
+            // keep profile usable even if employee endpoint fails
+          }
+        }
       } catch (e: any) {
         if (cancelled) return;
         setError(e?.message ?? "Failed to load profile.");
@@ -533,6 +565,7 @@ export default function Profile() {
   const canEditSensitive = safeUpper(user?.role as any) === "HR";
   const canEditSelfBasics = Boolean(user);
   const canEditEmail = safeUpper(user?.role as any) === "HR";
+  const isEmployee = safeUpper(user?.role as any) === "EMPLOYEE";
 
   const goBackPath = useMemo(() => {
     const r = safeUpper(user?.role as any);
@@ -609,11 +642,23 @@ export default function Profile() {
     setSavingBasics(true);
     setError("");
     try {
+      if (isEmployee && editExperienceYears < 0) {
+        throw new Error("Experience years must be 0 or greater.");
+      }
+
       await patchMe({
         telephone: telephone.trim() || undefined,
         avatarUrl: avatarUrl.trim() || undefined,
         department: editDepartment.trim() || undefined,
       });
+
+      if (isEmployee && employeeRecordId) {
+        await patchEmployeeById(employeeRecordId, {
+          jobTitle: editJobTitle.trim() || "Not Assigned",
+          experienceYears: Number(editExperienceYears || 0),
+          seniorityLevel: editSeniorityLevel,
+        });
+      }
 
       const next = { ...user, telephone: telephone.trim() || undefined } as any;
       const newAvatar = avatarUrl.trim() || undefined;
@@ -631,7 +676,18 @@ export default function Profile() {
     } finally {
       setSavingBasics(false);
     }
-  }, [user, canEditSelfBasics, telephone, avatarUrl]);
+  }, [
+    user,
+    canEditSelfBasics,
+    telephone,
+    avatarUrl,
+    isEmployee,
+    employeeRecordId,
+    editJobTitle,
+    editExperienceYears,
+    editSeniorityLevel,
+    editDepartment,
+  ]);
 
   const onAvatarFileSelect = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -656,10 +712,10 @@ export default function Profile() {
         setUser(next);
         setStoredAvatarUrl(user._id, dataUrl);
         window.dispatchEvent(new CustomEvent("avatar-updated"));
-        setToast("Photo enregistrée !");
+        setToast("Photo saved!");
       } catch (err: any) {
         setError(err?.message ?? "Erreur lors de l'upload.");
-        setToast("Échec de l'upload");
+        setToast("Upload failed");
       } finally {
         setUploadingAvatar(false);
       }
@@ -680,10 +736,10 @@ export default function Profile() {
       setUser(next);
       setStoredAvatarUrl(user._id, "");
       window.dispatchEvent(new CustomEvent("avatar-updated"));
-      setToast("Photo supprimée");
+      setToast("Photo deleted");
     } catch (err: any) {
       setError(err?.message ?? "Erreur lors de la suppression.");
-      setToast("Échec");
+      setToast("Failed");
     } finally {
       setRemovingAvatar(false);
     }
@@ -916,7 +972,7 @@ export default function Profile() {
                             e.currentTarget.style.background = "rgba(255,255,255,0.15)";
                             e.currentTarget.style.transform = "scale(1)";
                           }}
-                          title="Changer la photo"
+                          title="Change photo"
                         >
                           <IconCamera size={22} color="#fff" />
                         </button>
@@ -944,7 +1000,7 @@ export default function Profile() {
                               e.currentTarget.style.background = "rgba(239,68,68,0.85)";
                               e.currentTarget.style.transform = "scale(1)";
                             }}
-                            title="Supprimer la photo"
+                            title="Remove photo"
                           >
                             <IconTrash size={20} color="#fff" />
                           </button>
@@ -994,7 +1050,7 @@ export default function Profile() {
                     setTab("overview");
                   }}
                 >
-                  {isEditingBasics ? "Close Edit" : "Edit Profile"}
+                  <FiEdit2 size={16} style={{ marginRight: 8 }} />{isEditingBasics ? "Close Edit" : "Edit Profile"}
                 </Button>
 
                 {canEditSensitive ? (
@@ -1005,7 +1061,7 @@ export default function Profile() {
                       setTab("hr");
                     }}
                   >
-                    {isEditingHr ? "Close HR" : "HR Controls"}
+                    <FiShield size={16} style={{ marginRight: 8 }} />{isEditingHr ? "Close HR" : "HR Controls"}
                   </Button>
                 ) : null}
               </div>
@@ -1014,18 +1070,18 @@ export default function Profile() {
             {/* Tabs */}
             <div style={L.tabs}>
               <button type="button" style={L.tabBtn(tab === "overview")} onClick={() => setTab("overview")}>
-                📌 Overview
+                <FiGrid size={18} style={{ marginRight: 6 }} /> Overview
               </button>
               <button type="button" style={L.tabBtn(tab === "security")} onClick={() => setTab("security")}>
-                🔐 Security
+                <FiLock size={18} style={{ marginRight: 6 }} /> Security
               </button>
               {canEditSensitive ? (
                 <button type="button" style={L.tabBtn(tab === "hr")} onClick={() => setTab("hr")}>
-                  🔒 HR Controls
+                  <FiShield size={18} style={{ marginRight: 6 }} /> HR Controls
                 </button>
               ) : null}
               <button type="button" style={L.tabBtn(tab === "activity")} onClick={() => setTab("activity")}>
-                🕒 Activity
+                <FiClock size={18} style={{ marginRight: 6 }} /> Activity
               </button>
             </div>
           </div>
@@ -1082,19 +1138,19 @@ export default function Profile() {
                   <Card title="Quick Actions" subtitle="Common actions">
                     <div style={L.quickGrid}>
                       <div style={L.quickItem} onClick={() => nav(goBackPath)} role="button" tabIndex={0}>
-                        <div style={L.quickIcon}>🏠</div>
+                        <div style={L.quickIcon}><FiHome size={24} color="#16a34a" /></div>
                         <div style={{ fontWeight: 950, color: "#0f172a" }}>Go to workspace</div>
                         <div style={{ fontSize: 12, fontWeight: 850, color: "#64748b" }}>Dashboard & tools</div>
                       </div>
 
                       <div style={L.quickItem} onClick={onCopyUserId} role="button" tabIndex={0}>
-                        <div style={L.quickIcon}>🧾</div>
+                        <div style={L.quickIcon}><FiCopy size={24} color="#0284c7" /></div>
                         <div style={{ fontWeight: 950, color: "#0f172a" }}>Copy User ID</div>
                         <div style={{ fontSize: 12, fontWeight: 850, color: "#64748b" }}>For support/debug</div>
                       </div>
 
                       <div style={L.quickItem} onClick={onLogout} role="button" tabIndex={0}>
-                        <div style={L.quickIcon}>🚪</div>
+                        <div style={L.quickIcon}><FiLogOut size={24} color="#dc2626" /></div>
                         <div style={{ fontWeight: 950, color: "#0f172a" }}>Logout</div>
                         <div style={{ fontSize: 12, fontWeight: 850, color: "#64748b" }}>End session</div>
                       </div>
@@ -1110,6 +1166,9 @@ export default function Profile() {
                     <Field label="Phone" value={user.telephone} />
                     <Field label="Department" value={getDepartmentName(user) || "—"} />
                     <Field label="Matricule" value={user.matricule} />
+                    {isEmployee && <Field label="Job Title" value={editJobTitle || "—"} />}
+                    {isEmployee && <Field label="Experience Years" value={String(editExperienceYears ?? 0)} />}
+                    {isEmployee && <Field label="Seniority Level" value={editSeniorityLevel || "JUNIOR"} />}
                     <Field
                       label="Hire date"
                       value={user.date_embauche ? new Date(user.date_embauche).toLocaleDateString() : undefined}
@@ -1347,11 +1406,11 @@ export default function Profile() {
                 >
                   {!isEditingBasics ? (
                     <div style={{ display: "grid", gap: 10 }}>
-                      <Field
-                        label="Photo de profil"
-                        value={(user as any)?.avatarUrl ? "Définie" : "Non définie"}
-                      />
-                      <Field label="Téléphone" value={user.telephone || "—"} />
+                      <Field label="Profile Photo" value={(user as any)?.avatarUrl ? "Set" : "Not set"} />
+                      <Field label="Phone" value={user.telephone || "—"} />
+                      {isEmployee && <Field label="Job Title" value={editJobTitle || "—"} />}
+                      {isEmployee && <Field label="Experience Years" value={String(editExperienceYears ?? 0)} />}
+                      {isEmployee && <Field label="Seniority Level" value={editSeniorityLevel || "JUNIOR"} />}
 
                       <Button variant="primary" onClick={() => setIsEditingBasics(true)} disabled={!canEditSelfBasics}>
                         Edit profile
@@ -1386,7 +1445,7 @@ export default function Profile() {
                             }}
                           >
                             <IconCamera size={18} color="currentColor" />
-                            {uploadingAvatar ? "Envoi…" : "Choisir une photo"}
+                            {uploadingAvatar ? "Uploading…" : "Choose photo"}
                           </button>
                           {((user as any)?.avatarUrl ?? avatarUrl) && (
                             <button
@@ -1408,21 +1467,21 @@ export default function Profile() {
                               }}
                             >
                               <IconTrash size={18} color="currentColor" />
-                              {removingAvatar ? "Suppression…" : "Supprimer la photo"}
+                              {removingAvatar ? "Removing…" : "Remove photo"}
                             </button>
                           )}
                           <span style={{ fontSize: 12, color: "#64748b" }}>
-                            JPG, PNG. Enregistrée dans votre profil (base de données).
+                            JPG, PNG. Saved in your profile (database).
                           </span>
                         </div>
                       </div>
                       <Input
-                        label="Avatar URL (optionnel)"
+                        label="Avatar URL (optional)"
                         value={avatarUrl}
                         onChange={setAvatarUrl}
-                        placeholder="Ou coller une URL d'image..."
+                        placeholder="Or paste an image URL..."
                         disabled={!canEditSelfBasics}
-                        hint="Lien vers une image, ou utilisez « Choisir une photo » pour envoyer un fichier."
+                        hint="Link to an image, or use 'Choose photo' to upload a file."
                       />
 
                       <Input
@@ -1432,6 +1491,58 @@ export default function Profile() {
                         placeholder="+216 ..."
                         disabled={!canEditSelfBasics}
                       />
+
+                      {isEmployee && (
+                        <>
+                          <Input
+                            label="Job Title"
+                            value={editJobTitle}
+                            onChange={setEditJobTitle}
+                            placeholder="E.g: Software Engineer"
+                            disabled={!canEditSelfBasics}
+                          />
+
+                          <div style={{ display: "grid", gap: 6 }}>
+                            <div style={{ fontSize: 12, fontWeight: 900, color: "#475569" }}>Experience Years</div>
+                            <input
+                              type="number"
+                              min={0}
+                              value={editExperienceYears}
+                              onChange={(e) => setEditExperienceYears(Number(e.target.value || 0))}
+                              style={{
+                                padding: "11px 12px",
+                                borderRadius: 12,
+                                border: "1px solid #e6ebf1",
+                                background: "#fff",
+                                color: "#0f172a",
+                                fontWeight: 800,
+                                outline: "none",
+                              }}
+                            />
+                          </div>
+
+                          <div style={{ display: "grid", gap: 6 }}>
+                            <div style={{ fontSize: 12, fontWeight: 900, color: "#475569" }}>Seniority Level</div>
+                            <select
+                              value={editSeniorityLevel}
+                              onChange={(e) => setEditSeniorityLevel(e.target.value as "JUNIOR" | "MID" | "SENIOR")}
+                              style={{
+                                padding: "11px 12px",
+                                borderRadius: 12,
+                                border: "1px solid #e6ebf1",
+                                background: "#fff",
+                                color: "#0f172a",
+                                fontWeight: 800,
+                                outline: "none",
+                              }}
+                            >
+                              <option value="JUNIOR">JUNIOR</option>
+                              <option value="MID">MID</option>
+                              <option value="SENIOR">SENIOR</option>
+                            </select>
+                          </div>
+                        </>
+                      )}
 
                       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                         <Button variant="primary" onClick={onSaveBasics} disabled={!canEditSelfBasics || savingBasics}>
@@ -1444,6 +1555,17 @@ export default function Profile() {
                             const uAny = user as any;
                             setAvatarUrl(uAny.avatarUrl ?? "");
                             setTelephone(user.telephone ?? "");
+                            if (isEmployee) {
+                              getEmployeeByUserId(user._id)
+                                .then((employeeRecord) => {
+                                  if (!employeeRecord) return;
+                                  setEmployeeRecordId(employeeRecord._id);
+                                  setEditJobTitle(String(employeeRecord.jobTitle || ""));
+                                  setEditExperienceYears(Number(employeeRecord.experienceYears || 0));
+                                  setEditSeniorityLevel((employeeRecord.seniorityLevel || "JUNIOR") as "JUNIOR" | "MID" | "SENIOR");
+                                })
+                                .catch(() => {});
+                            }
                             setIsEditingBasics(false);
                           }}
                           disabled={savingBasics}
@@ -1495,19 +1617,19 @@ export default function Profile() {
               <Card title="Session" subtitle="Account actions">
                 <div style={S.actionsCol}>
                   <Button as="link" to={goBackPath} variant="outline">
-                    Go to workspace
+                    <FiHome size={16} style={{ marginRight: 8 }} /> Go to workspace
                   </Button>
 
                   <Button as="link" to={myProfilePath} variant="outline">
-                    Open profile route
+                    <FiUser size={16} style={{ marginRight: 8 }} /> Open profile route
                   </Button>
 
                   <Button variant="outline" onClick={onCopyUserId}>
-                    Copy User ID
+                    <FiCopy size={16} style={{ marginRight: 8 }} /> Copy User ID
                   </Button>
 
                   <Button variant="danger" onClick={onLogout}>
-                    Logout
+                    <FiLogOut size={16} style={{ marginRight: 8 }} /> Logout
                   </Button>
                 </div>
               </Card>
@@ -1611,10 +1733,10 @@ export default function Profile() {
                     <IconTrash size={28} color="#dc2626" />
                   </div>
                   <div style={{ fontWeight: 900, fontSize: 18, color: "#0f172a" }}>
-                    Supprimer la photo ?
+                    Remove photo?
                   </div>
                   <div style={{ fontSize: 14, color: "#64748b", marginTop: 8, lineHeight: 1.5 }}>
-                    Ta photo de profil sera retirée. Tu pourras en ajouter une autre quand tu veux.
+                    Your profile photo will be removed. You can add another one anytime.
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
@@ -1632,7 +1754,7 @@ export default function Profile() {
                       color: "#475569",
                     }}
                   >
-                    Annuler
+                    Cancel
                   </button>
                   <button
                     type="button"

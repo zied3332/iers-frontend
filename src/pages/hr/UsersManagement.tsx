@@ -9,6 +9,7 @@ import {
   updateUser,
   type User,
 } from "../../services/users.service";
+import { getAllDepartments, type Department } from "../../services/departments.service";
 import { ImportUsersModal } from "./components/ImportUsersModal";
 
 /** Normalize DB roles like "HR" -> "hr" */
@@ -17,6 +18,16 @@ function normalizeRole(r: any): User["role"] {
   if (x === "HR") return "HR";
   if (x === "MANAGER") return "MANAGER";
   return "EMPLOYEE";
+}
+
+function getUserDepartmentValue(u: any): string {
+  if (typeof u?.department === "string" && u.department.trim()) return u.department;
+  if (typeof u?.departement_id === "string" && u.departement_id.trim()) return u.departement_id;
+  if (u?.departement_id && typeof u.departement_id === "object") {
+    const id = u.departement_id._id;
+    if (typeof id === "string" && id.trim()) return id;
+  }
+  return "";
 }
 
 function fmtDate(d?: string | Date | null) {
@@ -308,6 +319,7 @@ export default function UsersManagement() {
   const location = useLocation();
   const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
@@ -326,6 +338,13 @@ export default function UsersManagement() {
 
   // search
   const [q, setQ] = useState("");
+
+  // filters
+  const [filterRole, setFilterRole] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterDepartment, setFilterDepartment] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -347,9 +366,10 @@ const [importOpen, setImportOpen] = useState(false);
     setErr("");
     setLoading(true);
     try {
-      const data = await getUsers();
+      const [data, depts] = await Promise.all([getUsers(), getAllDepartments()]);
       const normalized = (data as any[]).map((u) => ({ ...u, role: normalizeRole(u.role) }));
       setUsers(normalized as User[]);
+      setDepartments(depts || []);
     } catch (e: any) {
       setErr(e?.message || "Failed to load users");
     } finally {
@@ -361,18 +381,89 @@ const [importOpen, setImportOpen] = useState(false);
     load();
   }, [load]);
 
-  const filtered = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    if (!s) return users;
-
-    return (users as any[]).filter((u) => {
-      const name = String(u.name || "").toLowerCase();
-      const email = String(u.email || "").toLowerCase();
-      const dep = String(u.department || (u as any).departement_id || "").toLowerCase();
-      const mat = String((u as any).matricule || "").toLowerCase();
-      return name.includes(s) || email.includes(s) || dep.includes(s) || mat.includes(s);
+  const departmentNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    departments.forEach((d) => {
+      if (d?._id && d?.name) map.set(String(d._id), String(d.name));
     });
-  }, [users, q]);
+    return map;
+  }, [departments]);
+
+  const getDepartmentLabel = useCallback(
+    (rawValue: string) => {
+      const value = String(rawValue || "").trim();
+      return departmentNameById.get(value) || value;
+    },
+    [departmentNameById]
+  );
+
+  const filtered = useMemo(() => {
+    let result = users;
+
+    // Search filter
+    const s = q.trim().toLowerCase();
+    if (s) {
+      result = result.filter((u: any) => {
+        const name = String(u.name || "").toLowerCase();
+        const email = String(u.email || "").toLowerCase();
+        const dep = getDepartmentLabel(getUserDepartmentValue(u)).toLowerCase();
+        const mat = String(u.matricule || "").toLowerCase();
+        return name.includes(s) || email.includes(s) || dep.includes(s) || mat.includes(s);
+      });
+    }
+
+    // Role filter
+    if (filterRole) {
+      result = result.filter((u: any) => normalizeRole(u.role) === filterRole);
+    }
+
+    // Status filter
+    if (filterStatus) {
+      result = result.filter((u: any) => (u.en_ligne ? "online" : "offline") === filterStatus);
+    }
+
+    // Department filter
+    if (filterDepartment) {
+      result = result.filter((u: any) => getUserDepartmentValue(u) === filterDepartment);
+    }
+
+    return result;
+  }, [users, q, filterRole, filterStatus, filterDepartment, getDepartmentLabel]);
+
+  const departmentOptions = useMemo(() => {
+    const options = new Map<string, string>();
+
+    departments.forEach((d) => {
+      const value = String(d?._id || "").trim();
+      const label = String(d?.name || "").trim();
+      if (value && label) options.set(value, label);
+    });
+
+    (users as any[]).forEach((u) => {
+      const value = getUserDepartmentValue(u);
+      if (!value) return;
+      if (!options.has(value)) options.set(value, getDepartmentLabel(value));
+    });
+
+    return Array.from(options.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [users, departments, getDepartmentLabel]);
+
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(filtered.length / pageSize)), [filtered.length]);
+
+  const paginatedUsers = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [q, filterRole, filterStatus, filterDepartment]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const onChangeRole = useCallback(
     async (userId: string, role: User["role"]) => {
@@ -385,6 +476,21 @@ const [importOpen, setImportOpen] = useState(false);
       } catch (e: any) {
         setUsers(old);
         setErr(e?.message || "Role update failed");
+      }
+    },
+    [users]
+  );
+
+  const onChangeDepartment = useCallback(
+    async (userId: string, department: string) => {
+      setErr("");
+      const old = [...users];
+      setUsers((prev) => prev.map((u) => (u._id === userId ? { ...u, department } : u)));
+      try {
+        await updateUser(userId, { department });
+      } catch (e: any) {
+        setUsers(old);
+        setErr(e?.message || "Department update failed");
       }
     },
     [users]
@@ -434,12 +540,12 @@ const [importOpen, setImportOpen] = useState(false);
 
     setEditErr("");
     let validationErr = "";
-    if (!form.name.trim()) validationErr = "Le nom est requis.";
-    else if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) validationErr = "Un email valide est requis.";
-    else if (!(form.department || "").trim()) validationErr = "Le département est requis.";
-    else if (!form.date_embauche) validationErr = "La date d'embauche est requise.";
-    else if (!(form.matricule || "").trim()) validationErr = "Le matricule est requis.";
-    else if (!(form.telephone || "").trim() || !/^[+0-9\s-]+$/.test(form.telephone || "")) validationErr = "Un téléphone valide est requis.";
+    if (!form.name.trim()) validationErr = "Name is required.";
+    else if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) validationErr = "Valid email is required.";
+    else if (!(form.department || "").trim()) validationErr = "Department is required.";
+    else if (!form.date_embauche) validationErr = "Hire date is required.";
+    else if (!(form.matricule || "").trim()) validationErr = "Matricule is required.";
+    else if (!(form.telephone || "").trim() || !/^[+0-9\s-]+$/.test(form.telephone || "")) validationErr = "Valid phone number is required.";
     if (validationErr) return setEditErr(validationErr);
 
     setEditSaving(true);
@@ -496,14 +602,14 @@ const [importOpen, setImportOpen] = useState(false);
     setAddErr("");
 
     let validationErr = "";
-    if (!addForm.name.trim()) validationErr = "Le nom est requis.";
-    else if (!addForm.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addForm.email)) validationErr = "Un email valide est requis.";
-    else if (!addForm.password.trim()) validationErr = "Le mot de passe est requis.";
-    else if (addForm.password.length < 8) validationErr = "Le mot de passe doit contenir au moins 8 caractères.";
-    else if (!/\d/.test(addForm.password)) validationErr = "Le mot de passe doit contenir au moins un chiffre.";
-    else if (!addForm.date_embauche) validationErr = "La date d'embauche est requise.";
-    else if (!addForm.matricule.trim()) validationErr = "Le matricule est requis.";
-    else if (!addForm.telephone.trim() || !/^[+0-9\s-]+$/.test(addForm.telephone)) validationErr = "Un téléphone valide est requis.";
+    if (!addForm.name.trim()) validationErr = "Name is required.";
+    else if (!addForm.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addForm.email)) validationErr = "Valid email is required.";
+    else if (!addForm.password.trim()) validationErr = "Password is required.";
+    else if (addForm.password.length < 8) validationErr = "Password must contain at least 8 characters.";
+    else if (!/\d/.test(addForm.password)) validationErr = "Password must contain at least one number.";
+    else if (!addForm.date_embauche) validationErr = "Hire date is required.";
+    else if (!addForm.matricule.trim()) validationErr = "Matricule is required.";
+    else if (!addForm.telephone.trim() || !/^[+0-9\s-]+$/.test(addForm.telephone)) validationErr = "Valid phone number is required.";
 
     if (validationErr) return setAddErr(validationErr);
 
@@ -523,105 +629,127 @@ const [importOpen, setImportOpen] = useState(false);
       setUsers((prev) => [...prev, { ...created, role: normalizeRole((created as any).role) } as User]);
       closeAdd();
     } catch (e: any) {
-      setAddErr(e?.message || "Échec de la création");
+      setAddErr(e?.message || "Failed to create user");
     } finally {
       setAddSaving(false);
     }
   }, [addForm, closeAdd]);
 
   return (
-    <div style={S.pageCard}>
+    <div style={S.pageContainer}>
       <div style={S.statsRow}>
         <div style={{ ...S.statCard, borderLeftColor: "rgba(59,130,246,0.5)" }}>
           <div style={S.statCardInner}>
             <span style={S.statValue}>{users.length}</span>
-            <span style={S.statLabel}>Total utilisateurs</span>
+            <span style={S.statLabel}>Total Users</span>
           </div>
         </div>
 
         <div style={{ ...S.statCard, borderLeftColor: "rgba(22,163,74,0.5)" }}>
           <div style={S.statCardInner}>
             <span style={{ ...S.statValue, color: "#16a34a" }}>{onlineCount}</span>
-            <span style={S.statLabel}>En ligne</span>
+            <span style={S.statLabel}>Online</span>
           </div>
         </div>
 
         <div style={{ ...S.statCard, borderLeftColor: "rgba(100,116,139,0.4)" }}>
           <div style={S.statCardInner}>
             <span style={{ ...S.statValue, color: "#64748b" }}>{users.length - onlineCount}</span>
-            <span style={S.statLabel}>Hors ligne</span>
+            <span style={S.statLabel}>Offline</span>
           </div>
         </div>
       </div>
 
-      <div style={S.headerRow}>
-        <div>
-          <div style={S.pageTitle}>User Management</div>
-          <div style={S.pageSubtitle}>Manage accounts, roles, and access.</div>
-        </div>
+      <div style={S.headerTop}>
+        <div style={S.pageTitle}>User Management</div>
+        <div style={S.pageSubtitle}>Manage accounts, roles, and access.</div>
+      </div>
 
-        <div style={S.headerActions}>
+      <div style={S.searchCard}>
+        <div style={S.headerRow}>
           <div style={S.searchWrap}>
             <span style={S.searchIcon}>🔍</span>
-            <input className="input" placeholder="Nom, email, matricule…" value={q} onChange={(e) => setQ(e.target.value)} style={S.searchInput} />
+            <input className="input" placeholder="Name, email, matricule…" value={q} onChange={(e) => setQ(e.target.value)} style={S.searchInput} />
           </div>
 
-          <button className="btn btn-primary" onClick={load} disabled={loading} style={S.refreshBtn}>
-            {loading ? "Chargement…" : "Actualiser"}
-          </button>
-
-          <button
-  className="btn"
-  onClick={() => setImportOpen(true)}
-  disabled={loading}
-  style={{ ...S.refreshBtn, background: "#0ea5e9", border: "none", color: "#fff" }}
->
-  Import Excel
-</button>
-<ImportUsersModal
-  open={importOpen}
-  onClose={() => setImportOpen(false)}
-  onImported={load}
-/>
-
+          <div style={S.headerActions}>
+            <button className="btn" onClick={load} disabled={loading} style={S.simpleBtn}>
+              {loading ? "Loading…" : "Refresh"}
+            </button>
+            <button className="btn" onClick={() => setImportOpen(true)} disabled={loading} style={S.simpleBtn}>
+              Import Excel
+            </button>
+            <button className="btn btn-primary" onClick={() => setAddOpen(true)} disabled={loading} style={S.addBtn}>
+              + Add
+            </button>
+            <ImportUsersModal open={importOpen} onClose={() => setImportOpen(false)} onImported={load} />
+          </div>
         </div>
+
+        <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+          <select
+            value={filterRole}
+            onChange={(e) => setFilterRole(e.target.value)}
+            style={{ ...S.roleSelect, flex: "0 0 auto" }}
+          >
+            <option value="">All Roles</option>
+            <option value="EMPLOYEE">Employee</option>
+            <option value="MANAGER">Manager</option>
+            <option value="HR">HR</option>
+          </select>
+
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            style={{ ...S.roleSelect, flex: "0 0 auto" }}
+          >
+            <option value="">All Status</option>
+            <option value="online">Online</option>
+            <option value="offline">Offline</option>
+          </select>
+
+          <select
+            value={filterDepartment}
+            onChange={(e) => setFilterDepartment(e.target.value)}
+            style={{ ...S.roleSelect, flex: "0 0 auto" }}
+          >
+            <option value="">All Departments</option>
+            {departmentOptions.map((dept) => (
+              <option key={dept.value} value={dept.value}>
+                {dept.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {err && (
+          <div style={S.errorBox}>
+            <span style={{ color: "#ef4444", fontWeight: 800 }}>{err}</span>
+          </div>
+        )}
       </div>
-
-      {err && (
-        <div style={S.errorBox}>
-          <span style={{ color: "#ef4444", fontWeight: 800 }}>{err}</span>
-        </div>
-      )}
 
       <div style={S.tableWrap}>
         <table style={S.table}>
           <thead>
             <tr>
               <th style={S.th}></th>
-              <th style={S.th}>Nom</th>
-              <th style={S.th}>Email</th>
-              <th style={S.th}>Matricule</th>
-              <th style={S.th}>Téléphone</th>
-              <th style={S.th}>Embauche</th>
-              <th style={S.th}>Rôle</th>
-              <th style={S.th}>Statut</th>
-              <th style={S.th}>Dernière connexion</th>
-              <th style={{ ...S.th, width: 160, minWidth: 160 }}>Actions</th>
+              <th style={S.th}>Name</th>
+              <th style={S.th}>Role</th>
+              <th style={S.th}>Department</th>
+              <th style={S.th}>Status</th>
+              <th style={{ ...S.th, width: 120, minWidth: 120 }}>Actions</th>
             </tr>
           </thead>
 
           <tbody>
-            {filtered.map((u: any, i) => (
+            {paginatedUsers.map((u: any, i) => (
               <tr key={u._id} style={{ ...S.tr, background: i % 2 === 1 ? "rgba(248,250,252,0.8)" : "#fff" }}>
                 <td style={S.td}>
                   <UserAvatar name={u.name} email={u.email} avatarUrl={u.avatarUrl} size={40} />
                 </td>
 
                 <td style={{ ...S.td, fontWeight: 800, color: "#0f172a" }}>{u.name}</td>
-                <td style={{ ...S.td, color: "#64748b", fontSize: 13 }}>{u.email}</td>
-                <td style={S.td}>{u.matricule || "—"}</td>
-                <td style={S.td}>{u.telephone || "—"}</td>
-                <td style={S.td}>{fmtDate(u.date_embauche)}</td>
 
                 <td style={S.td}>
                   <select className="select" value={normalizeRole(u.role)} onChange={(e) => onChangeRole(u._id, normalizeRole(e.target.value))} style={S.roleSelect}>
@@ -632,20 +760,29 @@ const [importOpen, setImportOpen] = useState(false);
                 </td>
 
                 <td style={S.td}>
-                  <Pill text={u.en_ligne ? "En ligne" : "Hors ligne"} tone={u.en_ligne ? "success" : "neutral"} />
+                  <select className="select" value={getUserDepartmentValue(u)} onChange={(e) => onChangeDepartment(u._id, e.target.value)} style={S.roleSelect}>
+                    <option value="">No dept</option>
+                    {departmentOptions.map((dept) => (
+                      <option key={dept.value} value={dept.value}>
+                        {dept.label}
+                      </option>
+                    ))}
+                  </select>
                 </td>
 
-                <td style={{ ...S.td, color: "#64748b", fontSize: 13 }}>{fmtDateTime(u.lastLogin) === "-" ? "—" : fmtDateTime(u.lastLogin)}</td>
+                <td style={S.td}>
+                  <Pill text={u.en_ligne ? "Online" : "Offline"} tone={u.en_ligne ? "success" : "neutral"} />
+                </td>
 
                 <td style={{ ...S.td, whiteSpace: "nowrap" }}>
                   <div style={S.actionsGroup}>
-                    <button type="button" onClick={() => openView(u)} style={S.actionBtn} title="Voir">
+                    <button type="button" onClick={() => openView(u)} style={S.actionBtn} title="View">
                       <IconEye />
                     </button>
-                    <button type="button" onClick={() => openEdit(u)} style={{ ...S.actionBtn, ...S.actionBtnPrimary }} title="Modifier">
+                    <button type="button" onClick={() => openEdit(u)} style={{ ...S.actionBtn, ...S.actionBtnPrimary }} title="Edit">
                       <IconPencil />
                     </button>
-                    <button type="button" onClick={() => setDeleteTarget(u)} style={{ ...S.actionBtn, ...S.actionBtnDanger }} title="Supprimer">
+                    <button type="button" onClick={() => setDeleteTarget(u)} style={{ ...S.actionBtn, ...S.actionBtnDanger }} title="Delete">
                       <IconTrash />
                     </button>
                   </div>
@@ -656,30 +793,47 @@ const [importOpen, setImportOpen] = useState(false);
             {!loading && filtered.length === 0 && (
               <tr>
                 <td colSpan={10} style={S.emptyCell}>
-                  Aucun utilisateur trouvé.
+                  No users found.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
+
+        {!loading && filtered.length > 0 && (
+          <div style={S.paginationRow}>
+            <div style={S.paginationInfo}>
+              Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, filtered.length)} of {filtered.length} users
+            </div>
+            <div style={S.paginationControls}>
+              <button className="btn" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} style={S.simpleBtn} aria-label="Previous page" title="Previous page">
+                &lt;
+              </button>
+              <span style={S.pageBadge}>Page {page} / {totalPages}</span>
+              <button className="btn" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={S.simpleBtn} aria-label="Next page" title="Next page">
+                &gt;
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {deleteTarget && (
         <div style={S.modalBackdrop} onClick={() => !deleting && setDeleteTarget(null)}>
           <div style={S.deleteModalCard} onClick={(e) => e.stopPropagation()}>
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 18, fontWeight: 900, color: "#0f172a" }}>Supprimer l'utilisateur ?</div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: "#0f172a" }}>Delete user?</div>
               <div style={{ marginTop: 6, color: "#64748b", fontSize: 14 }}>
-                <strong>{deleteTarget.name}</strong> ({deleteTarget.email}) sera supprimé définitivement.
+                <strong>{deleteTarget.name}</strong> ({deleteTarget.email}) will be permanently deleted.
               </div>
             </div>
 
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
               <button type="button" className="btn" onClick={() => !deleting && setDeleteTarget(null)} disabled={deleting}>
-                Annuler
+                Cancel
               </button>
               <button type="button" className="btn btn-danger" onClick={onConfirmDelete} disabled={deleting} style={{ background: "#dc2626", color: "#fff", border: "none" }}>
-                {deleting ? "Suppression…" : "Supprimer"}
+                {deleting ? "Deleting…" : "Delete"}
               </button>
             </div>
           </div>
@@ -725,12 +879,12 @@ const [importOpen, setImportOpen] = useState(false);
       {/* ADD EMPLOYEE MODAL */}
       <Modal
         open={addOpen}
-        title="Ajouter un employé"
-        subtitle="Créer un nouveau compte utilisateur"
+        title="Add Employee"
+        subtitle="Create a new user account"
         onClose={closeAdd}
         right={
           <Button variant="primary" onClick={saveCreate} disabled={addSaving}>
-            {addSaving ? "Création…" : "Créer"}
+            {addSaving ? "Creating…" : "Create"}
           </Button>
         }
       >
@@ -770,7 +924,7 @@ function UserDetailsGrid({ user }: { user: any }) {
           <div className="muted">Matricule</div>
           <div style={S.blockValue}>{user.matricule || "-"}</div>
 
-          <div className="muted">Telephone</div>
+          <div className="muted">Phone</div>
           <div style={S.blockValue}>{user.telephone || "-"}</div>
         </div>
 
@@ -818,9 +972,9 @@ function UserDetailsGrid({ user }: { user: any }) {
         <div className="card" style={{ padding: 12, gridColumn: "1 / -1" }}>
           <div style={S.blockTitle}>Flags</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Pill text={`En ligne : ${user.en_ligne ? "Oui" : "Non"}`} tone={user.en_ligne ? "success" : "neutral"} />
-            <Pill text={`Actif : ${user.isActive ? "Oui" : "Non"}`} />
-            <Pill text={`Email vérifié : ${user.emailVerified ? "Oui" : "Non"}`} />
+            <Pill text={`Online: ${user.en_ligne ? "Yes" : "No"}`} tone={user.en_ligne ? "success" : "neutral"} />
+            <Pill text={`Active: ${user.isActive ? "Yes" : "No"}`} />
+            <Pill text={`Email Verified: ${user.emailVerified ? "Yes" : "No"}`} />
           </div>
         </div>
       </div>
@@ -932,12 +1086,12 @@ function AddUserForm({
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
       <div className="card" style={{ padding: 12 }}>
-        <div style={S.blockTitle}>Informations de base</div>
+        <div style={S.blockTitle}>Basic Information</div>
 
-        <Label text="Nom *" />
+        <Label text="Name *" />
         <input
           className="input"
-          placeholder="Nom complet"
+          placeholder="Full name"
           value={value.name}
           onChange={(e) => onChange((p) => ({ ...p, name: e.target.value }))}
         />
@@ -948,28 +1102,28 @@ function AddUserForm({
         <input
           className="input"
           type="email"
-          placeholder="email@exemple.com"
+          placeholder="email@company.com"
           value={value.email}
           onChange={(e) => onChange((p) => ({ ...p, email: e.target.value }))}
         />
 
         <div style={{ height: 10 }} />
 
-        <Label text="Mot de passe *" />
+        <Label text="Password *" />
         <input
           className="input"
           type="password"
-          placeholder="Min. 8 caractères, au moins 1 chiffre"
+          placeholder="Min. 8 characters, at least 1 number"
           value={value.password}
           onChange={(e) => onChange((p) => ({ ...p, password: e.target.value }))}
         />
         <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
-          Au moins 8 caractères et 1 chiffre requis
+          Minimum 8 characters and 1 number required
         </div>
 
         <div style={{ height: 10 }} />
 
-        <Label text="Rôle" />
+        <Label text="Role" />
         <select
           className="select"
           value={value.role}
@@ -982,9 +1136,9 @@ function AddUserForm({
       </div>
 
       <div className="card" style={{ padding: 12 }}>
-        <div style={S.blockTitle}>Informations professionnelles</div>
+        <div style={S.blockTitle}>Professional Information</div>
 
-        <Label text="Date d'embauche *" />
+        <Label text="Hire Date *" />
         <input
           className="input"
           type="date"
@@ -997,17 +1151,17 @@ function AddUserForm({
         <Label text="Matricule *" />
         <input
           className="input"
-          placeholder="Ex: EMP-001"
+          placeholder="E.g: EMP-001"
           value={value.matricule}
           onChange={(e) => onChange((p) => ({ ...p, matricule: e.target.value }))}
         />
 
         <div style={{ height: 10 }} />
 
-        <Label text="Téléphone *" />
+        <Label text="Phone *" />
         <input
           className="input"
-          placeholder="Ex: +216 12 345 678"
+          placeholder="E.g: +216 12 345 678"
           value={value.telephone}
           onChange={(e) => onChange((p) => ({ ...p, telephone: e.target.value }))}
         />
@@ -1021,12 +1175,25 @@ function AddUserForm({
    ======================= */
 
 const S: Record<string, React.CSSProperties> = {
+  pageContainer: {
+    padding: 20,
+    borderRadius: 0,
+    background: "transparent",
+  },
   pageCard: {
     padding: 20,
     borderRadius: 16,
     background: "#fff",
     border: "1px solid rgba(15,23,42,0.08)",
     boxShadow: "0 4px 20px rgba(15,23,42,0.06)",
+  },
+  searchCard: {
+    background: "#fff",
+    border: "1px solid rgba(15,23,42,0.08)",
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 12,
+    marginBottom: 16,
   },
   statsRow: {
     display: "flex",
@@ -1035,13 +1202,13 @@ const S: Record<string, React.CSSProperties> = {
     flexWrap: "wrap",
   },
   statCard: {
-    flex: "1 1 140px",
-    minWidth: 140,
-    padding: "16px 18px",
+    flex: "1 1 100px",
+    minWidth: 100,
+    padding: "10px 12px",
     borderRadius: 12,
     background: "#fff",
     border: "1px solid rgba(15,23,42,0.08)",
-    borderLeft: "4px solid rgba(15,23,42,0.15)",
+    borderLeft: "3px solid rgba(15,23,42,0.12)",
   },
   statCardInner: {
     display: "flex",
@@ -1049,20 +1216,29 @@ const S: Record<string, React.CSSProperties> = {
     justifyContent: "space-between",
     gap: 12,
   },
-  statValue: { fontSize: 28, fontWeight: 900, color: "#0f172a", lineHeight: 1 },
-  statLabel: { fontSize: 13, fontWeight: 700, color: "#64748b", whiteSpace: "nowrap" },
+  statValue: { fontSize: 18, fontWeight: 900, color: "#0f172a", lineHeight: 1 },
+  statLabel: { fontSize: 11, fontWeight: 700, color: "#64748b", whiteSpace: "nowrap" },
 
   pageTitle: { fontSize: 22, fontWeight: 900, color: "#0f172a" },
   pageSubtitle: { fontSize: 14, color: "#64748b", marginTop: 4 },
 
+  headerTop: {
+    marginBottom: 16,
+  },
   headerRow: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
-    flexWrap: "wrap",
+    gap: 590,
   },
-  headerActions: { display: "flex", alignItems: "center", gap: 10 },
+  headerLeft: {
+    display: "flex",
+    alignItems: "center",
+    flex: "0 0 auto",
+  },
+  headerActions: { display: "flex", alignItems: "center", gap: 8, flex: "0 0 auto" },
+  simpleBtn: { borderRadius: 12, fontWeight: 700, border: "1px solid rgba(15,23,42,0.12)", background: "#fff", color: "#0f172a" },
+  addBtn: { borderRadius: 12, fontWeight: 700, background: "rgba(31,122,90,0.10)", border: "1px solid rgba(31,122,90,0.20)", color: "#145a41" },
   searchWrap: {
     position: "relative",
     display: "inline-flex",
@@ -1080,7 +1256,35 @@ const S: Record<string, React.CSSProperties> = {
     background: "rgba(239,68,68,0.06)",
   },
 
-  tableWrap: { overflowX: "auto", marginTop: 18, borderRadius: 12, border: "1px solid rgba(15,23,42,0.08)" },
+  tableWrap: { overflowX: "auto", marginTop: 0, borderRadius: 12, border: "1px solid rgba(15,23,42,0.08)", background: "#fff", overflow: "hidden" },
+  paginationRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+    padding: "12px 14px",
+    borderTop: "1px solid rgba(15,23,42,0.08)",
+    flexWrap: "wrap",
+  },
+  paginationInfo: {
+    color: "#64748b",
+    fontSize: 13,
+    fontWeight: 700,
+  },
+  paginationControls: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+  },
+  pageBadge: {
+    padding: "6px 10px",
+    borderRadius: 10,
+    border: "1px solid rgba(15,23,42,0.1)",
+    background: "#fff",
+    color: "#0f172a",
+    fontWeight: 800,
+    fontSize: 13,
+  },
   table: { width: "100%", borderCollapse: "collapse" },
   th: {
     padding: "14px 12px",
