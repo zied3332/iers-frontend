@@ -91,6 +91,18 @@ function roleTone(role?: Role): Tone {
   return "neutral";
 }
 
+function getDepartmentName(user: any): string {
+  // Check if departement_id is populated with a department object
+  if (user?.departement_id && typeof user.departement_id === 'object' && user.departement_id.name) {
+    return user.departement_id.name;
+  }
+  // Fallback to department field
+  if (user?.department && typeof user.department === 'string') {
+    return user.department;
+  }
+  return "";
+}
+
 function Avatar({
   name,
   email,
@@ -573,7 +585,7 @@ export default function Profile() {
     const checks = [
       Boolean((uAny.avatarUrl ?? avatarUrl)?.trim()),
       Boolean((user.telephone ?? telephone)?.trim()),
-      Boolean((user.department ?? editDepartment)?.trim()),
+      Boolean((getDepartmentName(user) ?? editDepartment)?.trim()),
       Boolean((user.matricule ?? editMatricule)?.trim()),
       Boolean((user.date_embauche ?? editHireDate)?.toString().trim()),
       Boolean((uAny.status ?? editStatus)?.toString().trim()),
@@ -600,11 +612,13 @@ export default function Profile() {
       await patchMe({
         telephone: telephone.trim() || undefined,
         avatarUrl: avatarUrl.trim() || undefined,
+        department: editDepartment.trim() || undefined,
       });
 
       const next = { ...user, telephone: telephone.trim() || undefined } as any;
       const newAvatar = avatarUrl.trim() || undefined;
       next.avatarUrl = newAvatar;
+      next.department = editDepartment.trim() || undefined;
       setUser(next);
       if (newAvatar) setStoredAvatarUrl(user._id, newAvatar);
       else setStoredAvatarUrl(user._id, "");
@@ -634,9 +648,11 @@ export default function Profile() {
         await patchMe({
           telephone: telephone.trim() || undefined,
           avatarUrl: dataUrl,
+          department: editDepartment.trim() || undefined,
         });
         const next = { ...user } as any;
         next.avatarUrl = dataUrl;
+        next.department = editDepartment.trim() || undefined;
         setUser(next);
         setStoredAvatarUrl(user._id, dataUrl);
         window.dispatchEvent(new CustomEvent("avatar-updated"));
@@ -941,7 +957,7 @@ export default function Profile() {
 
               <div>
                 <div style={L.heroName}>{user.name}</div>
-                <div style={L.heroRole}>{roleLabel(user.role)}{user.department ? ` • ${user.department}` : ""}</div>
+                <div style={L.heroRole}>{roleLabel(user.role)}{getDepartmentName(user) ? ` • ${getDepartmentName(user)}` : ""}</div>
 
                 <div style={L.metaRow}>
                   {user.matricule ? (
@@ -1092,7 +1108,7 @@ export default function Profile() {
                   <Card title="Personal Info" subtitle="View-only summary (company fields may be locked)">
                     <Field label="Email" value={user.email} />
                     <Field label="Phone" value={user.telephone} />
-                    <Field label="Department" value={user.department} />
+                    <Field label="Department" value={getDepartmentName(user) || "—"} />
                     <Field label="Matricule" value={user.matricule} />
                     <Field
                       label="Hire date"
@@ -1123,7 +1139,7 @@ export default function Profile() {
                   <Card title="System Status" subtitle="Live status overview">
                     <Field label="Presence" value={user.en_ligne ? "Online (active session)" : "Offline"} />
                     <Field label="Role" value={safeUpper(user.role as any)} />
-                    <Field label="Department" value={user.department} />
+                    <Field label="Department" value={getDepartmentName(user) || "—"} />
                     {"emailVerified" in (user as any) ? (
                       <Field label="Email verified" value={String((user as any).emailVerified)} />
                     ) : null}
@@ -1199,7 +1215,7 @@ export default function Profile() {
                       <div style={{ display: "grid", gap: 10 }}>
                         <Field label="Full name" value={editName || user.name} />
                         <Field label="Email" value={editEmail || user.email} />
-                        <Field label="Department" value={editDepartment || user.department} />
+                        <Field label="Department" value={editDepartment || getDepartmentName(user)} />
                         <Field label="Matricule" value={editMatricule || user.matricule} />
                         <Field
                           label="Hire date"
