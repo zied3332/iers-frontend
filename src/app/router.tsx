@@ -17,6 +17,7 @@ import HrActivitiesManagement from "../pages/hr/ActivitiesManagement.tsx";
 import HrSkillsDashboard from "../pages/hr/HrSkillsDashboard";
 import UsersManagement from "../pages/hr/UsersManagement";
 import HrDepartments from "../pages/hr/Departments";
+import HrGenerateRecommendations from "../pages/hr/GenerateRecommendations";
 import SkillsManagementPage from "../pages/hr/skills/SkillsManagementPage";
 import AssignSkillPage from "../pages/hr/skills/AssignSkillPage";
 
@@ -105,8 +106,8 @@ export const router = createBrowserRouter([
           { path: "activities", element: <HrActivitiesManagement /> },
           { path: "employees/:id", element: <Blank /> },
           { path: "skills-dashboard", element: <HrSkillsDashboard /> },
-          { path: "recommendations", element: <Blank /> },
-          { path: "recommendations/generate", element: <Blank /> },
+          { path: "recommendations", element: <HrGenerateRecommendations /> },
+          { path: "recommendations/generate", element: <HrGenerateRecommendations /> },
 
           { path: "users", element: <UsersManagement /> },
           { path: "departments", element: <HrDepartments /> },

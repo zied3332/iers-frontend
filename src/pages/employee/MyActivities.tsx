@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   listActivities,
   getActivitySkills,
+  enrollInActivity,
   type ActivityRecord,
   type ActivitySkillRecord,
 } from "../../services/activities.service";
@@ -50,6 +52,8 @@ function formatLevel(v: string) {
 }
 
 export default function MyActivities() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -75,8 +79,9 @@ export default function MyActivities() {
       try {
         const activitiesRes = await listActivities();
         setActivities(activitiesRes || []);
-      } catch (e: any) {
-        setError(e?.message || "Failed to load activities.");
+      } catch (e: unknown) {
+        console.error("Failed to load activities:", e);
+        setError(e instanceof Error ? e.message : "Failed to load activities.");
       } finally {
         setLoading(false);
       }
@@ -93,36 +98,74 @@ export default function MyActivities() {
     // Employees should only see PLANNED activities assigned to their own department.
     if (!myDepartmentId) return [];
     return activities.filter(
-      (a: any) => !!a.departmentId && String(a.departmentId) === myDepartmentId && a.status === "PLANNED"
+      (a) => !!a.departmentId && String(a.departmentId) === myDepartmentId && a.status === "PLANNED"
     );
   }, [activities, myDepartmentId]);
 
-  const openActivityDetails = async (activity: ActivityRecord) => {
+  const openActivityDetails = useCallback(async (activity: ActivityRecord) => {
     setSelectedActivity(activity);
     try {
       const skills = await getActivitySkills(activity._id);
       setActivitySkills(skills);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error("Failed to load skills:", e);
       setActivitySkills([]);
     }
-  };
+  }, []);
+
+  const closeActivityDetails = useCallback(() => {
+    setSelectedActivity(null);
+    setActivitySkills([]);
+    const params = new URLSearchParams(location.search);
+    if (params.has("activityId")) {
+      navigate("/me/activities", { replace: true });
+    }
+  }, [location.search, navigate]);
+
+  const currentEmployeeId = useMemo(() => {
+    return (
+      String(currentUser?.employeeId || "") ||
+      String(currentUser?._id || "") ||
+      String(currentUser?.id || "")
+    );
+  }, [currentUser]);
 
   const handleEnroll = async (activityId: string) => {
+    if (enrolling === activityId) return;
     setEnrolling(activityId);
     setError("");
     setEnrollSuccess("");
     try {
-      // TODO: Create API endpoint for enrollment
-      // await enrollInActivity(activityId);
-      setEnrollSuccess("Enrollment request submitted! HR will review it.");
+      const response = await enrollInActivity(activityId, currentEmployeeId || undefined);
+      const apiMessage = String(
+        response?.message || response?.statusMessage || ""
+      ).trim();
+
+      setEnrollSuccess(apiMessage || "Enrollment request submitted successfully.");
       setTimeout(() => setEnrollSuccess(""), 3000);
-    } catch (e: any) {
-      setError(e?.message || "Failed to enroll in activity.");
+    } catch (e: unknown) {
+      console.error("Enrollment failed:", e);
+      setError(e instanceof Error ? e.message : "Failed to enroll in activity.");
     } finally {
       setEnrolling(null);
     }
   };
+
+  useEffect(() => {
+    if (!activities.length) return;
+    const params = new URLSearchParams(location.search);
+    const requestedActivityId = params.get("activityId");
+    if (!requestedActivityId) return;
+    if (selectedActivity?._id === requestedActivityId) return;
+
+    const targetActivity = activities.find((activity) => activity._id === requestedActivityId);
+    if (!targetActivity) {
+      setError("L'activité demandée est introuvable.");
+      return;
+    }
+
+    void openActivityDetails(targetActivity);
+  }, [activities, location.search, openActivityDetails, selectedActivity?._id]);
 
   if (loading) {
     return (
@@ -162,7 +205,7 @@ export default function MyActivities() {
           </div>
         ) : (
           <div style={{ display: "grid", gap: 16 }}>
-            {departmentActivities.map((activity: any) => (
+            {departmentActivities.map((activity) => (
               <div
                 key={activity._id}
                 style={{
@@ -178,7 +221,11 @@ export default function MyActivities() {
                     <div style={{ fontWeight: 900, fontSize: 16, color: "#0f172a" }}>
                       {activity.title}
                     </div>
-                    <span style={badge(...contextColors[activity.priorityContext])}>
+                    <span
+                      style={badge(
+                        ...(contextColors[activity.priorityContext] || contextColors.DEVELOPMENT)
+                      )}
+                    >
                       {activity.priorityContext}
                     </span>
                   </div>
@@ -232,7 +279,7 @@ export default function MyActivities() {
       {/* Details Modal */}
       {selectedActivity && (
         <div
-          onClick={() => setSelectedActivity(null)}
+          onClick={closeActivityDetails}
           style={{
             position: "fixed",
             inset: 0,
@@ -259,7 +306,7 @@ export default function MyActivities() {
               <button
                 type="button"
                 style={{ ...btn }}
-                onClick={() => setSelectedActivity(null)}
+                onClick={closeActivityDetails}
               >
                 Close
               </button>
@@ -308,9 +355,9 @@ export default function MyActivities() {
                 <div>
                   <div style={{ fontWeight: 700, color: "#64748b", marginBottom: 8 }}>Required Skills</div>
                   <div style={{ display: "grid", gap: 8 }}>
-                    {activitySkills.map((as: any, idx: number) => (
+                    {activitySkills.map((as, idx) => (
                       <div
-                        key={idx}
+                        key={as._id || `${as.skill_id?._id || "skill"}-${idx}`}
                         style={{
                           borderLeft: "3px solid #e0f2fe",
                           paddingLeft: 12,
@@ -330,7 +377,7 @@ export default function MyActivities() {
               )}
 
               <div style={{ marginTop: 16, display: "flex", gap: 10 }}>
-                <button style={{ ...btn, flex: 1 }} onClick={() => setSelectedActivity(null)}>
+                <button style={{ ...btn, flex: 1 }} onClick={closeActivityDetails}>
                   Close
                 </button>
                 <button
@@ -338,7 +385,7 @@ export default function MyActivities() {
                   disabled={enrolling === selectedActivity._id}
                   onClick={() => {
                     handleEnroll(selectedActivity._id);
-                    setSelectedActivity(null);
+                    closeActivityDetails();
                   }}
                 >
                   {enrolling === selectedActivity._id ? "Enrolling..." : "Enroll Now"}

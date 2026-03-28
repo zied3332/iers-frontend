@@ -16,6 +16,11 @@ type EmployeeSkillItem = {
   };
 };
 
+const scoreFormatter = new Intl.NumberFormat(undefined, {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+});
+
 export default function MySkillsPage() {
   const [skills, setSkills] = useState<EmployeeSkillItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -175,7 +180,7 @@ export default function MySkillsPage() {
                         {getLevelLabel(item.level)}
                       </span>
                     </td>
-                    <td>{item.dynamicScore ?? 0}</td>
+                    <td>{scoreFormatter.format(Number(item.dynamicScore ?? 0))}</td>
                     <td>
                       {item.lastUpdated
                         ? new Date(item.lastUpdated).toLocaleDateString()

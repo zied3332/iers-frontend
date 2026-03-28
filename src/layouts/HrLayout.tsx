@@ -33,7 +33,7 @@ export default function HrLayout() {
         { to: "/hr/skills", label: "Skills Management", end: true },
         { to: "/hr/skills/assign", label: "Assign Skills", end: true },
 
-        { to: "/hr/blank", label: "Recommendations" },
+        { to: "/hr/recommendations", label: "Recommendations" },
         { to: "/hr/departments", label: "Departments Management" },
         { to: "/hr/users", label: "User Management" },
       ]}

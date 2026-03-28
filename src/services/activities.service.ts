@@ -69,6 +69,38 @@ async function handle(res: Response) {
   return txt ? JSON.parse(txt) : null;
 }
 
+async function requestWithFallback(
+  paths: string[],
+  options: RequestInit
+): Promise<unknown> {
+  let lastError: Error | null = null;
+
+  for (const path of paths) {
+    const res = await fetch(`${BASE}${path}`, options);
+
+    if (res.ok) {
+      return handle(res);
+    }
+
+    // Try next candidate only for not-found/method mismatch routes.
+    if (res.status === 404 || res.status === 405) {
+      const body = await res.text();
+      lastError = new Error(body || `Cannot ${options.method || "GET"} ${path}`);
+      continue;
+    }
+
+    try {
+      await handle(res);
+    } catch (e: unknown) {
+      lastError = e instanceof Error ? e : new Error("Request failed");
+    }
+    break;
+  }
+
+  if (lastError) throw lastError;
+  throw new Error("Request failed: no endpoint candidate available.");
+}
+
 function toId(value: any): string | undefined {
   if (!value) return undefined;
   if (typeof value === "string") return value;
@@ -224,6 +256,124 @@ export type ActivitySkillRecord = {
   weight: number;
 };
 
+export type ParticipationStatus =
+  | "ENROLLED"
+  | "APPROVED"
+  | "COMPLETED"
+  | "REJECTED"
+  | "CANCELLED";
+
+export type ActivityParticipationRecord = {
+  _id?: string;
+  activityId?: string;
+  employeeId: string;
+  status: ParticipationStatus;
+  employee?: {
+    _id?: string;
+    id?: string;
+    name?: string;
+    email?: string;
+    department?: string | { _id?: string; name?: string };
+    [key: string]: unknown;
+  } | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type SkillScoreItem = {
+  skillId: string;
+  requiredLevel: "LOW" | "MEDIUM" | "HIGH" | "EXPERT";
+  weight: number;
+  employeeDynamicScore: number;
+  contribution: number;
+};
+
+export type ActivityScoreResponse = {
+  activityId: string;
+  employeeId: string;
+  weightedScore: number;
+  weightTotal: number;
+  globalScore: number;
+  skillScores: SkillScoreItem[];
+};
+
+function normalizeParticipationStatus(value: unknown): ParticipationStatus {
+  const normalized = String(value || "").toUpperCase();
+  if (
+    normalized === "ENROLLED" ||
+    normalized === "APPROVED" ||
+    normalized === "COMPLETED" ||
+    normalized === "REJECTED" ||
+    normalized === "CANCELLED"
+  ) {
+    return normalized;
+  }
+  return "ENROLLED";
+}
+
+function extractId(value: unknown): string {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object") {
+    const candidate = value as { _id?: unknown; id?: unknown };
+    if (typeof candidate._id === "string") return candidate._id;
+    if (typeof candidate.id === "string") return candidate.id;
+  }
+  return "";
+}
+
+function mapParticipation(raw: unknown): ActivityParticipationRecord {
+  const source = (raw || {}) as Record<string, unknown>;
+  const employeeNode =
+    source.employee ??
+    source.employee_id ??
+    source.employeeId ??
+    null;
+  const employeeId = extractId(employeeNode || source.employeeId || source.employee_id);
+
+  return {
+    _id: extractId(source._id) || undefined,
+    activityId: extractId(source.activity || source.activity_id || source.activityId) || undefined,
+    employeeId,
+    status: normalizeParticipationStatus(source.status),
+    employee:
+      employeeNode && typeof employeeNode === "object"
+        ? (employeeNode as ActivityParticipationRecord["employee"])
+        : null,
+    createdAt: String(source.createdAt || source.created_at || ""),
+    updatedAt: String(source.updatedAt || source.updated_at || ""),
+  };
+}
+
+function mapActivityScore(raw: unknown): ActivityScoreResponse {
+  const source = (raw || {}) as Record<string, unknown>;
+  const rawSkillScores = Array.isArray(source.skillScores) ? source.skillScores : [];
+
+  const skillScores: SkillScoreItem[] = rawSkillScores.map((item) => {
+    const scoreItem = (item || {}) as Record<string, unknown>;
+    return {
+      skillId: extractId(scoreItem.skillId || scoreItem.skill_id),
+      requiredLevel: String(scoreItem.requiredLevel || scoreItem.required_level || "LOW").toUpperCase() as
+        | "LOW"
+        | "MEDIUM"
+        | "HIGH"
+        | "EXPERT",
+      weight: Number(scoreItem.weight || 0),
+      employeeDynamicScore: Number(scoreItem.employeeDynamicScore || scoreItem.employee_dynamic_score || 0),
+      contribution: Number(scoreItem.contribution || 0),
+    };
+  });
+
+  return {
+    activityId: extractId(source.activityId || source.activity_id),
+    employeeId: extractId(source.employeeId || source.employee_id),
+    weightedScore: Number(source.weightedScore || source.weighted_score || 0),
+    weightTotal: Number(source.weightTotal || source.weight_total || 0),
+    globalScore: Number(source.globalScore || source.global_score || 0),
+    skillScores,
+  };
+}
+
 export async function addSkillToActivity(
   activityId: string,
   skillId: string,
@@ -254,6 +404,97 @@ export async function getActivitySkills(activityId: string): Promise<ActivitySki
 
   const data = await handle(res);
   return Array.isArray(data) ? data : [];
+}
+
+export async function enrollInActivity(
+  activityId: string,
+  employeeId?: string
+): Promise<Record<string, unknown>> {
+  const payload = employeeId ? { employee_id: employeeId } : undefined;
+  const activity = encodeURIComponent(activityId);
+
+  const data = await requestWithFallback(
+    [
+      `/activities/${activity}/enroll`,
+      `/activity/${activity}/enroll`,
+      `/activities/${activity}/enrollment`,
+    ],
+    {
+      method: "POST",
+      headers: authHeaders(),
+      ...(payload ? { body: JSON.stringify(payload) } : {}),
+    }
+  );
+  return (data || {}) as Record<string, unknown>;
+}
+
+export async function updateParticipationStatus(
+  activityId: string,
+  employeeId: string,
+  status: ParticipationStatus
+): Promise<ActivityParticipationRecord> {
+  const activity = encodeURIComponent(activityId);
+  const employee = encodeURIComponent(employeeId);
+
+  const data = await requestWithFallback(
+    [
+      `/activities/${activity}/participations/${employee}/status`,
+      `/activity/${activity}/participations/${employee}/status`,
+      `/activities/${activity}/participation/${employee}/status`,
+      `/activity/${activity}/participation/${employee}/status`,
+    ],
+    {
+      method: "PATCH",
+      headers: authHeaders(),
+      body: JSON.stringify({ status }),
+    }
+  );
+  return mapParticipation(data);
+}
+
+export async function getActivityParticipations(
+  activityId: string,
+  status?: ParticipationStatus | "ALL"
+): Promise<ActivityParticipationRecord[]> {
+  const activity = encodeURIComponent(activityId);
+  const query = status && status !== "ALL" ? `?status=${encodeURIComponent(status)}` : "";
+
+  const data = await requestWithFallback(
+    [
+      `/activities/${activity}/participations${query}`,
+      `/activity/${activity}/participations${query}`,
+      `/activities/${activity}/participation${query}`,
+      `/activity/${activity}/participation${query}`,
+    ],
+    {
+      method: "GET",
+      headers: authHeaders(),
+    }
+  );
+  const rows = Array.isArray(data) ? data : [];
+  return rows.map(mapParticipation).filter((row) => !!row.employeeId);
+}
+
+export async function getActivityScoreForEmployee(
+  activityId: string,
+  employeeId: string
+): Promise<ActivityScoreResponse> {
+  const activity = encodeURIComponent(activityId);
+  const employee = encodeURIComponent(employeeId);
+
+  const data = await requestWithFallback(
+    [
+      `/activities/${activity}/score/${employee}`,
+      `/activity/${activity}/score/${employee}`,
+      `/activities/${activity}/scores/${employee}`,
+      `/activity/${activity}/scores/${employee}`,
+    ],
+    {
+      method: "GET",
+      headers: authHeaders(),
+    }
+  );
+  return mapActivityScore(data);
 }
 
 export async function updateActivitySkill(
