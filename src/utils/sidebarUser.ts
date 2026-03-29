@@ -35,9 +35,8 @@ export function getSidebarUserCard(defaultName: string, defaultSub: string): Sid
     if (!raw) return { name: defaultName, sub: defaultSub };
 
     const user = JSON.parse(raw) as { name?: string; role?: string; _id?: string; id?: string };
-    const userId = user?._id ?? user?.id;
-    const avatarUrl = userId ? getStoredAvatar(userId) : null;
-
+    const userId = user?._id ?? user?.id ?? "" ;    
+    const avatarUrl = userId ? getStoredAvatar(userId as string) : undefined;
     return {
       name: (user?.name as string) || defaultName,
       sub: defaultSub || getSubByRole(user?.role),
