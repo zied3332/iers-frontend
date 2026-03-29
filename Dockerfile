@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
-RUN npm run build
+RUN npx vite build
 
 # Étape 2 : servir le front avec Nginx
 FROM nginx:alpine
