@@ -3,13 +3,24 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { requestPasswordReset } from "../../services/auth.service";
 import "../../auth-pages.css";
-import authBg from "../../assets/logbackimg.png";
+
+const logoSrc = "/images/logo.png";
 
 export default function ForgotPassword() {
+  const heroImages = ["/images/bg1.png", "/images/bg2.png", "/images/bg3.png", "/images/bg4.png"];
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(2);
+
+  React.useEffect(() => {
+    const timer = window.setInterval(() => {
+      setActiveIndex((prev) => (prev + 1) % heroImages.length);
+    }, 6500);
+
+    return () => window.clearInterval(timer);
+  }, [heroImages.length]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,47 +46,48 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div className="auth-split">
-      <div
-        className="auth-left"
-        style={{
-          backgroundImage: `
-            linear-gradient(rgba(12, 79, 61, 0.85), rgba(12, 79, 61, 0.85)),
-            url(${authBg})
-          `,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-        }}
-      >
-        <div className="auth-left-inner">
-          <div className="auth-brand-mark">IntelliHR</div>
-          <h1 className="auth-hero-title">Forgot Password</h1>
-          <p className="auth-hero-sub">
-            Enter your work email address. If an account exists, you will receive a link to reset your password.
-          </p>
-          <div className="auth-bullets">
-            <div className="auth-bullet">
-              <span className="auth-check">✓</span> Secure email link
-            </div>
-            <div className="auth-bullet">
-              <span className="auth-check">✓</span> Link valid for 1 hour
-            </div>
-            <div className="auth-bullet">
-              <span className="auth-check">✓</span> No password sent in plain text
-            </div>
-          </div>
-          <div className="auth-left-foot">© {new Date().getFullYear()} IntelliHR</div>
-        </div>
-      </div>
+    <div className="auth-hero-shell">
+      {heroImages.map((img, index) => (
+        <div
+          key={img}
+          className={`auth-bg-layer ${index === activeIndex ? "active" : ""}`}
+          style={{ backgroundImage: `url(${img})` }}
+        />
+      ))}
+      <div className="auth-overlay" />
 
-      <div className="auth-right">
-        <div className="auth-card">
-          <div className="auth-card-top">
-            <div className="auth-card-brand">IntelliHR</div>
+      <nav className="auth-top-nav">
+        <div className="auth-logo-wrap">
+          <img className="auth-logo-img" src={logoSrc} alt="IntelliHR logo" />
+          <div className="auth-logo-text">IntelliHR</div>
+        </div>
+        <div className="auth-nav-links">
+          <a href="#">Who we are</a>
+          <a href="#">Services</a>
+          <a href="#">Case studies</a>
+          <a href="#">Blog</a>
+        </div>
+        <a href="#" className="auth-nav-btn">Get in touch</a>
+      </nav>
+
+      <div className="auth-hero-content">
+        <div className="auth-hero-copy">
+          <h1>
+            Forgot your
+            <span> password</span>
+          </h1>
+          <p>
+            Enter your work email and we will send a secure reset link if your account exists.
+          </p>
+        </div>
+
+        <div className="modern-auth-card">
+          <div className="brand-title">
+            <img className="brand-title-logo" src={logoSrc} alt="IntelliHR logo" />
+            <span>IntelliHR</span>
           </div>
-          <div className="auth-title">Reset Password</div>
-          <div className="auth-sub">Please enter your account email.</div>
+          <h2>Reset Password</h2>
+          <p className="auth-subtitle">Please enter your account email.</p>
 
           {error ? <div className="auth-alert">{error}</div> : null}
           {sent ? (
@@ -84,12 +96,10 @@ export default function ForgotPassword() {
             </div>
           ) : null}
 
-          {!sent && (
-            <form className="auth-form" onSubmit={onSubmit}>
-              <div className="auth-field">
-                <label className="auth-label">Email</label>
+          {!sent ? (
+            <form className="modern-auth-form" onSubmit={onSubmit}>
+              <div className="field">
                 <input
-                  className="auth-input"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@company.com"
@@ -98,24 +108,21 @@ export default function ForgotPassword() {
                   required
                 />
               </div>
-              <button className="auth-btn" type="submit" disabled={loading}>
+              <button className="primary-btn" type="submit" disabled={loading}>
                 {loading ? "Sending..." : "Send Link"}
               </button>
             </form>
-          )}
+          ) : null}
 
-          <div className="auth-links" style={{ marginTop: 20 }}>
-            <Link className="auth-link" to="/auth/login">
-              Back to login
-            </Link>
-            <span className="auth-muted">•</span>
-            <Link className="auth-link" to="/auth/signup">
-              Create account
-            </Link>
-          </div>
-          <div className="auth-help">
-            Problem? <b>Contact HR:</b> hr@company.com
-          </div>
+          <p className="switch-text" style={{ marginTop: 16 }}>
+            <Link className="text-btn-link" to="/auth/login">Back to login</Link>
+            <span style={{ margin: "0 10px", color: "#94a3b8" }}>•</span>
+            <Link className="text-btn-link" to="/auth/signup">Create account</Link>
+          </p>
+
+          <p className="help-text">
+            Problem? <strong>Contact HR:</strong> hr@company.com
+          </p>
         </div>
       </div>
     </div>

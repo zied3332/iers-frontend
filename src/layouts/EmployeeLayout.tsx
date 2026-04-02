@@ -3,7 +3,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import AppShell from "./AppShell";
 import { getSidebarUserCard } from "../utils/sidebarUser";
 import "../index.css";
-import NotificationBell from "../components/notifications/NotificationBell";
 
 export default function EmployeeLayout() {
   const [avatarRefresh, setAvatarRefresh] = useState(0);
@@ -46,7 +45,6 @@ export default function EmployeeLayout() {
           >
             My Skills
           </button>
-          <NotificationBell />
         </div>
       }
       userCard={userCard}

@@ -166,7 +166,7 @@ export const S: Record<string, React.CSSProperties> = {
 
   mono: {
     fontFamily:
-      "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+      "Open Sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
     fontSize: 12,
     color: TOKENS.text,
     fontWeight: 750,

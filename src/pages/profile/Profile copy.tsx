@@ -918,7 +918,7 @@ const S: Record<string, React.CSSProperties> = {
   fieldValue: { color: "#0f172a", fontSize: 13, fontWeight: 900, textAlign: "right" },
 
   mono: {
-    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+    fontFamily: "Open Sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
     fontSize: 12,
     color: "#0f172a",
     fontWeight: 900,

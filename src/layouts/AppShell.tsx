@@ -5,6 +5,8 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { signOut } from "../utils/auth";
 import "../index.css";
 import NotificationBell from '../components/notifications/NotificationBell';
+
+const logoSrc = "/images/logo.png";
 type NavItem = {
   to: string;
   label: string;
@@ -141,12 +143,11 @@ export default function AppShell({
       >
      
         <div className="side-brand">
-          
-          <div className="side-logo">IntelliHR</div>
+          <div className="side-logo-wrap">
+            <img className="side-logo-img" src={logoSrc} alt="IntelliHR logo" />
+            <div className="side-logo">IntelliHR</div>
+          </div>
           <span className="badge">{badge}</span>
-          <div className="topbar-actions">
-  <NotificationBell />
-</div>
         </div>
         
 
@@ -243,6 +244,7 @@ export default function AppShell({
             className="topbar-actions"
             style={{ display: "flex", gap: 10, alignItems: "center" }}
           >
+            <NotificationBell />
             {topbarRight}
 
             <NavLink

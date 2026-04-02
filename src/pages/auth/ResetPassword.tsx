@@ -4,9 +4,11 @@ import React, { useState, useEffect } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { resetPassword } from "../../services/auth.service";
 import "../../auth-pages.css";
-import authBg from "../../assets/logbackimg.png";
+
+const logoSrc = "/images/logo.png";
 
 export default function ResetPassword() {
+  const heroImages = ["/images/bg1.png", "/images/bg2.png", "/images/bg3.png", "/images/bg4.png"];
   const [searchParams] = useSearchParams();
   const nav = useNavigate();
   const token = searchParams.get("token") ?? "";
@@ -16,10 +18,19 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(3);
 
   useEffect(() => {
     if (!token.trim()) setError("Invalid or expired link. Request a new link.");
   }, [token]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setActiveIndex((prev) => (prev + 1) % heroImages.length);
+    }, 6500);
+
+    return () => window.clearInterval(timer);
+  }, [heroImages.length]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -47,87 +58,91 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="auth-split">
-      <div
-        className="auth-left"
-        style={{
-          backgroundImage: `
-            linear-gradient(rgba(12, 79, 61, 0.85), rgba(12, 79, 61, 0.85)),
-            url(${authBg})
-          `,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-        }}
-      >
-        <div className="auth-left-inner">
-          <div className="auth-brand-mark">IntelliHR</div>
-          <h1 className="auth-hero-title">New Password</h1>
-          <p className="auth-hero-sub">
-            Choose a secure password to access your account.
-          </p>
-          <div className="auth-left-foot">© {new Date().getFullYear()} IntelliHR</div>
-        </div>
-      </div>
+    <div className="auth-hero-shell">
+      {heroImages.map((img, index) => (
+        <div
+          key={img}
+          className={`auth-bg-layer ${index === activeIndex ? "active" : ""}`}
+          style={{ backgroundImage: `url(${img})` }}
+        />
+      ))}
+      <div className="auth-overlay" />
 
-      <div className="auth-right">
-        <div className="auth-card">
-          <div className="auth-card-top">
-            <div className="auth-card-brand">IntelliHR</div>
+      <nav className="auth-top-nav">
+        <div className="auth-logo-wrap">
+          <img className="auth-logo-img" src={logoSrc} alt="IntelliHR logo" />
+          <div className="auth-logo-text">IntelliHR</div>
+        </div>
+        <div className="auth-nav-links">
+          <a href="#">Who we are</a>
+          <a href="#">Services</a>
+          <a href="#">Case studies</a>
+          <a href="#">Blog</a>
+        </div>
+        <a href="#" className="auth-nav-btn">Get in touch</a>
+      </nav>
+
+      <div className="auth-hero-content">
+        <div className="auth-hero-copy">
+          <h1>
+            Set a new
+            <span> password</span>
+          </h1>
+          <p>
+            Choose a strong password to secure your account and continue using your workspace.
+          </p>
+        </div>
+
+        <div className="modern-auth-card">
+          <div className="brand-title">
+            <img className="brand-title-logo" src={logoSrc} alt="IntelliHR logo" />
+            <span>IntelliHR</span>
           </div>
-          <div className="auth-title">Set New Password</div>
-          <div className="auth-sub">
+          <h2>Set New Password</h2>
+          <p className="auth-subtitle">
             {token ? "Enter and confirm your new password." : "Use the link you received by email."}
-          </div>
+          </p>
 
           {error ? <div className="auth-alert">{error}</div> : null}
           {done ? (
             <div className="auth-success">
-              Password updated. Redirecting to login page…
+              Password updated. Redirecting to login page...
             </div>
           ) : token ? (
-            <form className="auth-form" onSubmit={onSubmit}>
-              <div className="auth-field">
-                <label className="auth-label">New Password</label>
+            <form className="modern-auth-form" onSubmit={onSubmit}>
+              <div className="field">
                 <input
-                  className="auth-input"
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="New password"
                   autoComplete="new-password"
                   minLength={6}
                   required
                 />
               </div>
-              <div className="auth-field">
-                <label className="auth-label">Confirm Password</label>
+              <div className="field">
                 <input
-                  className="auth-input"
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="Confirm password"
                   autoComplete="new-password"
                   minLength={6}
                   required
                 />
               </div>
-              <button className="auth-btn" type="submit" disabled={loading}>
+              <button className="primary-btn" type="submit" disabled={loading}>
                 {loading ? "Saving..." : "Reset Password"}
               </button>
             </form>
           ) : null}
 
-          <div className="auth-links" style={{ marginTop: 20 }}>
-            <Link className="auth-link" to="/auth/login">
-              Back to login
-            </Link>
-            <span className="auth-muted">•</span>
-            <Link className="auth-link" to="/auth/forgot-password">
-              Resend link
-            </Link>
-          </div>
+          <p className="switch-text" style={{ marginTop: 16 }}>
+            <Link className="text-btn-link" to="/auth/login">Back to login</Link>
+            <span style={{ margin: "0 10px", color: "#94a3b8" }}>•</span>
+            <Link className="text-btn-link" to="/auth/forgot-password">Resend link</Link>
+          </p>
         </div>
       </div>
     </div>

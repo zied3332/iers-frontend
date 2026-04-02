@@ -4,8 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { loginUser } from "../../services/auth.service";
 import "../../auth-pages.css";
 
-// ✅ same image used in Signup
-import authBg from "../../assets/logbackimg.png";
+const logoSrc = "/images/logo.png";
 
 function redirectByRole(nav: ReturnType<typeof useNavigate>, roleRaw: unknown) {
   const role = String(roleRaw || "").toLowerCase();
@@ -24,9 +23,11 @@ export default function Login() {
   const nav = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const heroImages = ["/images/bg1.png", "/images/bg2.png", "/images/bg3.png", "/images/bg4.png"];
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
 
   // ✅ If already authenticated, redirect away from login
   useEffect(() => {
@@ -43,6 +44,14 @@ export default function Login() {
       localStorage.removeItem("user");
     }
   }, [nav]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setActiveIndex((prev) => (prev + 1) % heroImages.length);
+    }, 6500);
+
+    return () => window.clearInterval(timer);
+  }, [heroImages.length]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -66,118 +75,106 @@ export default function Login() {
   const tokenNow = localStorage.getItem("token");
 
   return (
-    <div className="auth-split">
-      {/* LEFT */}
-      <div
-        className="auth-left"
-        style={{
-          backgroundImage: `
-            linear-gradient(rgba(12, 79, 61, 0.85), rgba(12, 79, 61, 0.85)),
-            url(${authBg})
-          `,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-        }}
-      >
-        <div className="auth-left-inner">
-          <div className="auth-brand-mark">IntelliHR</div>
+    <div className="auth-hero-shell">
+      {heroImages.map((img, index) => (
+        <div
+          key={img}
+          className={`auth-bg-layer ${index === activeIndex ? "active" : ""}`}
+          style={{ backgroundImage: `url(${img})` }}
+        />
+      ))}
+      <div className="auth-overlay" />
 
-          <h1 className="auth-hero-title">Welcome back</h1>
-          <p className="auth-hero-sub">
-            Sign in to access your dashboard, manage your team, and track your professional development.
-          </p>
-
-          <div className="auth-bullets">
-            <div className="auth-bullet">
-              <span className="auth-check">✓</span> Secure internal access
-            </div>
-            <div className="auth-bullet">
-              <span className="auth-check">✓</span> Workforce intelligence
-            </div>
-            <div className="auth-bullet">
-              <span className="auth-check">✓</span> Performance & skill tracking
-            </div>
-          </div>
-
-          <div className="auth-left-foot">© {new Date().getFullYear()} IntelliHR</div>
+      <nav className="auth-top-nav">
+        <div className="auth-logo-wrap">
+          <img className="auth-logo-img" src={logoSrc} alt="IntelliHR logo" />
+          <div className="auth-logo-text">IntelliHR</div>
         </div>
-      </div>
+        <div className="auth-nav-links">
+          <a href="#">Who we are</a>
+          <a href="#">Services</a>
+          <a href="#">Case studies</a>
+          <a href="#">Blog</a>
+        </div>
+        <a href="#" className="auth-nav-btn">Get in touch</a>
+      </nav>
 
-      {/* RIGHT */}
-      <div className="auth-right">
-        <div className="auth-card">
-          <div className="auth-card-top">
-            <div className="auth-card-brand">IntelliHR</div>
+      <div className="auth-hero-content">
+        <div className="auth-hero-copy">
+          <h1>
+            Welcome back to your
+            <span> workspace</span>
+          </h1>
+          <p>
+            Manage employees, skills, activities, and HR operations in one powerful system.
+          </p>
+        </div>
+
+        <div className="modern-auth-card">
+          <div className="brand-title">
+            <img className="brand-title-logo" src={logoSrc} alt="IntelliHR logo" />
+            <span>IntelliHR</span>
           </div>
+          <h2>Let's login</h2>
+          <p className="auth-subtitle">Access your HR workspace securely.</p>
 
-          <div className="auth-title">Sign in</div>
-          <div className="auth-sub">Use your company account to continue.</div>
-
-          {/* ✅ session switch */}
           {tokenNow ? (
-            <div style={{ marginTop: 12 }}>
-              <button
-                type="button"
-                className="auth-btn"
-                onClick={() => {
-                  clearSession();
-                  setEmail("");
-                  setPassword("");
-                  setError("");
-                }}
-              >
-                Use another account
-              </button>
-            </div>
+            <button
+              type="button"
+              className="text-btn"
+              onClick={() => {
+                clearSession();
+                setEmail("");
+                setPassword("");
+                setError("");
+              }}
+            >
+              Use another account
+            </button>
           ) : null}
 
           {error ? <div className="auth-alert">{error}</div> : null}
 
-          <form className="auth-form" onSubmit={onSubmit}>
-            <div className="auth-field">
-              <label className="auth-label">Email</label>
+          <form className="modern-auth-form" onSubmit={onSubmit}>
+            <div className="field">
               <input
-                className="auth-input"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@company.com"
+                placeholder="Email"
                 type="email"
                 autoComplete="email"
                 required
               />
             </div>
 
-            <div className="auth-field">
-              <label className="auth-label">Password</label>
+            <div className="field">
               <input
-                className="auth-input"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="Password"
                 autoComplete="current-password"
                 required
               />
             </div>
 
-            <button className="auth-btn" type="submit" disabled={loading}>
+            <div className="form-options">
+              <span className="auth-muted">Secure login</span>
+              <Link to="/auth/forgot-password">Forgot password?</Link>
+            </div>
+
+            <button className="primary-btn" type="submit" disabled={loading}>
               {loading ? "Signing in..." : "Sign in"}
             </button>
 
-            <div className="auth-links">
-              <Link className="auth-link" to="/auth/signup">
-                Create account
-              </Link>
-              <span className="auth-muted">•</span>
-              <Link className="auth-link" to="/auth/forgot-password">
-                Forgot password?
-              </Link>
-            </div>
+            <p className="switch-text">
+              Don't have an account?
+              <Link className="text-btn-link" to="/auth/signup">Create one</Link>
+            </p>
 
-            <div className="auth-help">
-              Having trouble? <b>Contact HR:</b> hr@company.com
-            </div>
+            <p className="help-text">
+              Having trouble? <strong>Contact HR:</strong> hr@company.com
+            </p>
           </form>
         </div>
       </div>

@@ -189,7 +189,7 @@ export default function HrDashboard() {
         background: "#f4f7f5",
         padding: "24px",
         fontFamily:
-          'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          '"Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         color: "#20312d",
       }}
     >

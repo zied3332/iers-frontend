@@ -5,8 +5,7 @@ import { registerUser } from "../../services/auth.service";
 import { getAllDepartments } from "../../services/departments.service";
 import "../../auth-pages.css";
 
-// ✅ Import image from src/assets
-import authBg from "../../assets/logbackimg.png";
+const logoSrc = "/images/logo.png";
 
 interface Department {
   _id: string;
@@ -18,6 +17,7 @@ interface Department {
 
 export default function Signup() {
   const nav = useNavigate();
+  const heroImages = ["/images/bg1.png", "/images/bg2.png", "/images/bg3.png", "/images/bg4.png"];
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -30,6 +30,7 @@ export default function Signup() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [activeIndex, setActiveIndex] = useState(1);
   
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loadingDepts, setLoadingDepts] = useState(true);
@@ -51,6 +52,14 @@ export default function Signup() {
 
     fetchDepartments();
   }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setActiveIndex((prev) => (prev + 1) % heroImages.length);
+    }, 6500);
+
+    return () => window.clearInterval(timer);
+  }, [heroImages.length]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -77,65 +86,56 @@ export default function Signup() {
   }
 
   return (
-    <div className="auth-split">
-      {/* LEFT */}
-      <div
-        className="auth-left"
-        style={{
-          backgroundImage: `
-            linear-gradient(rgba(12, 79, 61, 0.85), rgba(12, 79, 61, 0.85)),
-            url(${authBg})
-          `,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-        }}
-      >
-        <div className="auth-left-inner">
-          <div className="auth-brand-mark">IntelliHR</div>
+    <div className="auth-hero-shell">
+      {heroImages.map((img, index) => (
+        <div
+          key={img}
+          className={`auth-bg-layer ${index === activeIndex ? "active" : ""}`}
+          style={{ backgroundImage: `url(${img})` }}
+        />
+      ))}
+      <div className="auth-overlay" />
 
-          <h1 className="auth-hero-title">Welcome to IntelliHR</h1>
-          <p className="auth-hero-sub">
-            Internal access for company staff. Create your account to start using
-            your workspace.
-          </p>
-
-          <div className="auth-bullets">
-            <div className="auth-bullet">
-              <span className="auth-check">✓</span> Secure internal access
-            </div>
-            <div className="auth-bullet">
-              <span className="auth-check">✓</span> Workforce intelligence
-            </div>
-            <div className="auth-bullet">
-              <span className="auth-check">✓</span> Performance & skill tracking
-            </div>
-          </div>
-
-          <div className="auth-left-foot">
-            © {new Date().getFullYear()} IntelliHR
-          </div>
+      <nav className="auth-top-nav">
+        <div className="auth-logo-wrap">
+          <img className="auth-logo-img" src={logoSrc} alt="IntelliHR logo" />
+          <div className="auth-logo-text">IntelliHR</div>
         </div>
-      </div>
+        <div className="auth-nav-links">
+          <a href="#">Who we are</a>
+          <a href="#">Services</a>
+          <a href="#">Case studies</a>
+          <a href="#">Blog</a>
+        </div>
+        <a href="#" className="auth-nav-btn">Get in touch</a>
+      </nav>
 
-      {/* RIGHT */}
-      <div className="auth-right">
-        <div className="auth-card">
-          <div className="auth-card-top">
-            <div className="auth-card-brand">IntelliHR</div>
+      <div className="auth-hero-content">
+        <div className="auth-hero-copy">
+          <h1>
+            Create your
+            <span> account</span>
+          </h1>
+          <p>
+            Join the company platform and manage your employee access with a premium experience.
+          </p>
+        </div>
+
+        <div className="modern-auth-card modern-auth-card-register">
+          <div className="brand-title">
+            <img className="brand-title-logo" src={logoSrc} alt="IntelliHR logo" />
+            <span>IntelliHR</span>
           </div>
-
-          <div className="auth-title">Create account</div>
-          <div className="auth-sub">Internal access only (company users).</div>
+          <h2>Create account</h2>
+          <p className="auth-subtitle">Internal access only (company users).</p>
 
           {error ? <div className="auth-alert">{error}</div> : null}
 
-          <form className="auth-form" onSubmit={onSubmit}>
-            <div className="auth-grid2">
-              <div className="auth-field">
-                <label className="auth-label">Full name</label>
+          <form className="modern-auth-form" onSubmit={onSubmit}>
+            <div className="grid-2">
+              <div className="field">
+                <label>Full name</label>
                 <input
-                  className="auth-input"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="John Doe"
@@ -143,11 +143,10 @@ export default function Signup() {
                 />
               </div>
 
-              <div className="auth-field">
-                <label className="auth-label">Department</label>
-                {deptError && <div style={{ color: "#d32f2f", fontSize: "0.85rem", marginBottom: "4px" }}>{deptError}</div>}
+              <div className="field">
+                <label>Department</label>
+                {deptError ? <div className="auth-alert auth-inline-alert">{deptError}</div> : null}
                 <select
-                  className="auth-input"
                   value={departementId}
                   onChange={(e) => setDepartementId(e.target.value)}
                   disabled={loadingDepts}
@@ -165,11 +164,10 @@ export default function Signup() {
               </div>
             </div>
 
-            <div className="auth-grid2">
-              <div className="auth-field">
-                <label className="auth-label">Matricule</label>
+            <div className="grid-2">
+              <div className="field">
+                <label>Matricule</label>
                 <input
-                  className="auth-input"
                   value={matricule}
                   onChange={(e) => setMatricule(e.target.value)}
                   placeholder="EMP-1023"
@@ -177,10 +175,9 @@ export default function Signup() {
                 />
               </div>
 
-              <div className="auth-field">
-                <label className="auth-label">Telephone</label>
+              <div className="field">
+                <label>Telephone</label>
                 <input
-                  className="auth-input"
                   value={telephone}
                   onChange={(e) => setTelephone(e.target.value)}
                   placeholder="+216 XX XXX XXX"
@@ -189,10 +186,9 @@ export default function Signup() {
               </div>
             </div>
 
-            <div className="auth-field">
-              <label className="auth-label">Hire date</label>
+            <div className="field">
+              <label>Hire date</label>
               <input
-                className="auth-input"
                 type="date"
                 value={dateEmbauche}
                 onChange={(e) => setDateEmbauche(e.target.value)}
@@ -200,10 +196,9 @@ export default function Signup() {
               />
             </div>
 
-            <div className="auth-field">
-              <label className="auth-label">Email</label>
+            <div className="field">
+              <label>Email</label>
               <input
-                className="auth-input"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -212,32 +207,29 @@ export default function Signup() {
               />
             </div>
 
-            <div className="auth-field">
-              <label className="auth-label">Password</label>
+            <div className="field">
+              <label>Password</label>
               <input
-                className="auth-input"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="Password"
                 required
               />
             </div>
 
-            <button className="auth-btn" type="submit" disabled={loading}>
+            <button className="primary-btn" type="submit" disabled={loading}>
               {loading ? "Creating..." : "Create account"}
             </button>
 
-            <div className="auth-links">
-              <span className="auth-muted">Already have an account?</span>
-              <Link className="auth-link" to="/auth/login">
-                Sign in
-              </Link>
-            </div>
+            <p className="switch-text">
+              Already have an account?
+              <Link className="text-btn-link" to="/auth/login">Sign in</Link>
+            </p>
 
-            <div className="auth-help">
-              Having trouble? <b>Contact HR:</b> hr@company.com
-            </div>
+            <p className="help-text">
+              Having trouble? <strong>Contact HR:</strong> hr@company.com
+            </p>
           </form>
         </div>
       </div>
