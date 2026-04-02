@@ -15,6 +15,7 @@ import { ImportUsersModal } from "./components/ImportUsersModal";
 /** Normalize DB roles like "HR" -> "hr" */
 function normalizeRole(r: any): User["role"] {
   const x = String(r || "").toUpperCase();
+  if (x === "SUPER MANGER" || x === "SUPER MANAGER" || x === "SUPER_MANAGER") return "SUPER_MANAGER";
   if (x === "HR") return "HR";
   if (x === "MANAGER") return "MANAGER";
   return "EMPLOYEE";
@@ -696,6 +697,7 @@ const [importOpen, setImportOpen] = useState(false);
             <option value="EMPLOYEE">Employee</option>
             <option value="MANAGER">Manager</option>
             <option value="HR">HR</option>
+            <option value="SUPER_MANAGER">SUPER MANGER</option>
           </select>
 
           <select
@@ -756,6 +758,7 @@ const [importOpen, setImportOpen] = useState(false);
                     <option value="EMPLOYEE">Employee</option>
                     <option value="MANAGER">Manager</option>
                     <option value="HR">HR</option>
+                    <option value="SUPER_MANAGER">SUPER MANGER</option>
                   </select>
                 </td>
 
@@ -911,7 +914,7 @@ function UserDetailsGrid({ user }: { user: any }) {
         <div>
           <div style={{ fontSize: 18, fontWeight: 900, color: "#0f172a" }}>{user.name}</div>
           <div style={{ fontSize: 14, color: "#64748b" }}>{user.email}</div>
-          <Pill text={normalizeRole(user.role)} tone={user.role === "HR" ? "success" : "neutral"} />
+          <Pill text={normalizeRole(user.role)} tone={["HR", "SUPER_MANAGER"].includes(normalizeRole(user.role)) ? "success" : "neutral"} />
         </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -1023,6 +1026,7 @@ function EditForm({
           <option value="EMPLOYEE">Employee</option>
           <option value="MANAGER">Manager</option>
           <option value="HR">HR</option>
+          <option value="SUPER_MANAGER">SUPER MANGER</option>
         </select>
       </div>
 
@@ -1132,6 +1136,7 @@ function AddUserForm({
           <option value="EMPLOYEE">Employee</option>
           <option value="MANAGER">Manager</option>
           <option value="HR">HR</option>
+          <option value="SUPER_MANAGER">SUPER MANGER</option>
         </select>
       </div>
 

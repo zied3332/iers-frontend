@@ -14,7 +14,7 @@ export function UserDetailsGrid({ user }: { user: any }) {
         <div>
           <div style={{ fontSize: 18, fontWeight: 900, color: "#0f172a" }}>{user.name}</div>
           <div style={{ fontSize: 14, color: "#64748b" }}>{user.email}</div>
-          <Pill text={normalizeRole(user.role)} tone={user.role === "HR" ? "success" : "neutral"} />
+          <Pill text={normalizeRole(user.role)} tone={["HR", "SUPER_MANAGER"].includes(normalizeRole(user.role)) ? "success" : "neutral"} />
         </div>
       </div>
 

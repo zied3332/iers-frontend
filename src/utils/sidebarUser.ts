@@ -20,7 +20,7 @@ function getStoredAvatar(userId: string): string | null {
 
 function getSubByRole(role: string): string {
   const r = (role || "").toUpperCase();
-  if (r === "HR") return "Admin & HR tools";
+  if (r === "HR" || r === "SUPER_MANAGER" || r === "SUPER MANGER") return "Admin & HR tools";
   if (r === "MANAGER") return "Team overview";
   return "My learning space";
 }

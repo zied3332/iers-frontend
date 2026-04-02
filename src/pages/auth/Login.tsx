@@ -7,9 +7,10 @@ import "../../auth-pages.css";
 const logoSrc = "/images/logo.png";
 
 function redirectByRole(nav: ReturnType<typeof useNavigate>, roleRaw: unknown) {
-  const role = String(roleRaw || "").toLowerCase();
+  const role = String(roleRaw || "").toLowerCase().replace(/\s+/g, "_");
 
-  if (role === "hr") nav("/hr/dashboard", { replace: true });
+  if (role === "super_manager" || role === "super_manger") nav("/super-manager/dashboard", { replace: true });
+  else if (role === "hr") nav("/hr/dashboard", { replace: true });
   else if (role === "manager") nav("/manager/dashboard", { replace: true });
   else nav("/me/profile", { replace: true });
 }

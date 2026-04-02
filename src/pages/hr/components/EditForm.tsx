@@ -42,6 +42,7 @@ export function EditForm({
           <option value="EMPLOYEE">Employee</option>
           <option value="MANAGER">Manager</option>
           <option value="HR">HR</option>
+          <option value="SUPER_MANAGER">SUPER MANGER</option>
         </select>
       </div>
 

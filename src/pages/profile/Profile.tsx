@@ -92,16 +92,27 @@ function safeUpper(v?: string) {
   return (v ?? "").toString().trim().toUpperCase();
 }
 
+function isHrLike(role?: string) {
+  const r = safeUpper(role);
+  return r === "HR" || r === "SUPER_MANAGER" || r === "SUPER MANGER";
+}
+
+function isSuperManager(role?: string) {
+  const r = safeUpper(role);
+  return r === "SUPER_MANAGER" || r === "SUPER MANGER";
+}
+
 function roleLabel(role?: Role) {
   const r = safeUpper(role as any);
   if (r === "HR") return "HR";
+  if (r === "SUPER_MANAGER" || r === "SUPER MANGER") return "SUPER MANGER";
   if (r === "MANAGER") return "Manager";
   return "Employee";
 }
 
 function roleTone(role?: Role): Tone {
   const r = safeUpper(role as any);
-  if (r === "HR") return "success";
+  if (r === "HR" || r === "SUPER_MANAGER" || r === "SUPER MANGER") return "success";
   if (r === "MANAGER") return "neutral";
   return "neutral";
 }
@@ -593,13 +604,14 @@ export default function Profile() {
     return map;
   }, [departments]);
 
-  const canEditSensitive = safeUpper(user?.role as any) === "HR";
+  const canEditSensitive = isSuperManager(user?.role as any);
   const canEditSelfBasics = Boolean(user);
-  const canEditEmail = safeUpper(user?.role as any) === "HR";
+  const canEditEmail = isSuperManager(user?.role as any);
   const isEmployee = safeUpper(user?.role as any) === "EMPLOYEE";
 
   const goBackPath = useMemo(() => {
     const r = safeUpper(user?.role as any);
+    if (isSuperManager(r)) return "/super-manager/dashboard";
     if (r === "HR") return "/hr/dashboard";
     if (r === "MANAGER") return "/manager/dashboard";
     return "/me/profile";
@@ -607,6 +619,7 @@ export default function Profile() {
 
   const myProfilePath = useMemo(() => {
     const r = safeUpper(user?.role as any);
+    if (isSuperManager(r)) return "/super-manager/profile";
     if (r === "HR") return "/hr/profile";
     if (r === "MANAGER") return "/manager/profile";
     return "/me/profile";
@@ -881,7 +894,7 @@ export default function Profile() {
       items.push({ title: "Account created", sub: createdAt });
     }
 
-    if (safeUpper(user.role as any) === "HR") items.push({ title: "Granted HR role", sub: "Current" });
+    if (isHrLike(user.role as any)) items.push({ title: "Granted HR role", sub: "Current" });
     if (safeUpper(user.role as any) === "MANAGER") items.push({ title: "Granted Manager role", sub: "Current" });
 
     if (updatedAt) items.push({ title: "Updated profile", sub: updatedAt });
@@ -1414,6 +1427,7 @@ export default function Profile() {
                             <option value="EMPLOYEE">EMPLOYEE</option>
                             <option value="MANAGER">MANAGER</option>
                             <option value="HR">HR</option>
+                            <option value="SUPER_MANAGER">SUPER MANGER</option>
                           </select>
                         </div>
 
@@ -1644,11 +1658,19 @@ export default function Profile() {
               <div style={{ height: 12 }} />
 
               <Card title="Role Summary" subtitle="What you can do (based on your role)">
-                {safeUpper(user.role as any) === "HR" && (
+                {isSuperManager(user.role as any) && (
                   <ul style={S.list}>
                     <li>Manage users, roles, and departments</li>
                     <li>Review workforce analytics and skills coverage</li>
                     <li>Export reports and audit decisions</li>
+                  </ul>
+                )}
+
+                {safeUpper(user.role as any) === "HR" && (
+                  <ul style={S.list}>
+                    <li>Manage activities and review applications</li>
+                    <li>Monitor skills dashboards and recommendations</li>
+                    <li>Track training impact and workforce progress</li>
                   </ul>
                 )}
 

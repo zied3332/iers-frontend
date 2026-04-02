@@ -19,7 +19,7 @@ type PreviewRow = {
   matricule?: string;
   telephone?: string;
   date_embauche?: string;
-  role?: "EMPLOYEE" | "MANAGER" | "HR" | string;
+  role?: "EMPLOYEE" | "MANAGER" | "HR" | "SUPER_MANAGER" | string;
 };
 
 type FilterMode = "ALL" | "VALID" | "INVALID";
@@ -213,6 +213,7 @@ function isValidEmail(email: string) {
 
 function normalizeRole(r: string) {
   const x = toStr(r).toUpperCase();
+  if (x === "SUPER MANGER" || x === "SUPER MANAGER" || x === "SUPER_MANAGER") return "SUPER_MANAGER";
   if (x === "EMPLOYEE" || x === "MANAGER" || x === "HR") return x;
   return x;
 }
@@ -269,7 +270,7 @@ export function ImportUsersModal({ open, onClose, onImported }: Props) {
       if (!dateEmb) e.push("date_embauche is required");
       else if (!isIsoDate(dateEmb)) e.push("date_embauche must be YYYY-MM-DD");
 
-      if (role && !["EMPLOYEE", "MANAGER", "HR"].includes(role)) e.push("role must be EMPLOYEE/MANAGER/HR");
+      if (role && !["EMPLOYEE", "MANAGER", "HR", "SUPER_MANAGER"].includes(role)) e.push("role must be EMPLOYEE/MANAGER/HR/SUPER_MANAGER");
 
       if (email) {
         const key = email.toLowerCase();
@@ -665,6 +666,7 @@ export function ImportUsersModal({ open, onClose, onImported }: Props) {
                                 <option value="EMPLOYEE">EMPLOYEE</option>
                                 <option value="MANAGER">MANAGER</option>
                                 <option value="HR">HR</option>
+                                <option value="SUPER_MANAGER">SUPER MANGER</option>
                               </select>
                             )}
                           </td>

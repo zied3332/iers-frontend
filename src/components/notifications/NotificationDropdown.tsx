@@ -13,6 +13,7 @@ function getNotificationsPath() {
     if (!raw) return '/notifications';
     const user = JSON.parse(raw);
     const role = String(user?.role || '').toUpperCase();
+    if (role === 'SUPER_MANAGER' || role === 'SUPER MANGER') return '/super-manager/notifications';
     if (role === 'HR') return '/hr/notifications';
     if (role === 'MANAGER') return '/manager/notifications';
     if (role === 'EMPLOYEE') return '/me/notifications';

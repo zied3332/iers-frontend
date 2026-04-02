@@ -8,15 +8,16 @@ import ForgotPassword from "../pages/auth/ForgotPassword";
 import ResetPassword from "../pages/auth/ResetPassword";
 
 import HrLayout from "../layouts/HrLayout";
+import SuperManagerLayout from "../layouts/SuperManagerLayout";
 import ManagerLayout from "../layouts/ManagerLayout";
 import EmployeeLayout from "../layouts/EmployeeLayout";
 
 // HR pages
 import HrEmployees from "../pages/hr/Employees";
-import HrActivitiesManagement from "../pages/hr/ActivitiesManagement.tsx";
-import HrSkillsDashboard from "../pages/hr/HrSkillsDashboard";
 import UsersManagement from "../pages/hr/UsersManagement";
 import HrDepartments from "../pages/hr/Departments";
+import HrActivitiesManagement from "../pages/hr/ActivitiesManagement.tsx";
+import HrSkillsDashboard from "../pages/hr/HrSkillsDashboard";
 import HrGenerateRecommendations from "../pages/hr/GenerateRecommendations";
 import SkillsManagementPage from "../pages/hr/skills/SkillsManagementPage";
 import AssignSkillPage from "../pages/hr/skills/AssignSkillPage";
@@ -39,9 +40,10 @@ import Profile from "../pages/profile/Profile";
 
 import NotificationsPage from '../pages/notifications/NotificationsPage';
 import HrDashboard from "../pages/hr/Dashboard.tsx";
+import HrStatsDashboard from "../pages/hr/HrStatsDashboard";
 import ActivityApplications from "../pages/hr/ActivityApplications";
 
-type Role = "HR" | "MANAGER" | "EMPLOYEE";
+type Role = "HR" | "SUPER_MANAGER" | "MANAGER" | "EMPLOYEE";
 
 function getRole(): Role | null {
   try {
@@ -83,6 +85,7 @@ function Forbidden() {
 function NotificationsRedirect() {
   const role = getRole();
   if (role === "HR") return <Navigate to="/hr/notifications" replace />;
+  if (role === "SUPER_MANAGER") return <Navigate to="/super-manager/notifications" replace />;
   if (role === "MANAGER") return <Navigate to="/manager/notifications" replace />;
   if (role === "EMPLOYEE") return <Navigate to="/me/notifications" replace />;
   return <Navigate to="/auth/login" replace />;
@@ -115,20 +118,45 @@ export const router = createBrowserRouter([
           { index: true, element: <Blank /> },
           { path: "blank", element: <Blank /> },
 
-          { path: "dashboard", element: <HrDashboard /> },
-          { path: "employees", element: <HrEmployees /> },
+          { path: "dashboard", element: <HrStatsDashboard /> },
           { path: "activities", element: <HrActivitiesManagement /> },
           { path: "activity-applications", element: <ActivityApplications /> },
-          { path: "employees/:id", element: <Blank /> },
           { path: "skills-dashboard", element: <HrSkillsDashboard /> },
           { path: "recommendations", element: <HrGenerateRecommendations /> },
           { path: "recommendations/generate", element: <HrGenerateRecommendations /> },
 
-          { path: "users", element: <UsersManagement /> },
-          { path: "departments", element: <HrDepartments /> },
           { path: "skills", element: <SkillsManagementPage /> },
           { path: "skills/assign", element: <AssignSkillPage /> },
 
+          { path: "profile", element: <Profile /> },
+          { path: "notifications", element: <NotificationsPage /> },
+        ],
+      },
+    ],
+  },
+
+  // ✅ SUPER MANAGER protected routes
+  {
+    element: <RequireRole allow={["SUPER_MANAGER"]} />,
+    children: [
+      {
+        path: "/super-manager",
+        element: <SuperManagerLayout />,
+        children: [
+          { index: true, element: <Blank /> },
+          { path: "blank", element: <Blank /> },
+
+          { path: "dashboard", element: <HrDashboard /> },
+          { path: "employees", element: <HrEmployees /> },
+          { path: "users", element: <UsersManagement /> },
+          { path: "departments", element: <HrDepartments /> },
+          { path: "activities", element: <HrActivitiesManagement /> },
+          { path: "activity-applications", element: <ActivityApplications /> },
+          { path: "skills-dashboard", element: <HrSkillsDashboard /> },
+          { path: "recommendations", element: <HrGenerateRecommendations /> },
+          { path: "recommendations/generate", element: <HrGenerateRecommendations /> },
+          { path: "skills", element: <SkillsManagementPage /> },
+          { path: "skills/assign", element: <AssignSkillPage /> },
           { path: "profile", element: <Profile /> },
           { path: "notifications", element: <NotificationsPage /> },
         ],

@@ -81,7 +81,7 @@ export async function resetPassword(token: string, newPassword: string) {
   return handle(res);
 }
 
-export type Role = "HR" | "MANAGER" | "EMPLOYEE";
+export type Role = "HR" | "SUPER_MANAGER" | "MANAGER" | "EMPLOYEE";
 
 export type CurrentUser = {
   _id: string;

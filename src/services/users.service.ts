@@ -46,7 +46,7 @@ export type User = {
   _id: string;
   name: string;
   email: string;
-  role: "HR" | "MANAGER" | "EMPLOYEE";
+  role: "HR" | "SUPER_MANAGER" | "MANAGER" | "EMPLOYEE";
   department?: string;
   matricule?: string;
   telephone?: string;

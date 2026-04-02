@@ -195,7 +195,7 @@ export default function SkillsManagementPage() {
           </div>
 
           <div className="form-actions">
-            <button type="submit" className="primary-btn" disabled={submitting}>
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
               {submitting ? 'Adding...' : '+ Add Skill'}
             </button>
           </div>

@@ -247,7 +247,7 @@ export default function AssignSkillPage() {
           </div>
 
           <div className="form-actions">
-            <button type="submit" className="primary-btn" disabled={submitting}>
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
               {submitting ? 'Assigning...' : 'Assign Skill'}
             </button>
           </div>
