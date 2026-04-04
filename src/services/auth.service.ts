@@ -138,5 +138,30 @@ export async function getCurrentUser(): Promise<CurrentUser> {
     // still throw so callers know request failed
   }
 
+  return handle(res); 
+}
+
+
+// Connexion avec Google (redirige vers le backend)
+export function loginWithGoogle() {
+  window.location.href = `${BASE}/auth/google`;
+}
+
+// Compléter le profil après Google login
+export async function completeGoogleProfile(data: {
+  matricule: string;
+  telephone: string;
+  departement_id: string;
+  date_embauche: string;
+}) {
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${BASE}/auth/complete-profile`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
   return handle(res);
 }

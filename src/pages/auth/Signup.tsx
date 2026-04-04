@@ -1,10 +1,9 @@
 // src/pages/auth/Signup.tsx
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { registerUser } from "../../services/auth.service";
+import { registerUser, loginWithGoogle } from "../../services/auth.service";
 import { getAllDepartments } from "../../services/departments.service";
 import "../../auth-pages.css";
-
 const logoSrc = "/images/logo.png";
 
 interface Department {
@@ -221,6 +220,24 @@ export default function Signup() {
             <button className="primary-btn" type="submit" disabled={loading}>
               {loading ? "Creating..." : "Create account"}
             </button>
+
+            <div className="auth-divider">
+  <span>or</span>
+</div>
+
+<button
+  type="button"
+  className="google-btn"
+  onClick={loginWithGoogle}
+>
+  <img
+    src="https://www.svgrepo.com/show/475656/google-color.svg"
+    alt="Google"
+    width={20}
+    height={20}
+  />
+  Sign up with Google
+</button>
 
             <p className="switch-text">
               Already have an account?

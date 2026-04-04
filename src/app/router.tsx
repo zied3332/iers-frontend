@@ -42,6 +42,8 @@ import NotificationsPage from '../pages/notifications/NotificationsPage';
 import HrDashboard from "../pages/hr/Dashboard.tsx";
 import HrStatsDashboard from "../pages/hr/HrStatsDashboard";
 import ActivityApplications from "../pages/hr/ActivityApplications";
+import CompleteProfile from "../pages/auth/CompleteProfile";
+
 
 type Role = "HR" | "SUPER_MANAGER" | "MANAGER" | "EMPLOYEE";
 
@@ -215,6 +217,7 @@ export const router = createBrowserRouter([
     path: '/notifications',
     element: <NotificationsRedirect />,
   },
+  { path: "/complete-profile", element: <CompleteProfile /> },
   { path: "*", element: <Navigate to="/" replace /> },
   
 ]);

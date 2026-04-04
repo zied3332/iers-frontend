@@ -1,9 +1,8 @@
 // src/pages/auth/Login.tsx
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { loginUser } from "../../services/auth.service";
+import { loginUser, loginWithGoogle  } from "../../services/auth.service";
 import "../../auth-pages.css";
-
 const logoSrc = "/images/logo.png";
 
 function redirectByRole(nav: ReturnType<typeof useNavigate>, roleRaw: unknown) {
@@ -167,6 +166,24 @@ export default function Login() {
             <button className="primary-btn" type="submit" disabled={loading}>
               {loading ? "Signing in..." : "Sign in"}
             </button>
+
+            <div className="auth-divider">
+  <span>or</span>
+</div>
+
+<button
+  type="button"
+  className="google-btn"
+  onClick={loginWithGoogle}
+>
+  <img
+    src="https://www.svgrepo.com/show/475656/google-color.svg"
+    alt="Google"
+    width={20}
+    height={20}
+  />
+  Continue with Google
+</button>
 
             <p className="switch-text">
               Don't have an account?
