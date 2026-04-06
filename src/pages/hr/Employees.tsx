@@ -583,43 +583,98 @@ onClick={() => navigate(`${getBasePath()}/employees/${e.id}`)}
             <div style={{ fontWeight: 900, fontSize: 20, color: "#0f172a" }}>Edit Employee</div>
             <div style={{ marginTop: 4, color: "#64748b", fontWeight: 700 }}>{editing.name}</div>
 
-            <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
-              <input
-                style={input}
-                placeholder="Job title"
-                value={editForm.jobTitle}
-                onChange={(e) => setEditForm((prev) => ({ ...prev, jobTitle: e.target.value }))}
-              />
+           <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+  {/* Name */}
+  <div>
+    <div style={fieldLabel}>Name</div>
+    <input
+      style={input}
+      placeholder="Name"
+      value={editing.name}
+      onChange={(e) => setEditing((prev) => prev && { ...prev, name: e.target.value })}
+    />
+  </div>
 
-              <select
-                style={select}
-                value={editForm.seniorityLevel}
-                onChange={(e) =>
-                  setEditForm((prev) => ({
-                    ...prev,
-                    seniorityLevel: e.target.value as "JUNIOR" | "MID" | "SENIOR",
-                  }))
-                }
-              >
-                <option value="JUNIOR">Junior</option>
-                <option value="MID">Mid</option>
-                <option value="SENIOR">Senior</option>
-              </select>
+  {/* Email */}
+  <div>
+    <div style={fieldLabel}>Email</div>
+    <input
+      style={input}
+      type="email"
+      placeholder="Email"
+      value={editing.email}
+      onChange={(e) => setEditing((prev) => prev && { ...prev, email: e.target.value })}
+    />
+  </div>
 
-              <input
-                style={input}
-                type="number"
-                min={0}
-                value={editForm.experienceYears}
-                onChange={(e) =>
-                  setEditForm((prev) => ({
-                    ...prev,
-                    experienceYears: Number(e.target.value || 0),
-                  }))
-                }
-                placeholder="Experience years"
-              />
-            </div>
+  {/* Matricule */}
+  <div>
+    <div style={fieldLabel}>Matricule</div>
+    <input
+      style={input}
+      placeholder="Matricule"
+      value={editing.matricule}
+      onChange={(e) => setEditing((prev) => prev && { ...prev, matricule: e.target.value })}
+    />
+  </div>
+
+  {/* Department */}
+  <div>
+    <div style={fieldLabel}>Department</div>
+    <select
+      style={select}
+      value={editing.departmentId}
+      onChange={(e) => setEditing((prev) => prev && { ...prev, departmentId: e.target.value })}
+    >
+      <option value="">Select department</option>
+      {departmentOptions.map((d) => (
+        <option key={d.id} value={d.id}>{d.name}</option>
+      ))}
+    </select>
+  </div>
+
+  {/* Job Title */}
+  <div>
+    <div style={fieldLabel}>Job Title</div>
+    <input
+      style={input}
+      placeholder="Job Title"
+      value={editForm.jobTitle}
+      onChange={(e) => setEditForm((prev) => ({ ...prev, jobTitle: e.target.value }))}
+    />
+  </div>
+
+  {/* Seniority */}
+  <div>
+    <div style={fieldLabel}>Seniority</div>
+    <select
+      style={select}
+      value={editForm.seniorityLevel}
+      onChange={(e) =>
+        setEditForm((prev) => ({ ...prev, seniorityLevel: e.target.value as "JUNIOR" | "MID" | "SENIOR" }))
+      }
+    >
+      <option value="JUNIOR">Junior</option>
+      <option value="MID">Mid</option>
+      <option value="SENIOR">Senior</option>
+    </select>
+  </div>
+
+  {/* Experience Years */}
+  <div>
+    <div style={fieldLabel}>Experience</div>
+    <input
+      style={input}
+      type="number"
+      min={0}
+      value={editForm.experienceYears}
+      onChange={(e) =>
+        setEditForm((prev) => ({ ...prev, experienceYears: Number(e.target.value || 0) }))
+      }
+      placeholder="Experience years"
+    />
+  </div>
+</div>
 
             <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end", gap: 10 }}>
               <button type="button" style={btn} onClick={closeEdit} disabled={saving}>
