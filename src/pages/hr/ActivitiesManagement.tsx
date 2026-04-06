@@ -516,12 +516,7 @@ export default function ActivitiesManagement() {
           </button>
         </div>
 
-        {(error || success) && (
-          <div style={{ ...card, marginTop: 12, borderColor: error ? "rgba(239,68,68,0.25)" : "rgba(22,163,74,0.25)", background: error ? "rgba(239,68,68,0.06)" : "rgba(22,163,74,0.08)" }}>
-            <span style={{ color: error ? "#b91c1c" : "#166534", fontWeight: 800 }}>{error || success}</span>
-          </div>
-        )}
-
+     
         <div style={{ ...card, marginTop: 14, padding: 0, overflow: "hidden" }}>
           <div style={{ padding: 16, borderBottom: "1px solid #eef2f7" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -683,6 +678,11 @@ export default function ActivitiesManagement() {
                   value={form.title}
                   onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
                 />
+      {(error || success) && (
+          <div style={{ ...card, marginTop: 12, borderColor: error ? "rgba(239,68,68,0.25)" : "rgba(22,163,74,0.25)", background: error ? "rgba(239,68,68,0.06)" : "rgba(22,163,74,0.08)" }}>
+            <span style={{ color: error ? "#b91c1c" : "#166534", fontWeight: 800 }}>{error || success}</span>
+          </div>
+        )}
 
                 <select
                   style={input}
