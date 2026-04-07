@@ -40,7 +40,7 @@ import NotificationsPage from '../pages/notifications/NotificationsPage';
 import HrDashboard from "../pages/hr/Dashboard.tsx";
 import HrStatsDashboard from "../pages/hr/HrStatsDashboard";
 import CompleteProfile from "../pages/auth/CompleteProfile";
-
+import EmployeeProfileView from "../pages/hr/EmployeeProfileView";
 
 import AccountPending from "../pages/auth/AccountPending";
 
@@ -136,7 +136,8 @@ path: "/auth/account-pending", element: <AccountPending />
 
           { path: "profile", element: <Profile /> },
           { path: "notifications", element: <NotificationsPage /> },
-          { path: "employees/:id", element: <Profile /> },
+          { path: "employees/:id", element: <EmployeeProfileView /> },
+          { path: "users/:id", element: <EmployeeProfileView /> },
 
         ],
       },
@@ -166,7 +167,8 @@ path: "/auth/account-pending", element: <AccountPending />
           { path: "skills/assign", element: <AssignSkillPage /> },
           { path: "profile", element: <Profile /> },
           { path: "notifications", element: <NotificationsPage /> },
-          { path: "employees/:id", element: <Profile /> },
+          { path: "employees/:id", element: <EmployeeProfileView /> },
+          { path: "users/:id", element: <EmployeeProfileView /> },
 
         ],
       },
@@ -193,7 +195,8 @@ path: "/auth/account-pending", element: <AccountPending />
           { path: "profile", element: <Profile /> },
             { path: "activities", element: <ManagerActivities /> },
           { path: "notifications", element: <NotificationsPage /> },
-          { path: "employees/:id", element: <Profile /> },
+          { path: "employees/:id", element: <EmployeeProfileView /> },
+          { path: "users/:id",     element: <EmployeeProfileView /> },
         ],
       },
     ],

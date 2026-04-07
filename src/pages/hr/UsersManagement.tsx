@@ -316,6 +316,17 @@ const INITIAL_NEW_USER: NewUserForm = {
   date_embauche: "",
   role: "EMPLOYEE",
 };
+function getBasePath(): string {
+  try {
+    const u = JSON.parse(localStorage.getItem("user") || "{}");
+    const role = String(u?.role || "").toUpperCase();
+    if (role === "SUPER_MANAGER") return "/super-manager";
+    if (role === "MANAGER") return "/manager";
+    return "/hr";
+  } catch {
+    return "/hr";
+  }
+}
 
 export default function UsersManagement() {
   const location = useLocation();
@@ -752,7 +763,13 @@ const [importOpen, setImportOpen] = useState(false);
                   <UserAvatar name={u.name} email={u.email} avatarUrl={u.avatarUrl} size={60} />
                 </td>
 
-                <td style={{ ...S.td, fontWeight: 800, color: "#0f172a" }}>{u.name}</td>
+<td
+  style={{ ...S.td, fontWeight: 800, color: "#1f7a5a", cursor: "pointer", textDecoration: "underline" }}
+  onClick={() => navigate(`${getBasePath()}/users/${u._id}`)}
+  title={`Voir le profil de ${u.name}`}
+>
+  {u.name}
+</td>
 
                 <td style={S.td}>
                   <select className="select" value={normalizeRole(u.role)} onChange={(e) => onChangeRole(u._id, normalizeRole(e.target.value))} style={S.roleSelect}>
