@@ -23,25 +23,32 @@ function formatRelativeDate(dateString: string) {
 }
 
 export default function NotificationItem({ notification, onClick }: Props) {
+  const sourceText = String(notification.metadata?.actorName || notification.title || "").trim();
+  const sourceParts = sourceText.split(/\s+/).filter(Boolean);
+  const initials = (
+    (sourceParts[0]?.[0] || "N") + (sourceParts[1]?.[0] || sourceParts[0]?.[1] || "")
+  ).toUpperCase();
+
+  const hue = sourceText
+    .split("")
+    .reduce((acc, ch) => (acc + ch.charCodeAt(0)) % 360, 0);
+
   return (
     <button
       type="button"
       className={`notification-item ${notification.isRead ? '' : 'unread'}`}
       onClick={() => onClick(notification)}
     >
-      <div className="notification-item-top">
-        <h4 className="notification-title">{notification.title}</h4>
-        {!notification.isRead && <span className="notification-dot" />}
+      <div className="notification-avatar" style={{ background: `hsl(${hue} 80% 48%)` }}>
+        {initials}
       </div>
 
-      <p className="notification-message">{notification.message}</p>
-
-      <div className="notification-meta">
-        <span className="notification-type">{notification.type}</span>
-        <span className="notification-date">
-          {formatRelativeDate(notification.createdAt)}
-        </span>
+      <div className="notification-content">
+        <p className="notification-message">{notification.message || notification.title}</p>
+        <span className="notification-date">{formatRelativeDate(notification.createdAt)}</span>
       </div>
+
+      {!notification.isRead && <span className="notification-dot" />}
     </button>
   );
 }

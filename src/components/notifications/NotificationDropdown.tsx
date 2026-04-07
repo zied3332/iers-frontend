@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../hooks/useNotifications';
 import type { AppNotification } from '../../types/notification';
 import NotificationItem from './NotificationItem';
+import { FiX } from 'react-icons/fi';
 
 type Props = {
   onClose: () => void;
@@ -29,7 +30,6 @@ export default function NotificationDropdown({ onClose }: Props) {
     notifications,
     loading,
     markOneAsRead,
-    markEverythingAsRead,
   } = useNotifications();
 
   const handleNotificationClick = async (notification: AppNotification) => {
@@ -46,22 +46,23 @@ export default function NotificationDropdown({ onClose }: Props) {
     });
   };
 
-  const latestNotifications = notifications.slice(0, 6);
+  const latestNotifications = notifications.slice(0, 3);
 
   return (
     <div className="notification-dropdown">
       <div className="notification-dropdown-header">
         <div>
           <h3>Notifications</h3>
-          <p>Recent updates and alerts</p>
+          <p>View all</p>
         </div>
 
         <button
           type="button"
-          className="mark-all-btn"
-          onClick={markEverythingAsRead}
+          className="notification-close-btn"
+          onClick={onClose}
+          aria-label="Close notifications"
         >
-          Mark all as read
+          <FiX size={18} />
         </button>
       </div>
 
