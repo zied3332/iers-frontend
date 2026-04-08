@@ -22,7 +22,7 @@ import HrSkillsDashboard from "../pages/hr/HrSkillsDashboard";
 import HrGenerateRecommendations from "../pages/hr/GenerateRecommendations";
 import SkillsManagementPage from "../pages/hr/skills/SkillsManagementPage";
 import AssignSkillPage from "../pages/hr/skills/AssignSkillPage";
-
+import HrCopilotPage from "../pages/hr/HrCopilotPage";
 // Manager pages
 import ManagerTeam from "../pages/manger/ManagerTeam";
 import ManagerActivities from "../pages/manger/ManagerActivities.tsx";
@@ -131,7 +131,7 @@ path: "/auth/account-pending", element: <AccountPending />
           { path: "skills-dashboard", element: <HrSkillsDashboard /> },
           { path: "recommendations", element: <HrGenerateRecommendations /> },
           { path: "recommendations/generate", element: <HrGenerateRecommendations /> },
-
+  { path: "/hr/copilot", element: <HrCopilotPage  /> },
           { path: "skills", element: <SkillsManagementPage /> },
           { path: "skills/assign", element: <AssignSkillPage /> },
 
