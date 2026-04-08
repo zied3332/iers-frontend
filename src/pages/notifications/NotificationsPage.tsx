@@ -838,22 +838,9 @@ export default function NotificationsPage() {
     });
   }, [feedNotifications, selectedIds, markOneAsRead]);
 
-  useEffect(() => {
-    const state = location.state as NotificationLocationState | null;
-    const notificationId = state?.notificationId;
-    if (!notificationId) return;
-    if (openedFromStateRef.current === notificationId) return;
+  // Only open details modal if user explicitly selects a notification
+  // Remove auto-opening based on router state
 
-    const match = notifications.find((item) => item._id === notificationId);
-    if (!match) return;
-
-    openedFromStateRef.current = notificationId;
-    setSelectedNotification(match);
-
-    if (!match.isRead) {
-      void markOneAsRead(match._id);
-    }
-  }, [location.state, markOneAsRead, notifications]);
 
   const renderNotificationCard = useCallback((notification: AppNotification) => (
     <div
@@ -920,7 +907,9 @@ export default function NotificationsPage() {
   const closeDetailModal = useCallback(() => {
     openedFromStateRef.current = null;
     setSelectedNotification(null);
-  }, []);
+    // Clear router state to prevent modal from reopening
+    navigate(location.pathname, { replace: true, state: null });
+  }, [navigate, location.pathname]);
 
   const openLinkedPage = useCallback(() => {
     if (!selectedNotification?.link) return;
