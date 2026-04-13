@@ -40,7 +40,7 @@ import HrDashboard from "../pages/hr/Dashboard.tsx";
 import HrStatsDashboard from "../pages/hr/HrStatsDashboard";
 import CompleteProfile from "../pages/auth/CompleteProfile";
 import EmployeeProfileView from "../pages/hr/EmployeeProfileView";
-
+import HrCalendarPage  from "../pages/hr/HrCalendarPage.tsx";
 import AccountPending from "../pages/auth/AccountPending";
 
 type Role = "HR" | "SUPER_MANAGER" | "MANAGER" | "EMPLOYEE";
@@ -139,7 +139,7 @@ path: "/auth/account-pending", element: <AccountPending />
           { path: "notifications", element: <NotificationsPage /> },
           { path: "notifications/:side", element: <NotificationsPage /> },
           { path: "employees/:id", element: <Profile /> },
-
+ { path: "calendar", element: <HrCalendarPage  /> },
         ],
       },
     ],

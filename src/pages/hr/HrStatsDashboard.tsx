@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { listActivities, type ActivityRecord } from "../../services/activities.service";
 import { getAllSkills } from "../../services/skills.service";
+import ActivitiesCalendar from "./components/ActivitiesCalendar";
 
 type Skill = {
   _id: string;
@@ -8,13 +10,6 @@ type Skill = {
   category: "KNOWLEDGE" | "KNOW_HOW" | "SOFT";
   description?: string;
 };
-
-function fmtCategory(value: string) {
-  if (value === "KNOWLEDGE") return "Knowledge";
-  if (value === "KNOW_HOW") return "Know-how";
-  if (value === "SOFT") return "Soft";
-  return value;
-}
 
 function buildSmoothPath(points: Array<{ x: number; y: number }>) {
   if (points.length < 2) return "";
@@ -32,11 +27,12 @@ function buildSmoothPath(points: Array<{ x: number; y: number }>) {
 }
 
 export default function HrStatsDashboard() {
+  const navigate = useNavigate();
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
-  const [calendarDate, setCalendarDate] = useState(() => new Date());
 
   useEffect(() => {
     let cancelled = false;
@@ -125,7 +121,11 @@ export default function HrStatsDashboard() {
 
   const recentActivities = useMemo(() => {
     return [...activities]
-      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt || 0).getTime() -
+          new Date(a.createdAt || 0).getTime()
+      )
       .slice(0, 6);
   }, [activities]);
 
@@ -135,8 +135,24 @@ export default function HrStatsDashboard() {
 
     const months = Array.from({ length: 6 }, (_, idx) => {
       const d = new Date(now.getFullYear(), now.getMonth() - (5 - idx), 1);
-      const monthStart = new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
-      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+      const monthStart = new Date(
+        d.getFullYear(),
+        d.getMonth(),
+        1,
+        0,
+        0,
+        0,
+        0
+      );
+      const monthEnd = new Date(
+        d.getFullYear(),
+        d.getMonth() + 1,
+        0,
+        23,
+        59,
+        59,
+        999
+      );
       labels.push(d.toLocaleString("en", { month: "short" }));
       return { monthStart, monthEnd };
     });
@@ -146,7 +162,9 @@ export default function HrStatsDashboard() {
         const start = new Date(a.startDate || "");
         const end = new Date(a.endDate || a.startDate || "");
 
-        const hasValidRange = !Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime());
+        const hasValidRange =
+          !Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime());
+
         if (hasValidRange) {
           return start <= monthEnd && end >= monthStart;
         }
@@ -175,7 +193,10 @@ export default function HrStatsDashboard() {
     });
 
     const linePath = buildSmoothPath(points);
-    const areaPath = `${linePath} L ${points[points.length - 1]?.x || 0} ${h - padY} L ${points[0]?.x || 0} ${h - padY} Z`;
+    const areaPath = `${linePath} L ${points[points.length - 1]?.x || 0} ${
+      h - padY
+    } L ${points[0]?.x || 0} ${h - padY} Z`;
+
     return { w, h, points, linePath, areaPath };
   }, [monthTrend]);
 
@@ -186,8 +207,10 @@ export default function HrStatsDashboard() {
       { label: "Completed", value: activityStats.completed, color: "#16a34a" },
       { label: "Cancelled", value: activityStats.cancelled, color: "#ef4444" },
     ];
+
     const total = Math.max(values.reduce((s, x) => s + x.value, 0), 1);
     let offset = 0;
+
     const segments = values.map((item) => {
       const ratio = item.value / total;
       const dash = ratio * 100;
@@ -195,81 +218,39 @@ export default function HrStatsDashboard() {
       offset += dash;
       return seg;
     });
+
     return { total: activityStats.total, segments };
   }, [activityStats]);
 
   const skillBars = useMemo(() => {
-    const max = Math.max(skillStats.knowledge, skillStats.knowHow, skillStats.soft, 1);
+    const max = Math.max(
+      skillStats.knowledge,
+      skillStats.knowHow,
+      skillStats.soft,
+      1
+    );
+
     return [
-      { label: "Knowledge", value: skillStats.knowledge, color: "#2563eb", pct: (skillStats.knowledge / max) * 100 },
-      { label: "Know-how", value: skillStats.knowHow, color: "#7c3aed", pct: (skillStats.knowHow / max) * 100 },
-      { label: "Soft", value: skillStats.soft, color: "#14b8a6", pct: (skillStats.soft / max) * 100 },
+      {
+        label: "Knowledge",
+        value: skillStats.knowledge,
+        color: "#2563eb",
+        pct: (skillStats.knowledge / max) * 100,
+      },
+      {
+        label: "Know-how",
+        value: skillStats.knowHow,
+        color: "#7c3aed",
+        pct: (skillStats.knowHow / max) * 100,
+      },
+      {
+        label: "Soft",
+        value: skillStats.soft,
+        color: "#14b8a6",
+        pct: (skillStats.soft / max) * 100,
+      },
     ];
   }, [skillStats]);
-
-  const calendarMonthLabel = useMemo(
-    () => calendarDate.toLocaleString("en", { month: "long", year: "numeric" }),
-    [calendarDate]
-  );
-
-  const calendarDays = useMemo(() => {
-    const year = calendarDate.getFullYear();
-    const month = calendarDate.getMonth();
-    const firstDay = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-    const grid: Array<number | null> = [
-      ...Array.from({ length: firstDay }, () => null),
-      ...Array.from({ length: daysInMonth }, (_, idx) => idx + 1),
-    ];
-
-    while (grid.length % 7 !== 0) {
-      grid.push(null);
-    }
-
-    return grid;
-  }, [calendarDate]);
-
-  const calendarMarkers = useMemo(() => {
-    const year = calendarDate.getFullYear();
-    const month = calendarDate.getMonth();
-    const startDays = new Set<number>();
-    const endDays = new Set<number>();
-
-    activities.forEach((activity) => {
-      const start = new Date(activity.startDate || activity.createdAt || "");
-      const end = new Date(activity.endDate || activity.startDate || activity.createdAt || "");
-
-      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return;
-
-      if (start.getFullYear() === year && start.getMonth() === month) {
-        startDays.add(start.getDate());
-      }
-
-      if (end.getFullYear() === year && end.getMonth() === month) {
-        endDays.add(end.getDate());
-      }
-    });
-
-    return { startDays, endDays };
-  }, [activities, calendarDate]);
-
-  const monthlyHighlights = useMemo(() => {
-    const year = calendarDate.getFullYear();
-    const month = calendarDate.getMonth();
-
-    return [...activities]
-      .filter((activity) => {
-        const dt = new Date(activity.startDate || activity.createdAt || "");
-        return !Number.isNaN(dt.getTime()) && dt.getFullYear() === year && dt.getMonth() === month;
-      })
-      .sort(
-        (a, b) =>
-          new Date(a.startDate || a.createdAt || 0).getTime() -
-          new Date(b.startDate || b.createdAt || 0).getTime()
-      )
-      .slice(0, 2);
-  }, [activities, calendarDate]);
 
   return (
     <div
@@ -280,7 +261,14 @@ export default function HrStatsDashboard() {
         color: "var(--text)",
       }}
     >
-      <div style={{ maxWidth: "1480px", margin: "0 auto", display: "grid", gap: "20px" }}>
+      <div
+        style={{
+          maxWidth: "1480px",
+          margin: "0 auto",
+          display: "grid",
+          gap: "20px",
+        }}
+      >
         <section
           style={{
             background: "var(--card)",
@@ -308,6 +296,7 @@ export default function HrStatsDashboard() {
             >
               HR Intelligence Dashboard
             </div>
+
             <h1
               style={{
                 margin: 0,
@@ -319,6 +308,7 @@ export default function HrStatsDashboard() {
             >
               Workforce Activity Overview
             </h1>
+
             <div
               style={{
                 marginTop: "8px",
@@ -359,24 +349,41 @@ export default function HrStatsDashboard() {
           }}
         >
           {[
-            { title: "Total Activities", value: activityStats.total, percent: 100, color: "#1ea672" },
+            {
+              title: "Total Activities",
+              value: activityStats.total,
+              percent: 100,
+              color: "#1ea672",
+            },
             {
               title: "In Progress",
               value: activityStats.inProgress,
-              percent: activityStats.total ? Math.round((activityStats.inProgress / activityStats.total) * 100) : 0,
+              percent: activityStats.total
+                ? Math.round(
+                    (activityStats.inProgress / activityStats.total) * 100
+                  )
+                : 0,
               color: "#f59e0b",
             },
             {
               title: "Completed",
               value: activityStats.completed,
-              percent: activityStats.total ? Math.round((activityStats.completed / activityStats.total) * 100) : 0,
+              percent: activityStats.total
+                ? Math.round(
+                    (activityStats.completed / activityStats.total) * 100
+                  )
+                : 0,
               color: "#22a16d",
             },
             {
               title: "Total Skills",
               value: skillStats.total,
               percent: skillStats.total
-                ? Math.round(((skillStats.knowledge + skillStats.knowHow) / skillStats.total) * 100)
+                ? Math.round(
+                    ((skillStats.knowledge + skillStats.knowHow) /
+                      skillStats.total) *
+                      100
+                  )
                 : 0,
               color: "#7c3aed",
             },
@@ -387,7 +394,8 @@ export default function HrStatsDashboard() {
                 background: "var(--surface)",
                 borderRadius: "24px",
                 padding: "22px",
-                border: "1px solid color-mix(in srgb, var(--border) 86%, transparent)",
+                border:
+                  "1px solid color-mix(in srgb, var(--border) 86%, transparent)",
                 boxShadow: "0 8px 28px rgba(21, 61, 46, 0.05)",
                 display: "flex",
                 alignItems: "center",
@@ -397,13 +405,36 @@ export default function HrStatsDashboard() {
               }}
             >
               <div>
-                <div style={{ fontSize: "15px", color: "var(--text)", marginBottom: "10px", fontWeight: 700 }}>
+                <div
+                  style={{
+                    fontSize: "15px",
+                    color: "var(--text)",
+                    marginBottom: "10px",
+                    fontWeight: 700,
+                  }}
+                >
                   {item.title}
                 </div>
-                <div style={{ fontSize: "42px", fontWeight: 800, lineHeight: 1, color: "var(--text)" }}>
+
+                <div
+                  style={{
+                    fontSize: "42px",
+                    fontWeight: 800,
+                    lineHeight: 1,
+                    color: "var(--text)",
+                  }}
+                >
                   {loading ? "..." : item.value}
                 </div>
-                <div style={{ fontSize: "14px", color: "var(--muted)", marginTop: "8px", fontWeight: 700 }}>
+
+                <div
+                  style={{
+                    fontSize: "14px",
+                    color: "var(--muted)",
+                    marginTop: "8px",
+                    fontWeight: 700,
+                  }}
+                >
                   {loading ? "..." : `${item.percent}% ratio`}
                 </div>
               </div>
@@ -448,155 +479,33 @@ export default function HrStatsDashboard() {
           }}
         >
           <div style={{ display: "grid", gap: "20px" }}>
-            <section
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate("/hr/calendar")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  navigate("/hr/calendar");
+                }
+              }}
               style={{
-                background: "var(--card)",
+                cursor: "pointer",
                 borderRadius: "26px",
-                padding: "24px",
-                border: "1px solid var(--border)",
-                boxShadow: "0 8px 30px rgba(21, 61, 46, 0.05)",
+                transition: "transform 0.2s ease, box-shadow 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-3px)";
+                e.currentTarget.style.boxShadow =
+                  "0 14px 34px rgba(21, 61, 46, 0.12)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "none";
               }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: "18px",
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--text)" }}>{calendarMonthLabel}</div>
-                  <div style={{ color: "var(--muted)", fontSize: "13px", marginTop: "4px" }}>All activities calendar</div>
-                </div>
-
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button
-                    type="button"
-                    onClick={() => setCalendarDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
-                    style={{
-                      width: "34px",
-                      height: "34px",
-                      borderRadius: "10px",
-                      border: "1px solid var(--border)",
-                      background: "var(--surface-2)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    ←
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCalendarDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
-                    style={{
-                      width: "34px",
-                      height: "34px",
-                      borderRadius: "10px",
-                      border: "1px solid var(--border)",
-                      background: "var(--surface-2)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    →
-                  </button>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(7, 1fr)",
-                  gap: "8px",
-                  fontSize: "13px",
-                  textAlign: "center",
-                }}
-              >
-                {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-                  <div key={`${d}-${i}`} style={{ color: "var(--muted)", fontWeight: 800, paddingBottom: "6px" }}>
-                    {d}
-                  </div>
-                ))}
-
-                {calendarDays.map((day, index) => {
-                  const isStart = day ? calendarMarkers.startDays.has(day) : false;
-                  const isEnd = day ? calendarMarkers.endDays.has(day) : false;
-                  const isBoth = isStart && isEnd;
-                  const isEmpty = !day;
-
-                  return (
-                    <div
-                      key={`${day}-${index}`}
-                      style={{
-                        height: "40px",
-                        borderRadius: "12px",
-                        display: "grid",
-                        placeItems: "center",
-                        background: isEmpty
-                          ? "transparent"
-                          : isBoth
-                            ? "linear-gradient(135deg, #1ea672 0%, #f59e0b 100%)"
-                            : isStart
-                              ? "#1ea672"
-                              : isEnd
-                                ? "#f59e0b"
-                                : "var(--surface-2)",
-                        color: isEmpty ? "transparent" : isStart || isEnd ? "#ffffff" : "var(--text)",
-                        fontWeight: isStart || isEnd ? 800 : 700,
-                        border: isEmpty ? "none" : "1px solid var(--border)",
-                        fontSize: "14px",
-                      }}
-                    >
-                      {day ?? ""}
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div style={{ display: "flex", gap: "14px", marginTop: "12px", fontSize: "12px", color: "var(--muted)" }}>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                  <span style={{ width: "10px", height: "10px", borderRadius: "999px", background: "#1ea672" }} />
-                  Start
-                </span>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                  <span style={{ width: "10px", height: "10px", borderRadius: "999px", background: "#f59e0b" }} />
-                  End
-                </span>
-              </div>
-
-              <div style={{ marginTop: "12px", display: "grid", gap: "8px" }}>
-                {loading ? (
-                  <span className="muted">Loading...</span>
-                ) : monthlyHighlights.length === 0 ? (
-                  <span className="muted">No activities in this month.</span>
-                ) : (
-                  monthlyHighlights.map((activity) => {
-                    const start = new Date(activity.startDate || activity.createdAt || "");
-                    const when = Number.isNaN(start.getTime())
-                      ? "Date unavailable"
-                      : start.toLocaleDateString("en", { day: "2-digit", month: "short" });
-                    return (
-                      <div
-                        key={activity._id}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          gap: 10,
-                          border: "1px solid var(--border)",
-                          borderRadius: 10,
-                          padding: "8px 10px",
-                          background: "var(--surface-2)",
-                        }}
-                      >
-                        <span style={{ fontWeight: 700, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {activity.title}
-                        </span>
-                        <span style={{ color: "var(--muted)", fontWeight: 700 }}>{when}</span>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </section>
+              <ActivitiesCalendar activities={activities} loading={loading} />
+            </div>
 
             <section
               style={{
@@ -618,26 +527,58 @@ export default function HrStatsDashboard() {
                 }}
               >
                 <div>
-                  <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--text)" }}>Activity Trend</div>
-                  <div style={{ fontSize: "14px", color: "var(--muted)", marginTop: "4px" }}>
-                    Activities scheduled during each month (using start and end dates).
+                  <div
+                    style={{
+                      fontSize: "16px",
+                      fontWeight: 800,
+                      color: "var(--text)",
+                    }}
+                  >
+                    Activity Trend
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "14px",
+                      color: "var(--muted)",
+                      marginTop: "4px",
+                    }}
+                  >
+                    Activities scheduled during each month (using start and end
+                    dates).
                   </div>
                 </div>
               </div>
 
-              <svg viewBox={`0 0 ${chartData.w} ${chartData.h}`} style={{ width: "100%" }}>
+              <svg
+                viewBox={`0 0 ${chartData.w} ${chartData.h}`}
+                style={{ width: "100%" }}
+              >
                 <defs>
                   <linearGradient id="hrTrendArea" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#1ea672" stopOpacity="0.4" />
                     <stop offset="100%" stopColor="#1ea672" stopOpacity="0.03" />
                   </linearGradient>
                 </defs>
+
                 <path d={chartData.areaPath} fill="url(#hrTrendArea)" />
-                <path d={chartData.linePath} stroke="#15803d" strokeWidth="3" fill="none" strokeLinecap="round" />
+                <path
+                  d={chartData.linePath}
+                  stroke="#15803d"
+                  strokeWidth="3"
+                  fill="none"
+                  strokeLinecap="round"
+                />
+
                 {chartData.points.map((p, i) => (
                   <g key={i}>
                     <circle cx={p.x} cy={p.y} r="4" fill="#15803d" />
-                    <text x={p.x} y={chartData.h - 2} textAnchor="middle" fontSize="11" fill="var(--muted)">
+                    <text
+                      x={p.x}
+                      y={chartData.h - 2}
+                      textAnchor="middle"
+                      fontSize="11"
+                      fill="var(--muted)"
+                    >
                       {monthTrend.labels[i]}
                     </text>
                   </g>
@@ -654,9 +595,17 @@ export default function HrStatsDashboard() {
                 boxShadow: "0 8px 30px rgba(21, 61, 46, 0.05)",
               }}
             >
-              <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--text)", marginBottom: "12px" }}>
+              <div
+                style={{
+                  fontSize: "20px",
+                  fontWeight: 800,
+                  color: "var(--text)",
+                  marginBottom: "12px",
+                }}
+              >
                 Recent Activities
               </div>
+
               <div className="table-wrapper">
                 <table className="data-table">
                   <thead>
@@ -669,18 +618,36 @@ export default function HrStatsDashboard() {
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan={3} className="empty-state" style={{ fontSize: "15px" }}>Loading...</td>
+                        <td
+                          colSpan={3}
+                          className="empty-state"
+                          style={{ fontSize: "15px" }}
+                        >
+                          Loading...
+                        </td>
                       </tr>
                     ) : recentActivities.length === 0 ? (
                       <tr>
-                        <td colSpan={3} className="empty-state" style={{ fontSize: "15px" }}>No activities found.</td>
+                        <td
+                          colSpan={3}
+                          className="empty-state"
+                          style={{ fontSize: "15px" }}
+                        >
+                          No activities found.
+                        </td>
                       </tr>
                     ) : (
                       recentActivities.map((a) => (
                         <tr key={a._id}>
-                          <td className="cell-title" style={{ fontSize: "16px" }}>{a.title}</td>
-                          <td style={{ fontSize: "16px", fontWeight: 600 }}>{a.status}</td>
-                          <td style={{ fontSize: "16px", fontWeight: 600 }}>{a.type}</td>
+                          <td className="cell-title" style={{ fontSize: "16px" }}>
+                            {a.title}
+                          </td>
+                          <td style={{ fontSize: "16px", fontWeight: 600 }}>
+                            {a.status}
+                          </td>
+                          <td style={{ fontSize: "16px", fontWeight: 600 }}>
+                            {a.type}
+                          </td>
                         </tr>
                       ))
                     )}
@@ -700,12 +667,40 @@ export default function HrStatsDashboard() {
                 boxShadow: "0 8px 30px rgba(21, 61, 46, 0.05)",
               }}
             >
-              <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--text)", marginBottom: "10px" }}>
+              <div
+                style={{
+                  fontSize: "16px",
+                  fontWeight: 800,
+                  color: "var(--text)",
+                  marginBottom: "10px",
+                }}
+              >
                 Activities by Status
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: 14, alignItems: "center" }}>
-                <svg viewBox="0 0 120 120" width="110" height="110" style={{ overflow: "visible" }}>
-                  <circle cx="60" cy="60" r="42" fill="none" stroke="var(--surface-3)" strokeWidth="14" />
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "110px 1fr",
+                  gap: 14,
+                  alignItems: "center",
+                }}
+              >
+                <svg
+                  viewBox="0 0 120 120"
+                  width="110"
+                  height="110"
+                  style={{ overflow: "visible" }}
+                >
+                  <circle
+                    cx="60"
+                    cy="60"
+                    r="42"
+                    fill="none"
+                    stroke="var(--surface-3)"
+                    strokeWidth="14"
+                  />
+
                   {activityPie.segments.map((s) => (
                     <circle
                       key={s.label}
@@ -722,20 +717,62 @@ export default function HrStatsDashboard() {
                       transform="rotate(-90 60 60)"
                     />
                   ))}
-                  <text x="60" y="58" textAnchor="middle" fontSize="11" fill="var(--muted)">Total</text>
-                  <text x="60" y="74" textAnchor="middle" fontSize="18" fontWeight="800" fill="var(--text)">
+
+                  <text
+                    x="60"
+                    y="58"
+                    textAnchor="middle"
+                    fontSize="11"
+                    fill="var(--muted)"
+                  >
+                    Total
+                  </text>
+
+                  <text
+                    x="60"
+                    y="74"
+                    textAnchor="middle"
+                    fontSize="18"
+                    fontWeight="800"
+                    fill="var(--text)"
+                  >
                     {loading ? "..." : activityPie.total}
                   </text>
                 </svg>
 
                 <div style={{ display: "grid", gap: 8 }}>
                   {activityPie.segments.map((s) => (
-                    <div key={s.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 8, color: "var(--text)" }}>
-                        <span style={{ width: 10, height: 10, borderRadius: 999, background: s.color }} />
+                    <div
+                      key={s.label}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 8,
+                      }}
+                    >
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 8,
+                          color: "var(--text)",
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: 999,
+                            background: s.color,
+                          }}
+                        />
                         {s.label}
                       </span>
-                      <strong style={{ color: "var(--text)" }}>{loading ? "..." : s.value}</strong>
+
+                      <strong style={{ color: "var(--text)" }}>
+                        {loading ? "..." : s.value}
+                      </strong>
                     </div>
                   ))}
                 </div>
@@ -751,17 +788,40 @@ export default function HrStatsDashboard() {
                 boxShadow: "0 8px 30px rgba(21, 61, 46, 0.05)",
               }}
             >
-              <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--text)", marginBottom: "12px" }}>
+              <div
+                style={{
+                  fontSize: "16px",
+                  fontWeight: 800,
+                  color: "var(--text)",
+                  marginBottom: "12px",
+                }}
+              >
                 Skills by Category
               </div>
+
               <div style={{ display: "grid", gap: 10 }}>
                 {skillBars.map((item) => (
                   <div key={item.label}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, color: "var(--text)" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        marginBottom: 4,
+                        color: "var(--text)",
+                      }}
+                    >
                       <span>{item.label}</span>
                       <strong>{loading ? "..." : item.value}</strong>
                     </div>
-                    <div style={{ height: 8, borderRadius: 999, background: "var(--surface-3)", overflow: "hidden" }}>
+
+                    <div
+                      style={{
+                        height: 8,
+                        borderRadius: 999,
+                        background: "var(--surface-3)",
+                        overflow: "hidden",
+                      }}
+                    >
                       <div
                         style={{
                           width: `${loading ? 0 : item.pct}%`,
@@ -775,9 +835,18 @@ export default function HrStatsDashboard() {
                 ))}
               </div>
 
-              <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--text)", marginTop: "18px", marginBottom: "10px" }}>
+              <div
+                style={{
+                  fontSize: "16px",
+                  fontWeight: 800,
+                  color: "var(--text)",
+                  marginTop: "18px",
+                  marginBottom: "10px",
+                }}
+              >
                 Most Required Skills
               </div>
+
               <div style={{ display: "grid", gap: 8 }}>
                 {loading ? (
                   <span className="muted">Loading...</span>
@@ -785,7 +854,14 @@ export default function HrStatsDashboard() {
                   <span className="muted">No required-skills data yet.</span>
                 ) : (
                   topRequiredSkills.map(([name, count]) => (
-                    <div key={name} style={{ display: "flex", justifyContent: "space-between", color: "var(--text)" }}>
+                    <div
+                      key={name}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        color: "var(--text)",
+                      }}
+                    >
                       <span>{name}</span>
                       <strong>{count}</strong>
                     </div>
@@ -805,10 +881,24 @@ export default function HrStatsDashboard() {
             boxShadow: "0 8px 30px rgba(21, 61, 46, 0.05)",
           }}
         >
-          <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--text)", marginBottom: "12px" }}>
+          <div
+            style={{
+              fontSize: "16px",
+              fontWeight: 800,
+              color: "var(--text)",
+              marginBottom: "12px",
+            }}
+          >
             Quick Skill Snapshot
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+              gap: 12,
+            }}
+          >
             {[
               ["Knowledge", skillStats.knowledge, "#dbeafe"],
               ["Know-how", skillStats.knowHow, "#ede9fe"],
@@ -817,14 +907,30 @@ export default function HrStatsDashboard() {
               <div
                 key={String(label)}
                 style={{
-                  background: `color-mix(in srgb, var(--surface-2) 80%, ${String(bg)})`,
-                  border: `1px solid color-mix(in srgb, var(--border) 60%, ${String(bg)})`,
+                  background: `color-mix(in srgb, var(--surface-2) 80%, ${String(
+                    bg
+                  )})`,
+                  border: `1px solid color-mix(in srgb, var(--border) 60%, ${String(
+                    bg
+                  )})`,
                   borderRadius: 16,
                   padding: 16,
                 }}
               >
-                <div style={{ color: "var(--text)", fontSize: 13, fontWeight: 800 }}>{label}</div>
-                <div style={{ marginTop: 6, fontSize: 30, fontWeight: 900, color: "var(--text)" }}>
+                <div
+                  style={{ color: "var(--text)", fontSize: 13, fontWeight: 800 }}
+                >
+                  {label}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 6,
+                    fontSize: 30,
+                    fontWeight: 900,
+                    color: "var(--text)",
+                  }}
+                >
                   {loading ? "..." : value}
                 </div>
               </div>
