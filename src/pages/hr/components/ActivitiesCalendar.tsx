@@ -6,40 +6,69 @@ type ActivitiesCalendarProps = {
   loading?: boolean;
 };
 
+function sameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function getMonthGrid(date: Date) {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+
+  const firstOfMonth = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const jsDay = firstOfMonth.getDay();
+  const mondayStartOffset = jsDay === 0 ? 6 : jsDay - 1;
+
+  const cells: Array<Date | null> = [
+    ...Array.from({ length: mondayStartOffset }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, idx) => new Date(year, month, idx + 1)),
+  ];
+
+  while (cells.length % 7 !== 0) {
+    cells.push(null);
+  }
+
+  return cells;
+}
+
 export default function ActivitiesCalendar({
   activities,
   loading = false,
 }: ActivitiesCalendarProps) {
   const [calendarDate, setCalendarDate] = useState(() => new Date());
+  const today = new Date();
 
   const calendarMonthLabel = useMemo(
-    () => calendarDate.toLocaleString("en", { month: "long", year: "numeric" }),
+    () =>
+      calendarDate.toLocaleString("en", {
+        month: "long",
+        year: "numeric",
+      }),
     [calendarDate]
   );
 
-  const calendarDays = useMemo(() => {
+  const calendarCells = useMemo(() => getMonthGrid(calendarDate), [calendarDate]);
+
+  const dayInfo = useMemo(() => {
     const year = calendarDate.getFullYear();
     const month = calendarDate.getMonth();
-    const firstDay = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    const grid: Array<number | null> = [
-      ...Array.from({ length: firstDay }, () => null),
-      ...Array.from({ length: daysInMonth }, (_, idx) => idx + 1),
-    ];
+    const info = new Map<
+      number,
+      {
+        startCount: number;
+        endCount: number;
+      }
+    >();
 
-    while (grid.length % 7 !== 0) {
-      grid.push(null);
+    for (let i = 1; i <= 31; i++) {
+      info.set(i, { startCount: 0, endCount: 0 });
     }
-
-    return grid;
-  }, [calendarDate]);
-
-  const calendarMarkers = useMemo(() => {
-    const year = calendarDate.getFullYear();
-    const month = calendarDate.getMonth();
-    const startDays = new Set<number>();
-    const endDays = new Set<number>();
 
     activities.forEach((activity) => {
       const start = new Date(activity.startDate || activity.createdAt || "");
@@ -47,18 +76,18 @@ export default function ActivitiesCalendar({
         activity.endDate || activity.startDate || activity.createdAt || ""
       );
 
-      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return;
-
-      if (start.getFullYear() === year && start.getMonth() === month) {
-        startDays.add(start.getDate());
+      if (!Number.isNaN(start.getTime()) && start.getFullYear() === year && start.getMonth() === month) {
+        const entry = info.get(start.getDate());
+        if (entry) entry.startCount += 1;
       }
 
-      if (end.getFullYear() === year && end.getMonth() === month) {
-        endDays.add(end.getDate());
+      if (!Number.isNaN(end.getTime()) && end.getFullYear() === year && end.getMonth() === month) {
+        const entry = info.get(end.getDate());
+        if (entry) entry.endCount += 1;
       }
     });
 
-    return { startDays, endDays };
+    return info;
   }, [activities, calendarDate]);
 
   const monthlyHighlights = useMemo(() => {
@@ -67,11 +96,11 @@ export default function ActivitiesCalendar({
 
     return [...activities]
       .filter((activity) => {
-        const dt = new Date(activity.startDate || activity.createdAt || "");
+        const start = new Date(activity.startDate || activity.createdAt || "");
         return (
-          !Number.isNaN(dt.getTime()) &&
-          dt.getFullYear() === year &&
-          dt.getMonth() === month
+          !Number.isNaN(start.getTime()) &&
+          start.getFullYear() === year &&
+          start.getMonth() === month
         );
       })
       .sort(
@@ -79,14 +108,39 @@ export default function ActivitiesCalendar({
           new Date(a.startDate || a.createdAt || 0).getTime() -
           new Date(b.startDate || b.createdAt || 0).getTime()
       )
-      .slice(0, 2);
+      .slice(0, 4);
+  }, [activities, calendarDate]);
+
+  const stats = useMemo(() => {
+    const year = calendarDate.getFullYear();
+    const month = calendarDate.getMonth();
+
+    let started = 0;
+    let ended = 0;
+
+    activities.forEach((activity) => {
+      const start = new Date(activity.startDate || activity.createdAt || "");
+      const end = new Date(
+        activity.endDate || activity.startDate || activity.createdAt || ""
+      );
+
+      if (!Number.isNaN(start.getTime()) && start.getFullYear() === year && start.getMonth() === month) {
+        started += 1;
+      }
+
+      if (!Number.isNaN(end.getTime()) && end.getFullYear() === year && end.getMonth() === month) {
+        ended += 1;
+      }
+    });
+
+    return { started, ended };
   }, [activities, calendarDate]);
 
   return (
     <section
       style={{
         background: "var(--card)",
-        borderRadius: "26px",
+        borderRadius: "28px",
         padding: "24px",
         border: "1px solid var(--border)",
         boxShadow: "0 8px 30px rgba(21, 61, 46, 0.05)",
@@ -96,15 +150,17 @@ export default function ActivitiesCalendar({
         style={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
+          alignItems: "flex-start",
+          gap: "16px",
           marginBottom: "18px",
+          flexWrap: "wrap",
         }}
       >
         <div>
           <div
             style={{
-              fontSize: "20px",
-              fontWeight: 800,
+              fontSize: "18px",
+              fontWeight: 900,
               color: "var(--text)",
             }}
           >
@@ -115,13 +171,20 @@ export default function ActivitiesCalendar({
               color: "var(--muted)",
               fontSize: "13px",
               marginTop: "4px",
+              fontWeight: 600,
             }}
           >
-            All activities calendar
+            Activities overview
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: "8px" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: "8px",
+            alignItems: "center",
+          }}
+        >
           <button
             type="button"
             onClick={() =>
@@ -129,14 +192,7 @@ export default function ActivitiesCalendar({
                 (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
               )
             }
-            style={{
-              width: "34px",
-              height: "34px",
-              borderRadius: "10px",
-              border: "1px solid var(--border)",
-              background: "var(--surface-2)",
-              cursor: "pointer",
-            }}
+            style={navBtnStyle}
           >
             ←
           </button>
@@ -148,14 +204,7 @@ export default function ActivitiesCalendar({
                 (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
               )
             }
-            style={{
-              width: "34px",
-              height: "34px",
-              borderRadius: "10px",
-              border: "1px solid var(--border)",
-              background: "var(--surface-2)",
-              cursor: "pointer",
-            }}
+            style={navBtnStyle}
           >
             →
           </button>
@@ -165,59 +214,139 @@ export default function ActivitiesCalendar({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(7, 1fr)",
+          gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
           gap: "8px",
-          fontSize: "13px",
-          textAlign: "center",
+          marginBottom: "10px",
         }}
       >
-        {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+        {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
           <div
             key={`${d}-${i}`}
             style={{
+              textAlign: "center",
               color: "var(--muted)",
               fontWeight: 800,
-              paddingBottom: "6px",
+              fontSize: "12px",
+              letterSpacing: "0.04em",
+              paddingBottom: "2px",
             }}
           >
             {d}
           </div>
         ))}
+      </div>
 
-        {calendarDays.map((day, index) => {
-          const isStart = day ? calendarMarkers.startDays.has(day) : false;
-          const isEnd = day ? calendarMarkers.endDays.has(day) : false;
-          const isBoth = isStart && isEnd;
-          const isEmpty = !day;
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+          gap: "8px",
+        }}
+      >
+        {calendarCells.map((cell, index) => {
+          const isEmpty = !cell;
+          const isToday = cell ? sameDay(cell, today) : false;
+
+          const info = cell
+            ? dayInfo.get(cell.getDate()) || { startCount: 0, endCount: 0 }
+            : { startCount: 0, endCount: 0 };
+
+          const hasStart = info.startCount > 0;
+          const hasEnd = info.endCount > 0;
+          const hasAny = hasStart || hasEnd;
 
           return (
             <div
-              key={`${day}-${index}`}
+              key={`${cell ? cell.toISOString() : "empty"}-${index}`}
               style={{
-                height: "40px",
-                borderRadius: "12px",
-                display: "grid",
-                placeItems: "center",
-                background: isEmpty
-                  ? "transparent"
-                  : isBoth
-                  ? "linear-gradient(135deg, #1ea672 0%, #f59e0b 100%)"
-                  : isStart
-                  ? "#1ea672"
-                  : isEnd
-                  ? "#f59e0b"
-                  : "var(--surface-2)",
-                color: isEmpty
-                  ? "transparent"
-                  : isStart || isEnd
-                  ? "#ffffff"
-                  : "var(--text)",
-                fontWeight: isStart || isEnd ? 800 : 700,
-                border: isEmpty ? "none" : "1px solid var(--border)",
+                height: "46px",
+                borderRadius: "14px",
+                border: isEmpty
+                  ? "1px solid transparent"
+                  : isToday
+                  ? "1px solid #93c5fd"
+                  : hasAny
+                  ? "1px solid #d7dee8"
+                  : "1px solid var(--border)",
+                background: isEmpty ? "transparent" : "var(--surface-2)",
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: isEmpty ? "transparent" : "var(--text)",
+                fontWeight: 800,
                 fontSize: "14px",
               }}
             >
-              {day ?? ""}
+              {cell ? cell.getDate() : ""}
+
+              {!isEmpty && hasStart && (
+                <div
+                  style={{
+                    position: "absolute",
+                    left: "8px",
+                    bottom: "7px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "999px",
+                      background: "#1faa72",
+                    }}
+                  />
+                  {info.startCount > 1 ? (
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        fontWeight: 800,
+                        color: "#1faa72",
+                        lineHeight: 1,
+                      }}
+                    >
+                      {info.startCount}
+                    </span>
+                  ) : null}
+                </div>
+              )}
+
+              {!isEmpty && hasEnd && (
+                <div
+                  style={{
+                    position: "absolute",
+                    right: "8px",
+                    bottom: "7px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                  }}
+                >
+                  {info.endCount > 1 ? (
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        fontWeight: 800,
+                        color: "#f59e0b",
+                        lineHeight: 1,
+                      }}
+                    >
+                      {info.endCount}
+                    </span>
+                  ) : null}
+                  <span
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "999px",
+                      background: "#f59e0b",
+                    }}
+                  />
+                </div>
+              )}
             </div>
           );
         })}
@@ -226,48 +355,58 @@ export default function ActivitiesCalendar({
       <div
         style={{
           display: "flex",
-          gap: "14px",
-          marginTop: "12px",
-          fontSize: "12px",
+          gap: "16px",
+          alignItems: "center",
+          flexWrap: "wrap",
+          marginTop: "14px",
           color: "var(--muted)",
+          fontSize: "12px",
+          fontWeight: 700,
         }}
       >
-        <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-          <span
-            style={{
-              width: "10px",
-              height: "10px",
-              borderRadius: "999px",
-              background: "#1ea672",
-            }}
-          />
-          Start
-        </span>
+        <LegendDot color="#1faa72" label="Activity start" />
+        <LegendDot color="#f59e0b" label="Activity end" />
 
-        <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-          <span
-            style={{
-              width: "10px",
-              height: "10px",
-              borderRadius: "999px",
-              background: "#f59e0b",
-            }}
-          />
-          End
+        <span
+          style={{
+            marginLeft: "auto",
+            fontSize: "12px",
+            color: "var(--muted)",
+            fontWeight: 700,
+          }}
+        >
+          {stats.started} starts • {stats.ended} ends
         </span>
       </div>
 
-      <div style={{ marginTop: "12px", display: "grid", gap: "8px" }}>
+      <div
+        style={{
+          marginTop: "16px",
+          display: "grid",
+          gap: "10px",
+        }}
+      >
         {loading ? (
-          <span className="muted">Loading...</span>
+          <div style={emptyStateStyle}>Loading activities...</div>
         ) : monthlyHighlights.length === 0 ? (
-          <span className="muted">No activities in this month.</span>
+          <div style={emptyStateStyle}>No activities in this month.</div>
         ) : (
           monthlyHighlights.map((activity) => {
             const start = new Date(activity.startDate || activity.createdAt || "");
-            const when = Number.isNaN(start.getTime())
-              ? "Date unavailable"
+            const end = new Date(
+              activity.endDate || activity.startDate || activity.createdAt || ""
+            );
+
+            const startLabel = Number.isNaN(start.getTime())
+              ? "—"
               : start.toLocaleDateString("en", {
+                  day: "2-digit",
+                  month: "short",
+                });
+
+            const endLabel = Number.isNaN(end.getTime())
+              ? "—"
+              : end.toLocaleDateString("en", {
                   day: "2-digit",
                   month: "short",
                 });
@@ -277,29 +416,56 @@ export default function ActivitiesCalendar({
                 key={activity._id}
                 style={{
                   display: "flex",
+                  alignItems: "center",
                   justifyContent: "space-between",
-                  gap: 10,
+                  gap: "12px",
                   border: "1px solid var(--border)",
-                  borderRadius: 10,
-                  padding: "8px 10px",
+                  borderRadius: "14px",
+                  padding: "12px 14px",
                   background: "var(--surface-2)",
                 }}
               >
-                <span
+                <div
                   style={{
-                    fontWeight: 700,
-                    color: "var(--text)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
+                    minWidth: 0,
+                    display: "grid",
+                    gap: "4px",
                   }}
                 >
-                  {activity.title}
-                </span>
+                  <span
+                    style={{
+                      fontWeight: 800,
+                      color: "var(--text)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      fontSize: "14px",
+                    }}
+                  >
+                    {activity.title}
+                  </span>
 
-                <span style={{ color: "var(--muted)", fontWeight: 700 }}>
-                  {when}
-                </span>
+                  <span
+                    style={{
+                      color: "var(--muted)",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {startLabel} → {endLabel}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    flexShrink: 0,
+                    color: "var(--muted)",
+                    fontWeight: 800,
+                    fontSize: "13px",
+                  }}
+                >
+                  {endLabel}
+                </div>
               </div>
             );
           })
@@ -308,3 +474,46 @@ export default function ActivitiesCalendar({
     </section>
   );
 }
+
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "6px",
+      }}
+    >
+      <span
+        style={{
+          width: "10px",
+          height: "10px",
+          borderRadius: "999px",
+          background: color,
+        }}
+      />
+      {label}
+    </span>
+  );
+}
+
+const navBtnStyle: React.CSSProperties = {
+  width: "36px",
+  height: "36px",
+  borderRadius: "12px",
+  border: "1px solid var(--border)",
+  background: "var(--surface-2)",
+  color: "var(--text)",
+  cursor: "pointer",
+  fontWeight: 800,
+};
+
+const emptyStateStyle: React.CSSProperties = {
+  border: "1px dashed var(--border)",
+  borderRadius: "14px",
+  padding: "14px",
+  background: "var(--surface-2)",
+  color: "var(--muted)",
+  fontSize: "13px",
+  fontWeight: 700,
+};

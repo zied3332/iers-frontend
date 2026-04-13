@@ -1,18 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { listActivities, type ActivityRecord } from "../../services/activities.service";
 
+type ViewMode = "week" | "month";
+
 type CalendarEvent = {
   id: string;
   title: string;
   type?: string;
   status?: string;
+  context?: string;
   description?: string;
+  location?: string;
+  duration?: string;
+  seats?: number;
   start: Date;
   end: Date;
   raw: ActivityRecord;
 };
-
-const HOURS = Array.from({ length: 12 }, (_, i) => i + 8); // 8 AM -> 7 PM
 
 function startOfWeek(date: Date) {
   const d = new Date(date);
@@ -23,23 +27,39 @@ function startOfWeek(date: Date) {
   return d;
 }
 
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function endOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+}
+
 function addDays(date: Date, days: number) {
   const d = new Date(date);
   d.setDate(d.getDate() + days);
   return d;
 }
 
-function formatHour(hour: number) {
-  if (hour === 12) return "12 PM";
-  if (hour > 12) return `${hour - 12} PM`;
-  return `${hour} AM`;
+function sameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
 }
 
-function formatTime(date: Date) {
-  return date.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function isWithinRange(day: Date, start: Date, end: Date) {
+  const d = new Date(day);
+  d.setHours(0, 0, 0, 0);
+
+  const s = new Date(start);
+  s.setHours(0, 0, 0, 0);
+
+  const e = new Date(end);
+  e.setHours(23, 59, 59, 999);
+
+  return d >= s && d <= e;
 }
 
 function formatDayLabel(date: Date) {
@@ -50,6 +70,24 @@ function formatDayLabel(date: Date) {
   });
 }
 
+function formatShortDay(date: Date) {
+  return date.toLocaleDateString("en", {
+    weekday: "short",
+    day: "numeric",
+  });
+}
+
+function formatDateOnly(date?: string | Date) {
+  if (!date) return "—";
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("en", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 function getStatusColor(status?: string) {
   switch (status) {
     case "PLANNED":
@@ -57,32 +95,57 @@ function getStatusColor(status?: string) {
         bg: "#dbeafe",
         border: "#60a5fa",
         text: "#1e3a8a",
+        soft: "#eff6ff",
       };
     case "IN_PROGRESS":
       return {
         bg: "#fef3c7",
         border: "#f59e0b",
         text: "#92400e",
+        soft: "#fffbeb",
       };
     case "COMPLETED":
       return {
         bg: "#dcfce7",
         border: "#22c55e",
         text: "#166534",
+        soft: "#f0fdf4",
       };
     case "CANCELLED":
       return {
         bg: "#fee2e2",
         border: "#ef4444",
         text: "#991b1b",
+        soft: "#fef2f2",
       };
     default:
       return {
         bg: "#ede9fe",
         border: "#8b5cf6",
         text: "#5b21b6",
+        soft: "#f5f3ff",
       };
   }
+}
+
+function getWeekRangeLabel(currentDate: Date) {
+  const start = startOfWeek(currentDate);
+  const end = addDays(start, 6);
+  return `${start.toLocaleDateString("en", {
+    day: "2-digit",
+    month: "short",
+  })} - ${end.toLocaleDateString("en", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  })}`;
+}
+
+function getMonthRangeLabel(currentDate: Date) {
+  return currentDate.toLocaleDateString("en", {
+    month: "long",
+    year: "numeric",
+  });
 }
 
 export default function HrCalendarPage() {
@@ -91,6 +154,9 @@ export default function HrCalendarPage() {
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedActivity, setSelectedActivity] = useState<ActivityRecord | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("week");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [typeFilter, setTypeFilter] = useState("ALL");
 
   useEffect(() => {
     let cancelled = false;
@@ -117,29 +183,13 @@ export default function HrCalendarPage() {
     };
   }, []);
 
-  const weekStart = useMemo(() => startOfWeek(currentDate), [currentDate]);
-
-  const weekDays = useMemo(() => {
-    return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-  }, [weekStart]);
-
-  const weekLabel = useMemo(() => {
-    const end = addDays(weekStart, 6);
-    return `${weekStart.toLocaleDateString("en", {
-      day: "2-digit",
-      month: "short",
-    })} - ${end.toLocaleDateString("en", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    })}`;
-  }, [weekStart]);
-
   const calendarEvents = useMemo<CalendarEvent[]>(() => {
     return activities
       .map((activity) => {
         const start = new Date(activity.startDate || activity.createdAt || "");
-        const end = new Date(activity.endDate || activity.startDate || activity.createdAt || "");
+        const end = new Date(
+          activity.endDate || activity.startDate || activity.createdAt || ""
+        );
 
         if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
           return null;
@@ -150,7 +200,11 @@ export default function HrCalendarPage() {
           title: activity.title,
           type: activity.type,
           status: activity.status,
+          context: (activity as any).context,
           description: activity.description,
+          location: (activity as any).location,
+          duration: (activity as any).duration,
+          seats: (activity as any).seats,
           start,
           end,
           raw: activity,
@@ -159,13 +213,98 @@ export default function HrCalendarPage() {
       .filter(Boolean) as CalendarEvent[];
   }, [activities]);
 
-  const weekEvents = useMemo(() => {
-    const weekEnd = addDays(weekStart, 7);
+  const availableTypes = useMemo(() => {
+    return Array.from(
+      new Set(calendarEvents.map((event) => event.type).filter(Boolean))
+    ) as string[];
+  }, [calendarEvents]);
 
+  const filteredEvents = useMemo(() => {
     return calendarEvents.filter((event) => {
-      return event.start < weekEnd && event.end >= weekStart;
+      const matchStatus = statusFilter === "ALL" || event.status === statusFilter;
+      const matchType = typeFilter === "ALL" || event.type === typeFilter;
+      return matchStatus && matchType;
     });
-  }, [calendarEvents, weekStart]);
+  }, [calendarEvents, statusFilter, typeFilter]);
+
+  const weekDays = useMemo(() => {
+    const start = startOfWeek(currentDate);
+    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  }, [currentDate]);
+
+  const weekEvents = useMemo(() => {
+    const start = startOfWeek(currentDate);
+    const end = addDays(start, 6);
+
+    return filteredEvents.filter((event) => {
+      const eventStart = new Date(event.start);
+      eventStart.setHours(0, 0, 0, 0);
+
+      const eventEnd = new Date(event.end);
+      eventEnd.setHours(23, 59, 59, 999);
+
+      return eventStart <= end && eventEnd >= start;
+    });
+  }, [filteredEvents, currentDate]);
+
+  const monthGridDays = useMemo(() => {
+    const first = startOfMonth(currentDate);
+    const last = endOfMonth(currentDate);
+
+    const firstGridDay = startOfWeek(first);
+    const days: Date[] = [];
+
+    for (let i = 0; i < 42; i++) {
+      days.push(addDays(firstGridDay, i));
+    }
+
+    return {
+      days,
+      monthStart: first,
+      monthEnd: last,
+    };
+  }, [currentDate]);
+
+  const monthEvents = useMemo(() => {
+    const { monthStart, monthEnd } = monthGridDays;
+
+    return filteredEvents.filter((event) => {
+      const eventStart = new Date(event.start);
+      eventStart.setHours(0, 0, 0, 0);
+
+      const eventEnd = new Date(event.end);
+      eventEnd.setHours(23, 59, 59, 999);
+
+      return eventStart <= monthEnd && eventEnd >= monthStart;
+    });
+  }, [filteredEvents, monthGridDays]);
+
+  const visibleCount = viewMode === "week" ? weekEvents.length : monthEvents.length;
+
+  const headerLabel =
+    viewMode === "week"
+      ? getWeekRangeLabel(currentDate)
+      : getMonthRangeLabel(currentDate);
+
+  const goPrevious = () => {
+    if (viewMode === "week") {
+      setCurrentDate((prev) => addDays(prev, -7));
+    } else {
+      setCurrentDate(
+        (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
+      );
+    }
+  };
+
+  const goNext = () => {
+    if (viewMode === "week") {
+      setCurrentDate((prev) => addDays(prev, 7));
+    } else {
+      setCurrentDate(
+        (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
+      );
+    }
+  };
 
   return (
     <div
@@ -190,7 +329,7 @@ export default function HrCalendarPage() {
             style={{
               display: "flex",
               justifyContent: "space-between",
-              alignItems: "center",
+              alignItems: "flex-start",
               gap: "16px",
               flexWrap: "wrap",
             }}
@@ -211,45 +350,104 @@ export default function HrCalendarPage() {
               <h1 style={{ margin: 0, fontSize: "32px", fontWeight: 800 }}>
                 Activities Calendar
               </h1>
-              <div style={{ marginTop: "8px", color: "var(--muted)", fontSize: "14px" }}>
-                Track activity timing, review schedules, and inspect details.
-              </div>
-            </div>
-
-            <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={() => setCurrentDate(new Date())}
-                style={toolbarBtnStyle}
-              >
-                Today
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrentDate(addDays(currentDate, -7))}
-                style={toolbarBtnStyle}
-              >
-                ←
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrentDate(addDays(currentDate, 7))}
-                style={toolbarBtnStyle}
-              >
-                →
-              </button>
               <div
                 style={{
-                  padding: "10px 14px",
-                  borderRadius: "12px",
-                  background: "var(--surface-2)",
-                  border: "1px solid var(--border)",
-                  fontWeight: 700,
-                  color: "var(--text)",
+                  marginTop: "8px",
+                  color: "var(--muted)",
                   fontSize: "14px",
                 }}
               >
-                {weekLabel}
+                Follow multi-day training activities, certifications, and internal programs.
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gap: "10px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  justifyContent: "flex-end",
+                }}
+              >
+                <button type="button" onClick={() => setCurrentDate(new Date())} style={toolbarBtnStyle}>
+                  Today
+                </button>
+                <button type="button" onClick={goPrevious} style={toolbarBtnStyle}>
+                  ←
+                </button>
+                <button type="button" onClick={goNext} style={toolbarBtnStyle}>
+                  →
+                </button>
+
+                <div
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: "12px",
+                    background: "var(--surface-2)",
+                    border: "1px solid var(--border)",
+                    fontWeight: 700,
+                    color: "var(--text)",
+                    fontSize: "14px",
+                    minWidth: "180px",
+                    textAlign: "center",
+                  }}
+                >
+                  {headerLabel}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  justifyContent: "flex-end",
+                }}
+              >
+                <div style={segmentedWrapStyle}>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("week")}
+                    style={viewMode === "week" ? segmentedActiveStyle : segmentedBtnStyle}
+                  >
+                    Week
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("month")}
+                    style={viewMode === "month" ? segmentedActiveStyle : segmentedBtnStyle}
+                  >
+                    Month
+                  </button>
+                </div>
+
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  style={selectStyle}
+                >
+                  <option value="ALL">All statuses</option>
+                  <option value="PLANNED">Planned</option>
+                  <option value="IN_PROGRESS">In Progress</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="CANCELLED">Cancelled</option>
+                </select>
+
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                  style={selectStyle}
+                >
+                  <option value="ALL">All types</option>
+                  {availableTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
@@ -273,7 +471,7 @@ export default function HrCalendarPage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: selectedActivity ? "minmax(0, 1fr) 340px" : "1fr",
+            gridTemplateColumns: selectedActivity ? "minmax(0, 1fr) 360px" : "1fr",
             gap: "20px",
             alignItems: "start",
           }}
@@ -289,141 +487,312 @@ export default function HrCalendarPage() {
           >
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns: "90px repeat(7, 1fr)",
+                padding: "18px 20px",
                 borderBottom: "1px solid var(--border)",
-                background: "var(--surface)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: "12px",
+                flexWrap: "wrap",
               }}
             >
-              <div style={{ padding: "16px", borderRight: "1px solid var(--border)" }} />
-              {weekDays.map((day) => (
-                <div
-                  key={day.toISOString()}
-                  style={{
-                    padding: "16px 12px",
-                    borderRight: "1px solid var(--border)",
-                    textAlign: "center",
-                    fontWeight: 700,
-                    color: "var(--text)",
-                    background:
-                      day.toDateString() === new Date().toDateString()
-                        ? "color-mix(in srgb, var(--surface-2) 72%, #dbeafe)"
-                        : "transparent",
-                  }}
-                >
-                  {formatDayLabel(day)}
+              <div>
+                <div style={{ fontSize: "18px", fontWeight: 800, color: "var(--text)" }}>
+                  {viewMode === "week" ? "Weekly activity view" : "Monthly activity view"}
                 </div>
-              ))}
+                <div style={{ fontSize: "13px", color: "var(--muted)", marginTop: "4px" }}>
+                  {loading ? "Loading activities..." : `${visibleCount} matching activities`}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                <LegendItem color="#60a5fa" label="Planned" />
+                <LegendItem color="#f59e0b" label="In Progress" />
+                <LegendItem color="#22c55e" label="Completed" />
+                <LegendItem color="#ef4444" label="Cancelled" />
+              </div>
             </div>
 
             {loading ? (
-              <div style={{ padding: "30px", color: "var(--muted)" }}>Loading calendar...</div>
-            ) : (
-              <div style={{ position: "relative" }}>
-                {HOURS.map((hour) => (
-                  <div
-                    key={hour}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "90px repeat(7, 1fr)",
-                      minHeight: "88px",
-                      borderBottom: "1px solid var(--border)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        padding: "10px 12px",
-                        borderRight: "1px solid var(--border)",
-                        color: "var(--muted)",
-                        fontSize: "13px",
-                        fontWeight: 700,
-                      }}
-                    >
-                      {formatHour(hour)}
-                    </div>
-
-                    {weekDays.map((day) => (
-                      <div
-                        key={`${day.toISOString()}-${hour}`}
-                        style={{
-                          borderRight: "1px solid var(--border)",
-                          background: "transparent",
-                          position: "relative",
-                        }}
-                      />
-                    ))}
-                  </div>
-                ))}
-
+              <div style={{ padding: "30px", color: "var(--muted)" }}>
+                Loading calendar...
+              </div>
+            ) : viewMode === "week" ? (
+              <div style={{ padding: "18px" }}>
                 <div
                   style={{
-                    position: "absolute",
-                    inset: 0,
                     display: "grid",
-                    gridTemplateColumns: "90px repeat(7, 1fr)",
-                    pointerEvents: "none",
+                    gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+                    gap: "12px",
                   }}
                 >
-                  <div />
-
-                  {weekDays.map((day, dayIndex) => {
-                    const dayEvents = weekEvents.filter((event) => {
-                      return event.start.toDateString() === day.toDateString();
-                    });
+                  {weekDays.map((day) => {
+                    const dayEvents = weekEvents.filter((event) =>
+                      isWithinRange(day, event.start, event.end)
+                    );
 
                     return (
                       <div
                         key={day.toISOString()}
                         style={{
-                          position: "relative",
-                          borderRight: dayIndex < 6 ? "1px solid var(--border)" : "none",
-                          minHeight: `${HOURS.length * 88}px`,
+                          border: "1px solid var(--border)",
+                          borderRadius: "18px",
+                          background:
+                            sameDay(day, new Date())
+                              ? "color-mix(in srgb, var(--surface-2) 80%, #dbeafe)"
+                              : "var(--surface)",
+                          minHeight: "260px",
+                          overflow: "hidden",
                         }}
                       >
-                        {dayEvents.map((event, index) => {
-                          const startHour = event.start.getHours() + event.start.getMinutes() / 60;
-                          const endHour = event.end.getHours() + event.end.getMinutes() / 60;
+                        <div
+                          style={{
+                            padding: "14px 14px 12px",
+                            borderBottom: "1px solid var(--border)",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: "14px",
+                              fontWeight: 800,
+                              color: "var(--text)",
+                            }}
+                          >
+                            {formatShortDay(day)}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              color: "var(--muted)",
+                              marginTop: "4px",
+                            }}
+                          >
+                            {dayEvents.length} activities
+                          </div>
+                        </div>
 
-                          const top = Math.max(0, (startHour - 8) * 88);
-                          const height = Math.max(54, (endHour - startHour) * 88);
+                        <div style={{ padding: "12px", display: "grid", gap: "10px" }}>
+                          {dayEvents.length === 0 ? (
+                            <div
+                              style={{
+                                padding: "12px",
+                                borderRadius: "14px",
+                                background: "var(--surface-2)",
+                                color: "var(--muted)",
+                                fontSize: "13px",
+                                border: "1px dashed var(--border)",
+                              }}
+                            >
+                              No activities
+                            </div>
+                          ) : (
+                            dayEvents.map((event) => {
+                              const color = getStatusColor(event.status);
+                              const isStart = sameDay(day, event.start);
+                              const isEnd = sameDay(day, event.end);
 
+                              return (
+                                <button
+                                  key={`${event.id}-${day.toISOString()}`}
+                                  type="button"
+                                  onClick={() => setSelectedActivity(event.raw)}
+                                  style={{
+                                    border: `1px solid ${color.border}`,
+                                    borderRadius: "14px",
+                                    background: color.soft,
+                                    color: color.text,
+                                    padding: "12px",
+                                    textAlign: "left",
+                                    cursor: "pointer",
+                                    boxShadow: "0 4px 14px rgba(0,0,0,0.04)",
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      gap: "8px",
+                                      marginBottom: "8px",
+                                      alignItems: "center",
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontSize: "11px",
+                                        fontWeight: 800,
+                                        padding: "4px 8px",
+                                        borderRadius: "999px",
+                                        background: color.bg,
+                                        border: `1px solid ${color.border}`,
+                                      }}
+                                    >
+                                      {event.status || "Activity"}
+                                    </span>
+
+                                    <span
+                                      style={{
+                                        fontSize: "11px",
+                                        fontWeight: 700,
+                                        opacity: 0.9,
+                                      }}
+                                    >
+                                      {isStart && isEnd
+                                        ? "Start & End"
+                                        : isStart
+                                        ? "Starts"
+                                        : isEnd
+                                        ? "Ends"
+                                        : "Ongoing"}
+                                    </span>
+                                  </div>
+
+                                  <div
+                                    style={{
+                                      fontSize: "14px",
+                                      fontWeight: 800,
+                                      lineHeight: 1.35,
+                                      marginBottom: "6px",
+                                    }}
+                                  >
+                                    {event.title}
+                                  </div>
+
+                                  <div
+                                    style={{
+                                      fontSize: "12px",
+                                      opacity: 0.9,
+                                      marginBottom: "6px",
+                                    }}
+                                  >
+                                    {formatDateOnly(event.start)} → {formatDateOnly(event.end)}
+                                  </div>
+
+                                  <div
+                                    style={{
+                                      fontSize: "12px",
+                                      opacity: 0.85,
+                                    }}
+                                  >
+                                    {event.type || "Activity"} {event.duration ? `• ${event.duration}` : ""}
+                                  </div>
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div style={{ padding: "18px" }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+                    gap: "12px",
+                    marginBottom: "10px",
+                  }}
+                >
+                  {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+                    <div
+                      key={day}
+                      style={{
+                        textAlign: "center",
+                        fontSize: "13px",
+                        fontWeight: 800,
+                        color: "var(--muted)",
+                      }}
+                    >
+                      {day}
+                    </div>
+                  ))}
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+                    gap: "12px",
+                  }}
+                >
+                  {monthGridDays.days.map((day) => {
+                    const dayEvents = monthEvents.filter((event) =>
+                      isWithinRange(day, event.start, event.end)
+                    );
+
+                    const isCurrentMonth =
+                      day.getMonth() === currentDate.getMonth();
+
+                    return (
+                      <div
+                        key={day.toISOString()}
+                        style={{
+                          minHeight: "150px",
+                          border: "1px solid var(--border)",
+                          borderRadius: "18px",
+                          padding: "12px",
+                          background: sameDay(day, new Date())
+                            ? "color-mix(in srgb, var(--surface-2) 80%, #dbeafe)"
+                            : isCurrentMonth
+                            ? "var(--surface)"
+                            : "color-mix(in srgb, var(--surface) 70%, #f1f5f9)",
+                          opacity: isCurrentMonth ? 1 : 0.72,
+                          display: "grid",
+                          alignContent: "start",
+                          gap: "8px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: "14px",
+                            fontWeight: 800,
+                            color: "var(--text)",
+                          }}
+                        >
+                          {day.getDate()}
+                        </div>
+
+                        {dayEvents.slice(0, 3).map((event) => {
                           const color = getStatusColor(event.status);
 
                           return (
                             <button
-                              key={`${event.id}-${index}`}
+                              key={`${event.id}-${day.toISOString()}`}
                               type="button"
                               onClick={() => setSelectedActivity(event.raw)}
                               style={{
-                                position: "absolute",
-                                left: "8px",
-                                right: "8px",
-                                top: `${top}px`,
-                                height: `${height}px`,
-                                borderRadius: "14px",
+                                width: "100%",
                                 border: `1px solid ${color.border}`,
-                                background: color.bg,
+                                borderRadius: "12px",
+                                background: color.soft,
                                 color: color.text,
-                                padding: "10px",
+                                padding: "8px 10px",
                                 textAlign: "left",
-                                boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
-                                pointerEvents: "auto",
                                 cursor: "pointer",
+                                fontSize: "12px",
+                                fontWeight: 700,
+                                lineHeight: 1.35,
                                 overflow: "hidden",
                               }}
                             >
-                              <div style={{ fontSize: "11px", fontWeight: 800, marginBottom: "6px" }}>
-                                {formatTime(event.start)} - {formatTime(event.end)}
-                              </div>
-                              <div style={{ fontSize: "13px", fontWeight: 800, lineHeight: 1.3 }}>
-                                {event.title}
-                              </div>
-                              <div style={{ fontSize: "11px", marginTop: "6px", opacity: 0.85 }}>
-                                {event.type || event.status || "Activity"}
-                              </div>
+                              {event.title}
                             </button>
                           );
                         })}
+
+                        {dayEvents.length > 3 ? (
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              color: "var(--muted)",
+                              fontWeight: 700,
+                            }}
+                          >
+                            +{dayEvents.length - 3} more
+                          </div>
+                        ) : null}
                       </div>
                     );
                   })}
@@ -483,17 +852,24 @@ export default function HrCalendarPage() {
               <div style={{ display: "grid", gap: "12px" }}>
                 <DetailRow label="Type" value={selectedActivity.type || "—"} />
                 <DetailRow label="Status" value={selectedActivity.status || "—"} />
+                <DetailRow label="Context" value={(selectedActivity as any).context || "—"} />
+                <DetailRow label="Location" value={(selectedActivity as any).location || "—"} />
+                <DetailRow label="Duration" value={(selectedActivity as any).duration || "—"} />
                 <DetailRow
-                  label="Start"
-                  value={selectedActivity.startDate
-                    ? new Date(selectedActivity.startDate).toLocaleString()
-                    : "—"}
+                  label="Seats"
+                  value={
+                    typeof (selectedActivity as any).seats === "number"
+                      ? String((selectedActivity as any).seats)
+                      : "—"
+                  }
                 />
                 <DetailRow
-                  label="End"
-                  value={selectedActivity.endDate
-                    ? new Date(selectedActivity.endDate).toLocaleString()
-                    : "—"}
+                  label="Start date"
+                  value={formatDateOnly(selectedActivity.startDate)}
+                />
+                <DetailRow
+                  label="End date"
+                  value={formatDateOnly(selectedActivity.endDate)}
                 />
                 <DetailRow
                   label="Description"
@@ -536,6 +912,31 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function LegendItem({ color, label }: { color: string; label: string }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "8px",
+        fontSize: "12px",
+        color: "var(--muted)",
+        fontWeight: 700,
+      }}
+    >
+      <span
+        style={{
+          width: "10px",
+          height: "10px",
+          borderRadius: "999px",
+          background: color,
+        }}
+      />
+      {label}
+    </span>
+  );
+}
+
 const toolbarBtnStyle: React.CSSProperties = {
   height: "40px",
   padding: "0 14px",
@@ -557,4 +958,39 @@ const closeBtnStyle: React.CSSProperties = {
   fontSize: "22px",
   lineHeight: 1,
   cursor: "pointer",
+};
+
+const selectStyle: React.CSSProperties = {
+  height: "40px",
+  padding: "0 12px",
+  borderRadius: "12px",
+  border: "1px solid var(--border)",
+  background: "var(--surface-2)",
+  color: "var(--text)",
+  fontWeight: 700,
+  cursor: "pointer",
+};
+
+const segmentedWrapStyle: React.CSSProperties = {
+  display: "inline-flex",
+  border: "1px solid var(--border)",
+  borderRadius: "12px",
+  overflow: "hidden",
+  background: "var(--surface-2)",
+};
+
+const segmentedBtnStyle: React.CSSProperties = {
+  height: "40px",
+  padding: "0 16px",
+  border: "none",
+  background: "transparent",
+  color: "var(--text)",
+  fontWeight: 700,
+  cursor: "pointer",
+};
+
+const segmentedActiveStyle: React.CSSProperties = {
+  ...segmentedBtnStyle,
+  background: "var(--card)",
+  boxShadow: "inset 0 0 0 1px var(--border)",
 };
