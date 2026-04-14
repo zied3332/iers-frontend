@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
-  createInvitations,
   getActivityStaffingStatus,
   getNextBackupCandidates,
-  replaceDeclinedInvitation,
 } from "../../services/activityInvitations.service";
 import { getCandidates } from "../../services/hrCopilot.service";
 import type { CandidateItem } from "../../types/hr-copilot";
@@ -16,10 +14,10 @@ import "./ActivityStaffingPage.css";
 
 export default function ActivityStaffingPage() {
   const { activityId = "" } = useParams();
+  const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
-  const [inviting, setInviting] = useState(false);
-  const [replacing, setReplacing] = useState(false);
+  const [sendingToManager, setSendingToManager] = useState(false);
   const [error, setError] = useState("");
 
   const [statusData, setStatusData] =
@@ -30,8 +28,6 @@ export default function ActivityStaffingPage() {
   const [selectedPrimaryIds, setSelectedPrimaryIds] = useState<string[]>([]);
 
   const [availableBackups, setAvailableBackups] = useState<CandidateItem[]>([]);
-  const [declinedInvitationId, setDeclinedInvitationId] = useState("");
-  const [replacementEmployeeId, setReplacementEmployeeId] = useState("");
 
   const loadPage = async () => {
     if (!activityId) return;
@@ -64,14 +60,14 @@ export default function ActivityStaffingPage() {
     loadPage();
   }, [activityId]);
 
+  useEffect(() => {
+    if (primaryCandidates.length > 0) {
+      setSelectedPrimaryIds(primaryCandidates.map((candidate) => candidate.employeeId));
+    }
+  }, [primaryCandidates]);
+
   const invitedEmployeeIds = useMemo(() => {
     return new Set((statusData?.invitations || []).map((inv) => inv.employeeId));
-  }, [statusData]);
-
-  const declinedInvitations = useMemo(() => {
-    return (statusData?.invitations || []).filter(
-      (inv) => inv.status === "DECLINED"
-    );
   }, [statusData]);
 
   const togglePrimarySelection = (employeeId: string) => {
@@ -82,54 +78,40 @@ export default function ActivityStaffingPage() {
     );
   };
 
-  const handleInviteSelected = async () => {
-    if (!activityId || selectedPrimaryIds.length === 0) return;
-
-    try {
-      setInviting(true);
-      setError("");
-
-      await createInvitations({
-        activityId,
-        employeeIds: selectedPrimaryIds,
-        hrNote: "Selected from AI recommendation workflow.",
-      });
-
-      setSelectedPrimaryIds([]);
-      await loadPage();
-    } catch (err: any) {
-      console.error(err);
-      setError(err?.response?.data?.message || "Failed to send invitations.");
-    } finally {
-      setInviting(false);
-    }
+  const handleSelectAll = () => {
+    setSelectedPrimaryIds(primaryCandidates.map((candidate) => candidate.employeeId));
   };
 
-  const handleReplaceDeclined = async () => {
-    if (!declinedInvitationId || !replacementEmployeeId) {
-      setError("Please select both a declined invitation and a backup employee.");
+  const handleClearSelection = () => {
+    setSelectedPrimaryIds([]);
+  };
+
+  const handleSendToManager = async () => {
+    if (!activityId || selectedPrimaryIds.length === 0) {
+      setError("Select at least one employee before sending to manager.");
       return;
     }
 
     try {
-      setReplacing(true);
+      setSendingToManager(true);
       setError("");
 
-      await replaceDeclinedInvitation({
-        declinedInvitationId,
-        replacementEmployeeId,
+      navigate(`/manager/activities/${activityId}/review`, {
+        state: {
+          activityId,
+          activityTitle: statusData?.activityTitle || "Selected activity",
+          seatsRequired: statusData?.seatsRequired || selectedPrimaryIds.length,
+          hrSelectedCandidates: primaryCandidates.filter((candidate) =>
+            selectedPrimaryIds.includes(candidate.employeeId)
+          ),
+          backupCandidates,
+        },
       });
-
-      setDeclinedInvitationId("");
-      setReplacementEmployeeId("");
-      await loadPage();
     } catch (err: any) {
       console.error(err);
-      setError(
-        err?.response?.data?.message || "Failed to replace declined invitation."
-      );
+      setError(err?.message || "Failed to send data to manager review page.");
     } finally {
-      setReplacing(false);
+      setSendingToManager(false);
     }
   };
 
@@ -167,11 +149,10 @@ export default function ActivityStaffingPage() {
       <div className="staffing-shell">
         <div className="staffing-header">
           <div>
-            <span className="staffing-kicker">Activity staffing</span>
+            <span className="staffing-kicker">HR validation</span>
             <h1>{statusData?.activityTitle || "Loading activity..."}</h1>
             <p>
-              Invite employees, monitor responses, and replace declined seats
-              with backup recommendations.
+              Review AI recommendations, select the shortlist, and forward the activity to the manager for final validation.
             </p>
           </div>
         </div>
@@ -190,11 +171,11 @@ export default function ActivityStaffingPage() {
                 <strong>{statusData.seatsRequired}</strong>
               </div>
               <div className="staffing-stat-card accepted">
-                <span>Accepted</span>
+                <span>Already accepted</span>
                 <strong>{statusData.accepted}</strong>
               </div>
               <div className="staffing-stat-card invited">
-                <span>Pending / Invited</span>
+                <span>Pending / invited</span>
                 <strong>{statusData.invited}</strong>
               </div>
               <div className="staffing-stat-card declined">
@@ -202,14 +183,14 @@ export default function ActivityStaffingPage() {
                 <strong>{statusData.declined}</strong>
               </div>
               <div className="staffing-stat-card empty">
-                <span>Empty seats</span>
-                <strong>{statusData.emptySeats}</strong>
+                <span>Currently selected</span>
+                <strong>{selectedPrimaryIds.length}</strong>
               </div>
             </div>
 
             <div className="staffing-seat-board">
               <div className="section-head">
-                <h2>Seat board</h2>
+                <h2>Current seat board</h2>
                 <p>Green accepted, yellow pending, red declined, gray empty.</p>
               </div>
 
@@ -229,8 +210,27 @@ export default function ActivityStaffingPage() {
             <div className="staffing-layout">
               <section className="staffing-panel">
                 <div className="section-head">
-                  <h2>Primary recommendations</h2>
-                  <p>Select people to invite for this activity.</p>
+                  <div>
+                    <h2>HR shortlisted candidates</h2>
+                    <p>Select the employees you want to forward to the manager.</p>
+                  </div>
+
+                  <div className="selection-actions">
+                    <button
+                      type="button"
+                      className="secondary-staffing-btn"
+                      onClick={handleSelectAll}
+                    >
+                      Select all
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary-staffing-btn"
+                      onClick={handleClearSelection}
+                    >
+                      Clear
+                    </button>
+                  </div>
                 </div>
 
                 <div className="candidate-list">
@@ -277,7 +277,7 @@ export default function ActivityStaffingPage() {
                               }
                             />
                             <span>
-                              {alreadyInvited ? "Already invited" : "Select for invite"}
+                              {alreadyInvited ? "Already invited" : "Include in HR shortlist"}
                             </span>
                           </label>
                         </div>
@@ -289,17 +289,17 @@ export default function ActivityStaffingPage() {
                 <button
                   type="button"
                   className="primary-staffing-btn"
-                  onClick={handleInviteSelected}
-                  disabled={inviting || selectedPrimaryIds.length === 0}
+                  onClick={handleSendToManager}
+                  disabled={sendingToManager || selectedPrimaryIds.length === 0}
                 >
-                  {inviting ? "Sending invitations..." : "Invite selected"}
+                  {sendingToManager ? "Opening manager review..." : "Send to manager"}
                 </button>
               </section>
 
               <section className="staffing-panel">
                 <div className="section-head">
                   <h2>Backup recommendations</h2>
-                  <p>Use these when a selected employee declines.</p>
+                  <p>These candidates can be used later if the manager wants adjustments.</p>
                 </div>
 
                 <div className="candidate-list">
@@ -332,95 +332,70 @@ export default function ActivityStaffingPage() {
               </section>
             </div>
 
-            <div className="staffing-layout">
+            <div className="staffing-panel">
+              <div className="section-head">
+                <h2>Available backup pool</h2>
+                <p>This gives the manager a wider view of replacement options later.</p>
+              </div>
+
+              <div className="candidate-list">
+                {availableBackups.length === 0 ? (
+                  <div className="empty-state-card">No backup pool available.</div>
+                ) : (
+                  availableBackups.map((candidate) => (
+                    <div key={candidate.employeeId} className="staffing-candidate-card">
+                      <div className="candidate-main-row">
+                        <div className="candidate-avatar">
+                          {candidate.name?.charAt(0).toUpperCase() || "U"}
+                        </div>
+                        <div className="candidate-info">
+                          <div className="candidate-title-row">
+                            <h3>{candidate.name}</h3>
+                            <span className="score-badge">{candidate.finalScore}/100</span>
+                          </div>
+                          <p>{candidate.shortReason}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {statusData.invitations.length > 0 ? (
               <section className="staffing-panel">
                 <div className="section-head">
                   <h2>Current invitations</h2>
-                  <p>Track invitation state and decline reasons.</p>
+                  <p>These are existing invitation records already stored in the system.</p>
                 </div>
 
                 <div className="invitation-list">
-                  {statusData.invitations.length === 0 ? (
-                    <div className="empty-state-card">No invitations sent yet.</div>
-                  ) : (
-                    statusData.invitations.map((invitation: ActivityInvitationItem, index) => (
-                      <div key={invitation._id || invitation.id || index} className="invitation-card">
-                        <div className="candidate-title-row">
-                          <h3>Employee ID: {invitation.employeeId}</h3>
-                          <span className={`status-badge ${invitation.status.toLowerCase()}`}>
-                            {invitation.status}
-                          </span>
-                        </div>
-
-                        <p>
-                          Invited at:{" "}
-                          {invitation.invitedAt
-                            ? new Date(invitation.invitedAt).toLocaleString()
-                            : "—"}
-                        </p>
-
-                        {invitation.declineReason ? (
-                          <p className="decline-reason">
-                            Decline reason: {invitation.declineReason}
-                          </p>
-                        ) : null}
+                  {statusData.invitations.map((invitation: ActivityInvitationItem, index) => (
+                    <div key={invitation._id || invitation.id || index} className="invitation-card">
+                      <div className="candidate-title-row">
+                        <h3>Employee ID: {invitation.employeeId}</h3>
+                        <span className={`status-badge ${invitation.status.toLowerCase()}`}>
+                          {invitation.status}
+                        </span>
                       </div>
-                    ))
-                  )}
+
+                      <p>
+                        Invited at:{" "}
+                        {invitation.invitedAt
+                          ? new Date(invitation.invitedAt).toLocaleString()
+                          : "—"}
+                      </p>
+
+                      {invitation.declineReason ? (
+                        <p className="decline-reason">
+                          Decline reason: {invitation.declineReason}
+                        </p>
+                      ) : null}
+                    </div>
+                  ))}
                 </div>
               </section>
-
-              <section className="staffing-panel">
-                <div className="section-head">
-                  <h2>Replace declined invitation</h2>
-                  <p>Quickly fill empty seats using the next backup candidates.</p>
-                </div>
-
-                <div className="replace-form">
-                  <label>
-                    <span>Declined invitation</span>
-                    <select
-                      value={declinedInvitationId}
-                      onChange={(e) => setDeclinedInvitationId(e.target.value)}
-                    >
-                      <option value="">Select declined invitation</option>
-                      {declinedInvitations.map((inv, index) => (
-                        <option
-                          key={inv._id || inv.id || index}
-                          value={inv._id || inv.id || ""}
-                        >
-                          {inv.employeeId} {inv.declineReason ? `- ${inv.declineReason}` : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label>
-                    <span>Replacement employee</span>
-                    <select
-                      value={replacementEmployeeId}
-                      onChange={(e) => setReplacementEmployeeId(e.target.value)}
-                    >
-                      <option value="">Select backup employee</option>
-                      {availableBackups.map((candidate) => (
-                        <option key={candidate.employeeId} value={candidate.employeeId}>
-                          {candidate.name} - score {candidate.finalScore}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <button
-                    type="button"
-                    className="primary-staffing-btn"
-                    onClick={handleReplaceDeclined}
-                    disabled={replacing || !declinedInvitationId || !replacementEmployeeId}
-                  >
-                    {replacing ? "Replacing..." : "Replace with backup"}
-                  </button>
-                </div>
-              </section>
-            </div>
+            ) : null}
           </>
         )}
       </div>

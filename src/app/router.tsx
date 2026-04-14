@@ -1,4 +1,3 @@
-// src/router/router.tsx
 import { createBrowserRouter, Navigate, Outlet, useParams } from "react-router-dom";
 
 import LandingPage from "../pages/LandingPage";
@@ -23,26 +22,30 @@ import HrGenerateRecommendations from "../pages/hr/GenerateRecommendations";
 import SkillsManagementPage from "../pages/hr/skills/SkillsManagementPage";
 import AssignSkillPage from "../pages/hr/skills/AssignSkillPage";
 import HrCopilotPage from "../pages/hr/HrCopilotPage";
+import HrStatsDashboard from "../pages/hr/HrStatsDashboard";
+import HrCalendarPage from "../pages/hr/HrCalendarPage.tsx";
+import ActivityStaffingPage from "../pages/hr/ActivityStaffingPage";
+
 // Manager pages
 import ManagerTeam from "../pages/manger/ManagerTeam";
 import ManagerActivities from "../pages/manger/ManagerActivities.tsx";
 import ManagerDashboard from "../pages/manger/ManagerDashboard";
-import TextCorrectionPage from '../pages/ai/TextCorrectionPage';
+import ManagerActivityReviewPage from "../pages/manger/ManagerActivityReviewPage";
+
+// AI pages
+import TextCorrectionPage from "../pages/ai/TextCorrectionPage";
+
 // Employee pages
 import CvUpload from "../pages/employee/CvUpload";
 import MySkillsPage from "../pages/employee/skills/MySkillsPage";
 
 import Blank from "../pages/Blank";
 import Profile from "../pages/profile/Profile";
-
-import NotificationsPage from '../pages/notifications/NotificationsPage';
+import NotificationsPage from "../pages/notifications/NotificationsPage";
 import HrDashboard from "../pages/hr/Dashboard.tsx";
-import HrStatsDashboard from "../pages/hr/HrStatsDashboard";
 import CompleteProfile from "../pages/auth/CompleteProfile";
-import EmployeeProfileView from "../pages/hr/EmployeeProfileView";
-import HrCalendarPage  from "../pages/hr/HrCalendarPage.tsx";
 import AccountPending from "../pages/auth/AccountPending";
-import ActivityStaffingPage from "../pages/hr/ActivityStaffingPage";
+
 type Role = "HR" | "SUPER_MANAGER" | "MANAGER" | "EMPLOYEE";
 
 function getRole(): Role | null {
@@ -84,12 +87,16 @@ function Forbidden() {
 
 function NotificationsRedirect() {
   const { side } = useParams<{ side?: string }>();
-  const safeSide = side === 'unread' || side === 'read' ? `/${side}` : '';
+  const safeSide = side === "unread" || side === "read" ? `/${side}` : "";
   const role = getRole();
+
   if (role === "HR") return <Navigate to={`/hr/notifications${safeSide}`} replace />;
-  if (role === "SUPER_MANAGER") return <Navigate to={`/super-manager/notifications${safeSide}`} replace />;
-  if (role === "MANAGER") return <Navigate to={`/manager/notifications${safeSide}`} replace />;
+  if (role === "SUPER_MANAGER")
+    return <Navigate to={`/super-manager/notifications${safeSide}`} replace />;
+  if (role === "MANAGER")
+    return <Navigate to={`/manager/notifications${safeSide}`} replace />;
   if (role === "EMPLOYEE") return <Navigate to={`/me/notifications${safeSide}`} replace />;
+
   return <Navigate to="/auth/login" replace />;
 }
 
@@ -106,13 +113,10 @@ export const router = createBrowserRouter([
       { path: "signup", element: <Signup /> },
       { path: "forgot-password", element: <ForgotPassword /> },
       { path: "reset-password", element: <ResetPassword /> },
-      {
-path: "/auth/account-pending", element: <AccountPending /> 
-      },
+      { path: "account-pending", element: <AccountPending /> },
     ],
   },
 
-  // ✅ HR protected routes
   {
     element: <RequireRole allow={["HR"]} />,
     children: [
@@ -122,30 +126,30 @@ path: "/auth/account-pending", element: <AccountPending />
         children: [
           { index: true, element: <Blank /> },
           { path: "blank", element: <Blank /> },
-{ path: "activities/:activityId/staffing", element: <ActivityStaffingPage /> },
+
           { path: "dashboard", element: <HrStatsDashboard /> },
           { path: "employees", element: <HrEmployees /> },
           { path: "users", element: <UsersManagement /> },
           { path: "departments", element: <HrDepartments /> },
           { path: "activities", element: <HrActivitiesManagement /> },
+          { path: "activities/:activityId/staffing", element: <ActivityStaffingPage /> },
           { path: "skills-dashboard", element: <HrSkillsDashboard /> },
           { path: "recommendations", element: <HrGenerateRecommendations /> },
           { path: "recommendations/generate", element: <HrGenerateRecommendations /> },
-  { path: "/hr/copilot", element: <HrCopilotPage  /> },
+          { path: "copilot", element: <HrCopilotPage /> },
           { path: "skills", element: <SkillsManagementPage /> },
           { path: "skills/assign", element: <AssignSkillPage /> },
-{ path: "ai/text-correction", element: <TextCorrectionPage  /> },
+          { path: "ai/text-correction", element: <TextCorrectionPage /> },
           { path: "profile", element: <Profile /> },
           { path: "notifications", element: <NotificationsPage /> },
           { path: "notifications/:side", element: <NotificationsPage /> },
           { path: "employees/:id", element: <Profile /> },
- { path: "calendar", element: <HrCalendarPage  /> },
+          { path: "calendar", element: <HrCalendarPage /> },
         ],
       },
     ],
   },
 
-  // ✅ SUPER MANAGER protected routes
   {
     element: <RequireRole allow={["SUPER_MANAGER"]} />,
     children: [
@@ -170,13 +174,11 @@ path: "/auth/account-pending", element: <AccountPending />
           { path: "notifications", element: <NotificationsPage /> },
           { path: "notifications/:side", element: <NotificationsPage /> },
           { path: "employees/:id", element: <Profile /> },
-
         ],
       },
     ],
   },
 
-  // ✅ MANAGER protected routes
   {
     element: <RequireRole allow={["MANAGER"]} />,
     children: [
@@ -188,12 +190,12 @@ path: "/auth/account-pending", element: <AccountPending />
           { path: "blank", element: <Blank /> },
 
           { path: "dashboard", element: <ManagerDashboard /> },
-
           { path: "team", element: <ManagerTeam /> },
+          { path: "activities", element: <ManagerActivities /> },
+          { path: "activities/:activityId/review", element: <ManagerActivityReviewPage /> },
           { path: "skills", element: <SkillsManagementPage /> },
           { path: "skills/assign", element: <AssignSkillPage /> },
           { path: "profile", element: <Profile /> },
-            { path: "activities", element: <ManagerActivities /> },
           { path: "notifications", element: <NotificationsPage /> },
           { path: "notifications/:side", element: <NotificationsPage /> },
           { path: "employees/:id", element: <Profile /> },
@@ -202,7 +204,6 @@ path: "/auth/account-pending", element: <AccountPending />
     ],
   },
 
-  // ✅ EMPLOYEE protected routes
   {
     element: <RequireRole allow={["EMPLOYEE"]} />,
     children: [
@@ -222,15 +223,16 @@ path: "/auth/account-pending", element: <AccountPending />
       },
     ],
   },
+
   {
-    path: '/notifications',
+    path: "/notifications",
     element: <NotificationsRedirect />,
   },
   {
-    path: '/notifications/:side',
+    path: "/notifications/:side",
     element: <NotificationsRedirect />,
   },
+
   { path: "/complete-profile", element: <CompleteProfile /> },
   { path: "*", element: <Navigate to="/" replace /> },
-  
 ]);

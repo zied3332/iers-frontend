@@ -1,4 +1,3 @@
-// src/layouts/ManagerLayout.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import AppShell from "./AppShell";
 import { getSidebarUserCard } from "../utils/sidebarUser";
@@ -14,7 +13,7 @@ export default function ManagerLayout() {
   }, []);
 
   const userCard = useMemo(
-    () => getSidebarUserCard("Manager", "Team overview"),
+    () => getSidebarUserCard("Manager", "Review and validate participants"),
     [avatarRefresh]
   );
 
@@ -22,21 +21,22 @@ export default function ManagerLayout() {
     <AppShell
       badge="Manager"
       title="Manager Workspace"
-      subtitle="Team workspace"
+      subtitle="Review activities, validate participants, and monitor team decisions"
       profilePath="/manager/profile"
       nav={[
         { to: "/manager/dashboard", label: "Dashboard" },
         { to: "/manager/team", label: "My Team" },
         { to: "/manager/activities", label: "Activities" },
+        { to: "/manager/activities", label: "Activity Reviews", end: true },
         { to: "/manager/skills", label: "Skills Management", end: true },
         { to: "/manager/skills/assign", label: "Assign Skills", end: true },
         { to: "/manager/notifications", label: "Notifications" },
       ]}
       topbarRight={
         <>
-          <input className="input" placeholder="Search team, activities…" />
-          <button className="btn btn-ghost">Reports</button>
-          <button className="btn btn-primary">New Review</button>
+          <input className="input" placeholder="Search reviews, team, activities…" />
+          <button className="btn btn-ghost">Review Queue</button>
+          <button className="btn btn-primary">New Validation</button>
         </>
       }
       userCard={userCard}

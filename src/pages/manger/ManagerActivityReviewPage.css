@@ -1,0 +1,171 @@
+.manager-review-page {
+  min-height: 100vh;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top left, rgba(34, 197, 94, 0.08), transparent 22%),
+    radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.08), transparent 20%),
+    linear-gradient(180deg, #f4f7fb 0%, #eef3f8 100%);
+}
+
+.manager-review-shell {
+  max-width: 1480px;
+  margin: 0 auto;
+  display: grid;
+  gap: 18px;
+}
+
+.manager-review-header,
+.manager-review-panel {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid #e2e8f0;
+  border-radius: 24px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.05);
+}
+
+.manager-review-header {
+  padding: 22px;
+}
+
+.manager-review-kicker {
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.manager-review-header h1 {
+  margin: 6px 0 10px;
+  color: #0f172a;
+  font-size: 28px;
+}
+
+.manager-review-header p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.7;
+}
+
+.manager-review-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.manager-review-stat-card {
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+}
+
+.manager-review-stat-card span {
+  display: block;
+  margin-bottom: 8px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.manager-review-stat-card strong {
+  color: #0f172a;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.manager-review-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.manager-review-panel {
+  padding: 22px;
+}
+
+.manager-candidate-card {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid #e6edf5;
+  background: #fcfdff;
+}
+
+.manager-review-textarea {
+  width: 100%;
+  min-height: 140px;
+  border-radius: 16px;
+  border: 1px solid #dbe3ee;
+  padding: 14px;
+  resize: vertical;
+  font: inherit;
+  color: #0f172a;
+}
+
+.manager-review-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.secondary-staffing-btn,
+.danger-staffing-btn {
+  min-height: 46px;
+  padding: 0 16px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 0.22s ease;
+}
+
+.secondary-staffing-btn {
+  border: 1px solid #dbe3ee;
+  background: #ffffff;
+  color: #334155;
+}
+
+.danger-staffing-btn {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.secondary-staffing-btn:hover,
+.danger-staffing-btn:hover {
+  transform: translateY(-1px);
+}
+
+@media (max-width: 1200px) {
+  .manager-review-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .manager-review-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .manager-review-page {
+    padding: 14px;
+  }
+
+  .manager-review-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .manager-review-actions {
+    flex-direction: column;
+  }
+
+  .secondary-staffing-btn,
+  .danger-staffing-btn,
+  .primary-staffing-btn {
+    width: 100%;
+  }
+}
