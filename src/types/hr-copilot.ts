@@ -1,9 +1,9 @@
 export type ActivityItem = {
   id: string;
   title: string;
+  description?: string;
   type?: string;
   domain?: string;
-  description?: string;
   score?: number;
 };
 
@@ -17,43 +17,41 @@ export type CandidateItem = {
   finalScore: number;
   matchedSkills: string[];
   shortReason: string;
+  recommendationType?: "PRIMARY" | "BACKUP";
+  rank?: number;
 };
 
 export type ChatSearchResponse = {
-  intent?: string;
-  type?: string;
-  sessionId?: string;
+  intent: string;
   message?: string;
-  data?: any;
+  data?: {
+    activities?: ActivityItem[];
+    debug?: any;
+  };
+  sessionId?: string;
   sessionState?: {
     sessionId?: string;
-    selectedActivityId?: string | null;
-    selectedActivityTitle?: string | null;
-    lastActivityResults?: string[];
-    lastCandidateResults?: string[];
-    lastIntent?: string;
-    activeFilters?: {
-      domain?: string;
-      period?: string;
-      department?: string;
-      level?: string;
-      activityType?: string;
-      objective?: string;
-      keywords?: string[];
-    };
+    [key: string]: any;
   };
 };
 
 export type CandidatesResponse = {
-  type?: string;
-  activityId?: string;
-  count?: number;
-  candidates: CandidateItem[];
+  type: "candidates_list";
+  activityId: string;
+  activityTitle: string;
+  seatsRequired: number;
+  primaryCount: number;
+  backupCount: number;
+  totalRecommended: number;
+  primaryCandidates: CandidateItem[];
+  backupCandidates: CandidateItem[];
 };
 
 export type ExplanationResponse = {
   type?: string;
-  sessionId?: string;
+  activityId?: string;
+  activityTitle?: string;
+  employeeId?: string;
   candidate?: CandidateItem;
   explanation?: string[];
   message?: string;

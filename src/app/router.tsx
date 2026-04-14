@@ -42,7 +42,7 @@ import CompleteProfile from "../pages/auth/CompleteProfile";
 import EmployeeProfileView from "../pages/hr/EmployeeProfileView";
 import HrCalendarPage  from "../pages/hr/HrCalendarPage.tsx";
 import AccountPending from "../pages/auth/AccountPending";
-
+import ActivityStaffingPage from "../pages/hr/ActivityStaffingPage";
 type Role = "HR" | "SUPER_MANAGER" | "MANAGER" | "EMPLOYEE";
 
 function getRole(): Role | null {
@@ -122,7 +122,7 @@ path: "/auth/account-pending", element: <AccountPending />
         children: [
           { index: true, element: <Blank /> },
           { path: "blank", element: <Blank /> },
-
+{ path: "activities/:activityId/staffing", element: <ActivityStaffingPage /> },
           { path: "dashboard", element: <HrStatsDashboard /> },
           { path: "employees", element: <HrEmployees /> },
           { path: "users", element: <UsersManagement /> },

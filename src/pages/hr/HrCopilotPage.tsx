@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./HrCopilotPage.css";
 import type { ActivityItem, CandidateItem } from "../../types/hr-copilot";
 import {
@@ -7,26 +8,73 @@ import {
   searchActivities,
 } from "../../services/hrCopilot.service";
 
+type CandidateGroupMessage = {
+  id: string;
+  role: "assistant";
+  type: "candidate_groups";
+  content: string;
+  activityId: string;
+  activityTitle: string;
+  seatsRequired: number;
+  primaryCandidates: CandidateItem[];
+  backupCandidates: CandidateItem[];
+};
+
+type ChatMessage =
+  | {
+      id: string;
+      role: "user";
+      type: "text";
+      content: string;
+    }
+  | {
+      id: string;
+      role: "assistant";
+      type: "text";
+      content: string;
+    }
+  | {
+      id: string;
+      role: "assistant";
+      type: "activities";
+      content: string;
+      activities: ActivityItem[];
+    }
+  | CandidateGroupMessage
+  | {
+      id: string;
+      role: "assistant";
+      type: "explanation";
+      content: string[];
+      candidateName: string;
+    };
+
 export default function HrCopilotPage() {
+  const navigate = useNavigate();
+
   const [query, setQuery] = useState("List IT activities for backend developers");
-  const [lastPrompt, setLastPrompt] = useState("");
   const [sessionId, setSessionId] = useState("");
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [loadingCandidates, setLoadingCandidates] = useState(false);
   const [loadingExplanation, setLoadingExplanation] = useState(false);
 
   const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [selectedActivity, setSelectedActivity] = useState<ActivityItem | null>(
-    null
-  );
-  const [candidates, setCandidates] = useState<CandidateItem[]>([]);
-  const [selectedCandidate, setSelectedCandidate] =
-    useState<CandidateItem | null>(null);
+  const [selectedActivity, setSelectedActivity] = useState<ActivityItem | null>(null);
+  const [selectedCandidate, setSelectedCandidate] = useState<CandidateItem | null>(null);
   const [explanation, setExplanation] = useState<string[]>([]);
   const [error, setError] = useState("");
 
-  const [showActivitiesPanel, setShowActivitiesPanel] = useState(true);
-  const [showDetailsPanel, setShowDetailsPanel] = useState(true);
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: "welcome-message",
+      role: "assistant",
+      type: "text",
+      content:
+        "Hello, I’m your HR Copilot. Ask me to find activities, rank candidates, and explain why a candidate matches an activity.",
+    },
+  ]);
+
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const quickPrompts = [
     "List cloud training activities",
@@ -35,27 +83,16 @@ export default function HrCopilotPage() {
     "Show DevOps activities from this quarter",
   ];
 
-  const stageLabel = useMemo(() => {
-    if (loadingSearch) return "Searching activities";
-    if (loadingCandidates) return "Ranking candidates";
-    if (loadingExplanation) return "Generating explanation";
-    if (selectedCandidate && explanation.length > 0) return "Explanation ready";
-    if (selectedActivity && candidates.length > 0) return "Candidates ready";
-    if (activities.length > 0) return "Activities found";
-    return "Ready";
-  }, [
-    loadingSearch,
-    loadingCandidates,
-    loadingExplanation,
-    selectedCandidate,
-    explanation.length,
-    selectedActivity,
-    candidates.length,
-    activities.length,
-  ]);
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loadingSearch, loadingCandidates, loadingExplanation]);
+
+  const createId = () =>
+    `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
   const handleSearch = async () => {
     const cleanedQuery = query.trim();
+
     if (!cleanedQuery) {
       setError("Please enter a request first.");
       return;
@@ -64,12 +101,19 @@ export default function HrCopilotPage() {
     try {
       setError("");
       setLoadingSearch(true);
-      setLastPrompt(cleanedQuery);
-
       setSelectedActivity(null);
-      setCandidates([]);
       setSelectedCandidate(null);
       setExplanation([]);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: createId(),
+          role: "user",
+          type: "text",
+          content: cleanedQuery,
+        },
+      ]);
 
       const response = await searchActivities(cleanedQuery, sessionId || undefined);
 
@@ -85,22 +129,57 @@ export default function HrCopilotPage() {
         ? response.data
         : [];
 
-      const normalizedActivities: ActivityItem[] = rawActivities.map(
-        (activity: any) => ({
-          id: activity.id || activity._id || "",
-          title: activity.title || "Untitled activity",
-          type: activity.type || "",
-          domain: activity.domain || activity.category || "",
-          description: activity.description || activity.objective || "",
-          score: activity.score,
-        })
-      );
+      const normalizedActivities: ActivityItem[] = rawActivities.map((activity: any) => ({
+        id: activity.id || activity._id || "",
+        title: activity.title || "Untitled activity",
+        type: activity.type || "",
+        domain: activity.domain || activity.category || "",
+        description: activity.description || activity.objective || "",
+        score: activity.score || activity.matchScore,
+      }));
 
       setActivities(normalizedActivities);
-      setShowActivitiesPanel(true);
+
+      if (normalizedActivities.length === 0) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: createId(),
+            role: "assistant",
+            type: "text",
+            content:
+              "I couldn’t find matching activities for that request. Try rephrasing it with a domain, skill, or activity type.",
+          },
+        ]);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: createId(),
+            role: "assistant",
+            type: "activities",
+            content: "I found these matching activities. Select one to open recommendations.",
+            activities: normalizedActivities,
+          },
+        ]);
+      }
+
+      setQuery("");
     } catch (err: any) {
       console.error("Search error:", err);
-      setError(err?.response?.data?.message || "Failed to search activities.");
+      const message =
+        err?.response?.data?.message || "Failed to search activities.";
+      setError(message);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: createId(),
+          role: "assistant",
+          type: "text",
+          content: message,
+        },
+      ]);
     } finally {
       setLoadingSearch(false);
     }
@@ -113,475 +192,454 @@ export default function HrCopilotPage() {
       setSelectedActivity(activity);
       setSelectedCandidate(null);
       setExplanation([]);
-      setShowDetailsPanel(true);
 
-      const data = await getCandidates(activity.id, 5);
-      setCandidates(data.candidates || []);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: createId(),
+          role: "user",
+          type: "text",
+          content: `Select activity: ${activity.title}`,
+        },
+      ]);
+
+      const data = await getCandidates(activity.id);
+
+      const primaryCandidates = data.primaryCandidates || [];
+      const backupCandidates = data.backupCandidates || [];
+      const totalCandidates = primaryCandidates.length + backupCandidates.length;
+
+      if (totalCandidates === 0) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: createId(),
+            role: "assistant",
+            type: "text",
+            content: `No candidates were found for "${activity.title}". Try another activity.`,
+          },
+        ]);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: createId(),
+            role: "assistant",
+            type: "candidate_groups",
+            content: `I prepared ${data.totalRecommended} recommendations for "${data.activityTitle}".`,
+            activityId: data.activityId,
+            activityTitle: data.activityTitle,
+            seatsRequired: data.seatsRequired,
+            primaryCandidates,
+            backupCandidates,
+          },
+        ]);
+      }
     } catch (err: any) {
       console.error("Candidates error:", err);
-      setError(err?.response?.data?.message || "Failed to load candidates.");
+      const message =
+        err?.response?.data?.message || "Failed to load candidates.";
+      setError(message);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: createId(),
+          role: "assistant",
+          type: "text",
+          content: message,
+        },
+      ]);
     } finally {
       setLoadingCandidates(false);
     }
   };
 
-  const handleExplain = async (candidate: CandidateItem) => {
-    if (!selectedActivity) {
-      setError("Please select an activity before asking for an explanation.");
-      return;
-    }
-
+  const handleExplain = async (
+    activityId: string,
+    activityTitle: string,
+    candidate: CandidateItem
+  ) => {
     try {
       setError("");
       setLoadingExplanation(true);
       setSelectedCandidate(candidate);
-      setShowDetailsPanel(true);
 
-      const data = await explainCandidate(
-        selectedActivity.id,
-        candidate.employeeId
-      );
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: createId(),
+          role: "user",
+          type: "text",
+          content: `Explain why ${candidate.name} is a good match for ${activityTitle}`,
+        },
+      ]);
 
-      setExplanation(data.explanation || []);
+      const data = await explainCandidate(activityId, candidate.employeeId);
+
+      const explanationItems = data.explanation || [];
+      setExplanation(explanationItems);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: createId(),
+          role: "assistant",
+          type: "explanation",
+          content:
+            explanationItems.length > 0
+              ? explanationItems
+              : ["No detailed explanation was returned by the service."],
+          candidateName: candidate.name,
+        },
+      ]);
     } catch (err: any) {
       console.error("Explanation error:", err);
-      setError(err?.response?.data?.message || "Failed to load explanation.");
+      const message =
+        err?.response?.data?.message || "Failed to load explanation.";
+      setError(message);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: createId(),
+          role: "assistant",
+          type: "text",
+          content: message,
+        },
+      ]);
     } finally {
       setLoadingExplanation(false);
     }
   };
 
-  const handleResetSelection = () => {
-    setSelectedActivity(null);
-    setCandidates([]);
-    setSelectedCandidate(null);
-    setExplanation([]);
+  const handlePromptClick = (prompt: string) => {
+    setQuery(prompt);
   };
 
-  const mainWorkspaceClass = [
-    "copilot-workspace",
-    showActivitiesPanel ? "" : "hide-left-panel",
-    showDetailsPanel ? "" : "hide-right-panel",
-  ]
-    .join(" ")
-    .trim();
+  const handleOpenStaffing = (activityId: string) => {
+    navigate(`/hr/activities/${activityId}/staffing`);
+  };
 
-  return (
-    <div className="hr-copilot-page">
-      <div className="copilot-shell">
-        <div className="copilot-topbar">
-          <div className="topbar-left">
-            <div className="copilot-app-mark">AI</div>
-            <div>
-              <h1>HR Copilot</h1>
-              <p>AI-assisted activity search, ranking, and explanation workspace</p>
-            </div>
+  const renderCandidateCard = (
+    candidate: CandidateItem,
+    index: number,
+    activityId: string,
+    activityTitle: string
+  ) => {
+    return (
+      <div
+        key={candidate.employeeId}
+        className={`chat-card candidate-card ${
+          selectedCandidate?.employeeId === candidate.employeeId
+            ? "is-active"
+            : ""
+        }`}
+      >
+        <div className="candidate-top">
+          <div className="candidate-avatar">
+            {candidate.name?.charAt(0).toUpperCase() || "U"}
           </div>
 
-          <div className="topbar-right">
-            <div className="topbar-status">
-              <span className="status-dot" />
-              {stageLabel}
+          <div className="candidate-main">
+            <div className="candidate-headline">
+              <div>
+                <h4>{candidate.name}</h4>
+                <span className="chat-pill">
+                  Rank #{candidate.rank ?? index + 1}
+                </span>
+              </div>
+              <div className="candidate-score">{candidate.finalScore}/100</div>
             </div>
 
-            <button
-              type="button"
-              className="ghost-btn"
-              onClick={() => setShowActivitiesPanel((prev) => !prev)}
-            >
-              {showActivitiesPanel ? "Hide activities" : "Show activities"}
-            </button>
-
-            <button
-              type="button"
-              className="ghost-btn"
-              onClick={() => setShowDetailsPanel((prev) => !prev)}
-            >
-              {showDetailsPanel ? "Hide details" : "Show details"}
-            </button>
+            <p>{candidate.shortReason}</p>
           </div>
         </div>
 
-        <div className="copilot-searchbar">
-          <div className="searchbox">
-            <span className="searchbox-icon">⌕</span>
+        <div className="candidate-metrics">
+          <span>
+            Semantic <strong>{candidate.semanticScore}</strong>
+          </span>
+          <span>
+            Skills <strong>{candidate.skillScore}</strong>
+          </span>
+          <span>
+            Progression <strong>{candidate.progressionScore}</strong>
+          </span>
+          <span>
+            Experience <strong>{candidate.experienceScore}</strong>
+          </span>
+        </div>
+
+        <div className="candidate-actions">
+          <button
+            type="button"
+            className="chat-secondary-btn"
+            onClick={() => setSelectedCandidate(candidate)}
+          >
+            Open profile
+          </button>
+
+          <button
+            type="button"
+            className="chat-action-btn"
+            onClick={() => handleExplain(activityId, activityTitle, candidate)}
+            disabled={loadingExplanation}
+          >
+            {loadingExplanation &&
+            selectedCandidate?.employeeId === candidate.employeeId
+              ? "Explaining..."
+              : "Explain ranking"}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderMessage = (message: ChatMessage) => {
+    if (message.type === "text") {
+      return (
+        <div
+          key={message.id}
+          className={`chat-message-row ${
+            message.role === "user" ? "user-row" : "assistant-row"
+          }`}
+        >
+          <div
+            className={`chat-bubble ${
+              message.role === "user" ? "user-bubble" : "assistant-bubble"
+            }`}
+          >
+            <p>{message.content}</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (message.type === "activities") {
+      return (
+        <div key={message.id} className="chat-message-row assistant-row">
+          <div className="chat-bubble assistant-bubble rich-bubble">
+            <p className="bubble-title">{message.content}</p>
+
+            <div className="chat-card-list">
+              {message.activities.map((activity, index) => (
+                <div
+                  key={activity.id || `${activity.title}-${index}`}
+                  className={`chat-card activity-card ${
+                    selectedActivity?.id === activity.id ? "is-active" : ""
+                  }`}
+                >
+                  <div className="chat-card-header">
+                    <span className="chat-card-index">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    {activity.type ? (
+                      <span className="chat-badge">{activity.type}</span>
+                    ) : null}
+                  </div>
+
+                  <h4>{activity.title}</h4>
+                  <p>{activity.description || "No description available."}</p>
+
+                  <div className="chat-card-meta">
+                    {activity.domain ? (
+                      <span className="chat-pill">{activity.domain}</span>
+                    ) : null}
+                    {typeof activity.score === "number" ? (
+                      <span className="chat-pill">Score {activity.score}</span>
+                    ) : null}
+                  </div>
+
+                  <button
+                    type="button"
+                    className="chat-action-btn"
+                    onClick={() => handleSelectActivity(activity)}
+                    disabled={loadingCandidates}
+                  >
+                    {loadingCandidates && selectedActivity?.id === activity.id
+                      ? "Loading..."
+                      : "Select activity"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (message.type === "candidate_groups") {
+      return (
+        <div key={message.id} className="chat-message-row assistant-row">
+          <div className="chat-bubble assistant-bubble rich-bubble">
+            <div className="candidate-group-header">
+              <div>
+                <p className="bubble-title">{message.content}</p>
+                <div className="chat-card-meta">
+                  <span className="chat-pill">
+                    Seats required: {message.seatsRequired}
+                  </span>
+                  <span className="chat-pill">
+                    Primary: {message.primaryCandidates.length}
+                  </span>
+                  <span className="chat-pill">
+                    Backup: {message.backupCandidates.length}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="chat-action-btn"
+                onClick={() => handleOpenStaffing(message.activityId)}
+              >
+                Manage staffing
+              </button>
+            </div>
+
+            <div className="candidate-group-block">
+              <h3 className="candidate-group-title">Primary recommendations</h3>
+              <div className="chat-card-list">
+                {message.primaryCandidates.length === 0 ? (
+                  <div className="chat-card">
+                    <p>No primary candidates found.</p>
+                  </div>
+                ) : (
+                  message.primaryCandidates.map((candidate, index) =>
+                    renderCandidateCard(
+                      candidate,
+                      index,
+                      message.activityId,
+                      message.activityTitle
+                    )
+                  )
+                )}
+              </div>
+            </div>
+
+            <div className="candidate-group-block">
+              <h3 className="candidate-group-title">Backup recommendations</h3>
+              <div className="chat-card-list">
+                {message.backupCandidates.length === 0 ? (
+                  <div className="chat-card">
+                    <p>No backup candidates found.</p>
+                  </div>
+                ) : (
+                  message.backupCandidates.map((candidate, index) =>
+                    renderCandidateCard(
+                      candidate,
+                      index + message.primaryCandidates.length,
+                      message.activityId,
+                      message.activityTitle
+                    )
+                  )
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (message.type === "explanation") {
+      return (
+        <div key={message.id} className="chat-message-row assistant-row">
+          <div className="chat-bubble assistant-bubble rich-bubble">
+            <p className="bubble-title">
+              Why {message.candidateName} is a strong match
+            </p>
+
+            <ul className="explanation-list">
+              {message.content.map((item, index) => (
+                <li key={index}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <div className="hr-copilot-page single-chat-page">
+      <div className="copilot-chat-shell">
+        <div className="copilot-chat-header">
+          <div className="copilot-brand">
+            <div className="copilot-app-mark">AI</div>
+            <div>
+              <h1>HR Copilot</h1>
+              <p>
+                Search activities, rank candidates, and get AI explanations in one conversation.
+              </p>
+            </div>
+          </div>
+
+          {sessionId ? (
+            <div className="session-badge">Session active</div>
+          ) : (
+            <div className="session-badge muted">New session</div>
+          )}
+        </div>
+
+        <div className="copilot-chat-body">
+          <div className="quick-prompt-row">
+            {quickPrompts.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                className="quick-prompt"
+                onClick={() => handlePromptClick(prompt)}
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+
+          {error ? <div className="copilot-error">{error}</div> : null}
+
+          <div className="chat-messages">
+            {messages.map((message) => renderMessage(message))}
+
+            {(loadingSearch || loadingCandidates || loadingExplanation) && (
+              <div className="chat-message-row assistant-row">
+                <div className="chat-bubble assistant-bubble typing-bubble">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+
+        <div className="copilot-chat-input-bar">
+          <div className="chat-input-shell">
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Ask the HR Copilot something..."
               onKeyDown={(e) => {
-                if (e.key === "Enter") handleSearch();
+                if (e.key === "Enter" && !loadingSearch) {
+                  handleSearch();
+                }
               }}
             />
-          </div>
 
-          <button
-            type="button"
-            className="search-btn"
-            onClick={handleSearch}
-            disabled={loadingSearch}
-          >
-            {loadingSearch ? "Searching..." : "Run search"}
-          </button>
-        </div>
-
-        <div className="quick-prompt-row">
-          {quickPrompts.map((prompt) => (
             <button
-              key={prompt}
               type="button"
-              className="quick-prompt"
-              onClick={() => setQuery(prompt)}
+              className="send-btn"
+              onClick={handleSearch}
+              disabled={loadingSearch}
             >
-              {prompt}
+              {loadingSearch ? "Searching..." : "Send"}
             </button>
-          ))}
-        </div>
-
-        {error ? <div className="copilot-error">{error}</div> : null}
-
-        <div className="copilot-metrics">
-          <div className="metric-card">
-            <span>Activities</span>
-            <strong>{activities.length}</strong>
           </div>
-          <div className="metric-card">
-            <span>Candidates</span>
-            <strong>{candidates.length}</strong>
-          </div>
-          <div className="metric-card">
-            <span>Session</span>
-            <strong>{sessionId ? "Active" : "New"}</strong>
-          </div>
-          <div className="metric-card">
-            <span>Selected</span>
-            <strong>{selectedCandidate ? "Candidate" : selectedActivity ? "Activity" : "None"}</strong>
-          </div>
-        </div>
-
-        <div className={mainWorkspaceClass}>
-          {showActivitiesPanel ? (
-            <aside className="workspace-panel left-panel">
-              <div className="panel-toolbar">
-                <div>
-                  <h2>Activities</h2>
-                  <p>Search results and matching items</p>
-                </div>
-                <span className="panel-pill">{activities.length}</span>
-              </div>
-
-              <div className="panel-scroll">
-                {loadingSearch ? (
-                  <div className="empty-card">
-                    <div className="empty-title">Searching activities...</div>
-                    <p>The copilot is looking for relevant matching activities.</p>
-                  </div>
-                ) : activities.length === 0 ? (
-                  <div className="empty-card">
-                    <div className="empty-title">No activities yet</div>
-                    <p>Try prompts like “backend training”, “cloud certification”, or “AI upskilling”.</p>
-                  </div>
-                ) : (
-                  activities.map((activity, index) => (
-                    <button
-                      key={activity.id}
-                      type="button"
-                      className={`activity-list-card ${
-                        selectedActivity?.id === activity.id ? "is-active" : ""
-                      }`}
-                      onClick={() => handleSelectActivity(activity)}
-                    >
-                      <div className="list-card-top">
-                        <span className="list-index">{String(index + 1).padStart(2, "0")}</span>
-                        {activity.type ? <span className="soft-badge">{activity.type}</span> : null}
-                      </div>
-
-                      <h3>{activity.title}</h3>
-                      <p>{activity.description || "No description available."}</p>
-
-                      <div className="list-card-meta">
-                        {activity.domain ? (
-                          <span className="mini-pill">{activity.domain}</span>
-                        ) : null}
-                        {typeof activity.score === "number" ? (
-                          <span className="mini-pill">Score {activity.score}</span>
-                        ) : null}
-                      </div>
-                    </button>
-                  ))
-                )}
-              </div>
-            </aside>
-          ) : null}
-
-          <main className="workspace-main">
-            <div className="conversation-header">
-              <div>
-                <span className="section-kicker">Copilot session</span>
-                <h2>Recommendation Workspace</h2>
-              </div>
-
-              {(selectedActivity || selectedCandidate) && (
-                <button
-                  type="button"
-                  className="ghost-btn danger-ghost"
-                  onClick={handleResetSelection}
-                >
-                  Reset selection
-                </button>
-              )}
-            </div>
-
-            <div className="conversation-body">
-              {lastPrompt ? (
-                <div className="message-row user-row">
-                  <div className="message-bubble user-bubble">
-                    <span className="message-label">Your request</span>
-                    <p>{lastPrompt}</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="intro-card">
-                  <span className="section-kicker">Start here</span>
-                  <h3>Ask for activities, then select one to get recommended candidates</h3>
-                  <p>
-                    This space is designed to feel like a working session instead of a static dashboard.
-                    Search first, choose an activity, then open ranking explanations on the right.
-                  </p>
-                </div>
-              )}
-
-              <div className="message-row assistant-row">
-                <div className="message-bubble assistant-bubble">
-                  <span className="message-label">Copilot status</span>
-                  <p>
-                    {loadingSearch
-                      ? "Searching for relevant activities..."
-                      : loadingCandidates
-                      ? "Analyzing top matching employees for the selected activity..."
-                      : loadingExplanation
-                      ? "Preparing an explanation for the selected candidate..."
-                      : selectedCandidate && explanation.length > 0
-                      ? "Explanation is ready. You can review it in the details panel."
-                      : selectedActivity
-                      ? "Activity selected. Review the ranked candidates below."
-                      : activities.length > 0
-                      ? "Activities found. Select one from the left panel."
-                      : "Waiting for your first request."}
-                  </p>
-                </div>
-              </div>
-
-              {selectedActivity ? (
-                <section className="workspace-focus-card">
-                  <div className="focus-card-head">
-                    <div>
-                      <span className="section-kicker">Selected activity</span>
-                      <h3>{selectedActivity.title}</h3>
-                    </div>
-                    <button
-                      type="button"
-                      className="icon-close-btn"
-                      onClick={() => {
-                        setSelectedActivity(null);
-                        setCandidates([]);
-                        setSelectedCandidate(null);
-                        setExplanation([]);
-                      }}
-                      aria-label="Close selected activity"
-                    >
-                      ×
-                    </button>
-                  </div>
-
-                  <p>{selectedActivity.description || "No description available."}</p>
-
-                  <div className="focus-meta">
-                    {selectedActivity.type ? (
-                      <span className="mini-pill">{selectedActivity.type}</span>
-                    ) : null}
-                    {selectedActivity.domain ? (
-                      <span className="mini-pill">{selectedActivity.domain}</span>
-                    ) : null}
-                    {typeof selectedActivity.score === "number" ? (
-                      <span className="mini-pill">Relevance {selectedActivity.score}</span>
-                    ) : null}
-                  </div>
-                </section>
-              ) : null}
-
-              <section className="candidate-stream">
-                <div className="stream-header">
-                  <div>
-                    <span className="section-kicker">Candidate ranking</span>
-                    <h3>Top matched employees</h3>
-                  </div>
-                  <span className="panel-pill">{candidates.length}</span>
-                </div>
-
-                {!selectedActivity ? (
-                  <div className="empty-card large-empty">
-                    <div className="empty-title">No activity selected</div>
-                    <p>Choose one activity from the left panel to generate ranked candidates.</p>
-                  </div>
-                ) : loadingCandidates ? (
-                  <div className="candidate-skeleton-list">
-                    {[1, 2, 3].map((item) => (
-                      <div key={item} className="candidate-skeleton-card" />
-                    ))}
-                  </div>
-                ) : candidates.length === 0 ? (
-                  <div className="empty-card large-empty">
-                    <div className="empty-title">No candidates found</div>
-                    <p>Try another activity or broaden your request.</p>
-                  </div>
-                ) : (
-                  candidates.map((candidate, index) => (
-                    <div
-                      key={candidate.employeeId}
-                      className={`candidate-thread-card ${
-                        selectedCandidate?.employeeId === candidate.employeeId
-                          ? "is-active"
-                          : ""
-                      }`}
-                    >
-                      <div className="thread-main">
-                        <div className="thread-avatar">
-                          {candidate.name?.charAt(0).toUpperCase() || "U"}
-                        </div>
-
-                        <div className="thread-content">
-                          <div className="thread-headline">
-                            <div>
-                              <h4>{candidate.name}</h4>
-                              <span className="rank-label">Rank #{index + 1}</span>
-                            </div>
-                            <div className="thread-score">{candidate.finalScore}/100</div>
-                          </div>
-
-                          <p>{candidate.shortReason}</p>
-
-                          <div className="thread-scores">
-                            <span>Semantic <strong>{candidate.semanticScore}</strong></span>
-                            <span>Skills <strong>{candidate.skillScore}</strong></span>
-                            <span>Progression <strong>{candidate.progressionScore}</strong></span>
-                            <span>Experience <strong>{candidate.experienceScore}</strong></span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="thread-actions">
-                        <button
-                          type="button"
-                          className="secondary-btn"
-                          onClick={() => setSelectedCandidate(candidate)}
-                        >
-                          Open profile
-                        </button>
-
-                        <button
-                          type="button"
-                          className="primary-btn"
-                          onClick={() => handleExplain(candidate)}
-                        >
-                          {loadingExplanation &&
-                          selectedCandidate?.employeeId === candidate.employeeId
-                            ? "Explaining..."
-                            : "Explain ranking"}
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </section>
-            </div>
-          </main>
-
-          {showDetailsPanel ? (
-            <aside className="workspace-panel right-panel">
-              <div className="panel-toolbar">
-                <div>
-                  <h2>Details</h2>
-                  <p>Explanation and current context</p>
-                </div>
-                <button
-                  type="button"
-                  className="icon-close-btn"
-                  onClick={() => setShowDetailsPanel(false)}
-                  aria-label="Close details panel"
-                >
-                  ×
-                </button>
-              </div>
-
-              <div className="panel-scroll">
-                {selectedCandidate ? (
-                  <div className="detail-profile-card">
-                    <div className="profile-avatar">
-                      {selectedCandidate.name?.charAt(0).toUpperCase() || "U"}
-                    </div>
-                    <h3>{selectedCandidate.name}</h3>
-                    <p>Top ranked recommendation for the selected activity</p>
-                    <div className="profile-score">{selectedCandidate.finalScore}/100</div>
-                  </div>
-                ) : (
-                  <div className="empty-card">
-                    <div className="empty-title">No candidate selected</div>
-                    <p>Select a candidate to open more details here.</p>
-                  </div>
-                )}
-
-                {selectedActivity ? (
-                  <div className="details-section">
-                    <div className="details-section-title">Selected activity</div>
-                    <div className="details-chip-row">
-                      <span className="mini-pill">{selectedActivity.title}</span>
-                      {selectedActivity.type ? (
-                        <span className="mini-pill">{selectedActivity.type}</span>
-                      ) : null}
-                      {selectedActivity.domain ? (
-                        <span className="mini-pill">{selectedActivity.domain}</span>
-                      ) : null}
-                    </div>
-                  </div>
-                ) : null}
-
-                <div className="details-section">
-                  <div className="details-section-title">Explanation</div>
-
-                  {loadingExplanation ? (
-                    <div className="empty-card">
-                      <div className="empty-title">Generating explanation...</div>
-                      <p>The copilot is preparing a ranking summary.</p>
-                    </div>
-                  ) : explanation.length === 0 ? (
-                    <div className="empty-card">
-                      <div className="empty-title">No explanation yet</div>
-                      <p>Click “Explain ranking” on a candidate card to open a detailed reasoning panel.</p>
-                    </div>
-                  ) : (
-                    <div className="explanation-card">
-                      <div className="explanation-card-head">
-                        <span className="section-kicker">AI explanation</span>
-                        {selectedCandidate ? (
-                          <span className="explanation-score">
-                            {selectedCandidate.finalScore}/100
-                          </span>
-                        ) : null}
-                      </div>
-
-                      <ul className="explanation-list">
-                        {explanation.map((item, index) => (
-                          <li key={index}>{item}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </aside>
-          ) : null}
         </div>
       </div>
     </div>

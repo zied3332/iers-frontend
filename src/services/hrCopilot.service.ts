@@ -15,9 +15,9 @@ export async function searchActivities(message: string, sessionId?: string) {
   return res.data;
 }
 
-export async function getCandidates(activityId: string, count = 5) {
+export async function getCandidates(activityId: string) {
   const res = await axios.get<CandidatesResponse>(
-    `${API_URL}/recommendation/${activityId}/candidates?count=${count}`
+    `${API_URL}/recommendation/${activityId}/candidates`
   );
   return res.data;
 }
