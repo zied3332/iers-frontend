@@ -29,6 +29,7 @@ export default function ManagerLayout() {
         { to: "/manager/activities", label: "Activities" },
         { to: "/manager/skills", label: "Skills Management", end: true },
         { to: "/manager/skills/assign", label: "Assign Skills", end: true },
+        { to: "/manager/history", label: "My history" },
         { to: "/manager/notifications", label: "Notifications" },
       ]}
       topbarRight={

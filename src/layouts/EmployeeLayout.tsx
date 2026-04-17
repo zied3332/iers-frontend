@@ -30,6 +30,7 @@ export default function EmployeeLayout() {
       nav={[
         { to: "/me/skills", label: "My Skills" },
         { to: "/me/activity-invitations", label: "Activity invitations" },
+        { to: "/me/history", label: "My history" },
         { to: "/me/notifications", label: "Notifications" },
       ]}
       topbarRight={

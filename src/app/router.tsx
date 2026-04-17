@@ -42,6 +42,7 @@ import CvUpload from "../pages/employee/CvUpload";
 import MySkillsPage from "../pages/employee/skills/MySkillsPage";
 import EmployeeActivityInvitationsPage from "../pages/employee/EmployeeActivityInvitationsPage";
 import EmployeeActivityInvitationDetailPage from "../pages/employee/EmployeeActivityInvitationDetailPage";
+import AuditHistoryPage from "../pages/audit/AuditHistoryPage";
 
 import Blank from "../pages/Blank";
 import Profile from "../pages/profile/Profile";
@@ -146,6 +147,7 @@ export const router = createBrowserRouter([
           { path: "skills/assign", element: <AssignSkillPage /> },
           { path: "ai/text-correction", element: <TextCorrectionPage /> },
           { path: "profile", element: <Profile /> },
+          { path: "history", element: <AuditHistoryPage /> },
           { path: "notifications", element: <NotificationsPage /> },
           { path: "notifications/:side", element: <NotificationsPage /> },
           { path: "employees/:id", element: <Profile /> },
@@ -176,6 +178,7 @@ export const router = createBrowserRouter([
           { path: "skills", element: <SkillsManagementPage /> },
           { path: "skills/assign", element: <AssignSkillPage /> },
           { path: "profile", element: <Profile /> },
+          { path: "history", element: <AuditHistoryPage /> },
           { path: "notifications", element: <NotificationsPage /> },
           { path: "notifications/:side", element: <NotificationsPage /> },
           { path: "employees/:id", element: <Profile /> },
@@ -202,6 +205,7 @@ export const router = createBrowserRouter([
           { path: "skills", element: <SkillsManagementPage /> },
           { path: "skills/assign", element: <AssignSkillPage /> },
           { path: "profile", element: <Profile /> },
+          { path: "history", element: <AuditHistoryPage /> },
           { path: "notifications", element: <NotificationsPage /> },
           { path: "notifications/:side", element: <NotificationsPage /> },
           { path: "employees/:id", element: <Profile /> },
@@ -221,6 +225,7 @@ export const router = createBrowserRouter([
           { path: "blank", element: <Blank /> },
 
           { path: "profile", element: <Profile /> },
+          { path: "history", element: <AuditHistoryPage /> },
           { path: "cv", element: <CvUpload /> },
           { path: "skills", element: <MySkillsPage /> },
           { path: "activity-invitations", element: <EmployeeActivityInvitationsPage /> },

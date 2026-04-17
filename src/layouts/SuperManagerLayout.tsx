@@ -32,6 +32,7 @@ export default function SuperManagerLayout() {
         { to: "/super-manager/skills", label: "Skills Management", end: true },
         { to: "/super-manager/skills/assign", label: "Assign Skills", end: true },
         { to: "/super-manager/recommendations", label: "Recommendations" },
+        { to: "/super-manager/history", label: "My history" },
         { to: "/super-manager/notifications", label: "Notifications" },
       ]}
       topbarRight={<input className="input" placeholder="Search users, employees, skills..." />}

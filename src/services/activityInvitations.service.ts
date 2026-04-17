@@ -26,9 +26,18 @@ export async function createInvitations(payload: CreateInvitationsPayload) {
   return res.data;
 }
 
-export async function getMyInvitations(): Promise<EmployeeInvitationListItem[]> {
+export type InvitationsPeriod = "all" | "week" | "month";
+
+export async function getMyInvitations(params?: {
+  q?: string;
+  period?: InvitationsPeriod;
+}): Promise<EmployeeInvitationListItem[]> {
+  const search = new URLSearchParams();
+  if (params?.q?.trim()) search.set("q", params.q.trim());
+  if (params?.period && params.period !== "all") search.set("period", params.period);
+  const qs = search.toString();
   const res = await axios.get<EmployeeInvitationListItem[]>(
-    `${API_URL}/activity-invitations/employee/me`,
+    `${API_URL}/activity-invitations/employee/me${qs ? `?${qs}` : ""}`,
     { headers: authHeaders() }
   );
   return res.data;

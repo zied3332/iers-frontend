@@ -65,7 +65,8 @@ export const updateEmployeeSkillLevel = async (
 ) => {
   const res = await axios.patch(
     `${API}/skills/employee-skill/${employeeSkillId}/level`,
-    data
+    data,
+    { headers: authHeaders() }
   );
   return res.data;
 };

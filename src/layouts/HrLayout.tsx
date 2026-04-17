@@ -28,6 +28,7 @@ export default function HrLayout() {
       { to: "/hr/skills", label: "Skills Management", end: true },
       { to: "/hr/skills/assign", label: "Assign Skills", end: true },
       { to: "/hr/copilot", label: "HrCopilotPage" },
+      { to: "/hr/history", label: "My history" },
       { to: "/hr/notifications", label: "Notifications" },
     ],
     []
