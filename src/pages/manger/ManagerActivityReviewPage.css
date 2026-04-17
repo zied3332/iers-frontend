@@ -200,6 +200,47 @@
   margin-top: 4px;
 }
 
+.manager-review-actions--footer.manager-review-footer-stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.manager-replacement-deadline-field {
+  display: grid;
+  gap: 8px;
+  max-width: 520px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.manager-replacement-deadline-field label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.manager-replacement-deadline-field input {
+  max-width: 120px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  font-size: 15px;
+}
+
+.manager-replacement-deadline-hint {
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.manager-review-footer-buttons {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+}
+
 .manager-footer-btn {
   flex: 1 1 0;
   max-width: 420px;
@@ -693,6 +734,20 @@
 :root[data-theme="dark"] .manager-review-actions--footer {
   background: var(--card);
   border-color: var(--border);
+}
+
+:root[data-theme="dark"] .manager-replacement-deadline-field label {
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .manager-replacement-deadline-field input {
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .manager-replacement-deadline-hint {
+  color: var(--muted);
 }
 
 :root[data-theme="dark"] .manager-footer-btn--secondary {

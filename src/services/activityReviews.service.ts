@@ -48,7 +48,11 @@ export async function getActivityReview(
 
 export async function saveHrShortlist(
   activityId: string,
-  body: { employeeIds: string[]; hrNote?: string }
+  body: {
+    employeeIds: string[];
+    hrNote?: string;
+    hrInvitationResponseDays?: number;
+  }
 ): Promise<{ message: string; review: ActivityReviewRecord }> {
   const res = await fetch(
     `${BASE}/activity-reviews/${encodeURIComponent(activityId)}/hr-shortlist`,
@@ -76,7 +80,11 @@ export async function submitHrShortlistToManager(
 
 export async function approveActivityReview(
   activityId: string,
-  body: { managerSelectedEmployeeIds: string[]; managerNote?: string }
+  body: {
+    managerSelectedEmployeeIds: string[];
+    managerNote?: string;
+    managerReplacementResponseDays?: number;
+  }
 ): Promise<{ message: string; review: ActivityReviewRecord }> {
   const res = await fetch(
     `${BASE}/activity-reviews/${encodeURIComponent(activityId)}/approve`,

@@ -39,6 +39,12 @@ export default function NotificationDropdown({ onClose }: Props) {
 
     onClose();
 
+    const link = notification.link?.trim();
+    if (link && link.startsWith('/')) {
+      navigate(link);
+      return;
+    }
+
     navigate(getNotificationsPath(), {
       state: {
         notificationId: notification._id,

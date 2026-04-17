@@ -38,6 +38,7 @@ export default function ActivityStaffingPage() {
   const [selectedPrimaryIds, setSelectedPrimaryIds] = useState<string[]>([]);
 
   const [availableBackups, setAvailableBackups] = useState<CandidateItem[]>([]);
+  const [hrInvitationResponseDays, setHrInvitationResponseDays] = useState(3);
 
   const loadPage = async () => {
     if (!activityId) return;
@@ -54,6 +55,7 @@ export default function ActivityStaffingPage() {
       ]);
 
       setStatusData(staffing);
+      setHrInvitationResponseDays(staffing.hrInvitationResponseDays ?? 3);
       setActivityReview(review);
       const primaries = recommendations.primaryCandidates || [];
       setPrimaryCandidates(primaries);
@@ -124,6 +126,7 @@ export default function ActivityStaffingPage() {
       await saveHrShortlist(activityId, {
         employeeIds: selectedPrimaryIds,
         hrNote,
+        hrInvitationResponseDays,
       });
       const submitResult = await submitHrShortlistToManager(activityId);
       if (submitResult?.review) {
@@ -192,6 +195,31 @@ export default function ActivityStaffingPage() {
           <div className="staffing-loading-card">No activity data found.</div>
         ) : (
           <>
+            <div className="staffing-deadline-panel" style={{ marginBottom: 16 }}>
+              <div className="section-head">
+                <h2 style={{ fontSize: "1.1rem", margin: 0 }}>Invitation response deadline (HR)</h2>
+                <p style={{ margin: "6px 0 0", fontSize: 14, opacity: 0.85 }}>
+                  After the manager approves, invited employees have this many calendar days to accept or decline.
+                </p>
+              </div>
+              <label className="select-checkbox" style={{ alignItems: "center", gap: 12, marginTop: 8 }}>
+                <span>Days</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={365}
+                  disabled={listSentToManager}
+                  value={hrInvitationResponseDays}
+                  onChange={(e) =>
+                    setHrInvitationResponseDays(
+                      Math.max(1, Math.min(365, Number(e.target.value) || 1))
+                    )
+                  }
+                  style={{ width: 80 }}
+                />
+              </label>
+            </div>
+
             <div className="staffing-stats-grid">
               <div className="staffing-stat-card">
                 <span>Seats required</span>

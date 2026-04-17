@@ -743,13 +743,22 @@ export default function NotificationsPage() {
     };
   }, [notifications, filter, debouncedSearch, roleFilter, departmentFilter, departmentNamesById, canFilterByDepartment]);
 
-  const handleClick = useCallback(async (notification: AppNotification) => {
-    setSelectedNotification(notification);
+  const handleClick = useCallback(
+    async (notification: AppNotification) => {
+      if (!notification.isRead) {
+        void markOneAsRead(notification._id);
+      }
 
-    if (!notification.isRead) {
-      void markOneAsRead(notification._id);
-    }
-  }, [markOneAsRead]);
+      const link = notification.link?.trim();
+      if (link && link.startsWith('/')) {
+        navigate(link);
+        return;
+      }
+
+      setSelectedNotification(notification);
+    },
+    [markOneAsRead, navigate]
+  );
 
   const toggleSelected = useCallback((notificationId: string) => {
     setSelectedIds((prev) => {

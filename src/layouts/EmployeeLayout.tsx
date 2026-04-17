@@ -29,6 +29,7 @@ export default function EmployeeLayout() {
       profilePath="/me/profile"
       nav={[
         { to: "/me/skills", label: "My Skills" },
+        { to: "/me/activity-invitations", label: "Activity invitations" },
         { to: "/me/notifications", label: "Notifications" },
       ]}
       topbarRight={

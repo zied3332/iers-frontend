@@ -14,6 +14,7 @@ export type ActivityInvitationItem = {
   status: InvitationStatus;
   declineReason?: string;
   invitedAt?: string;
+  responseDeadlineAt?: string;
   respondedAt?: string;
   replacedAt?: string;
   invitedBy?: string;
@@ -35,6 +36,7 @@ export type InvitationResponsePayload = {
 export type ReplaceInvitationPayload = {
   declinedInvitationId: string;
   replacementEmployeeId: string;
+  replacementResponseDays?: number;
 };
 
 export type ActivityInvitationsResponse = ActivityInvitationItem[];
@@ -50,7 +52,57 @@ export type ActivityStaffingStatusResponse = {
   filledSeats: number;
   reservedSeats: number;
   emptySeats: number;
+  hrInvitationResponseDays?: number | null;
+  managerReplacementResponseDays?: number | null;
   invitations: ActivityInvitationItem[];
+};
+
+export type EmployeeInvitationListItem = {
+  _id: string;
+  activityId: string;
+  employeeId: string;
+  status: InvitationStatus;
+  declineReason?: string;
+  invitedAt?: string;
+  responseDeadlineAt?: string;
+  respondedAt?: string;
+  hrNote?: string;
+  activityTitle: string;
+  activityType: string;
+  activityLocation: string;
+  activityStartDate?: string;
+  activityEndDate?: string;
+};
+
+export type EmployeeInvitationActivityDetail = {
+  _id: string;
+  title: string;
+  description: string;
+  type: string;
+  location: string;
+  startDate: string;
+  endDate: string;
+  duration: string;
+  seats: number;
+  status: string;
+  workflowStatus: string;
+  context: string;
+  priority_level: string;
+};
+
+export type EmployeeInvitationDetailResponse = {
+  invitation: {
+    _id: string;
+    activityId: string;
+    employeeId: string;
+    status: InvitationStatus;
+    declineReason: string;
+    invitedAt?: string;
+    responseDeadlineAt?: string;
+    respondedAt?: string;
+    hrNote: string;
+  };
+  activity: EmployeeInvitationActivityDetail;
 };
 
 export type NextBackupsResponse = {

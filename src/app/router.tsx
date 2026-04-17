@@ -32,6 +32,7 @@ import ManagerTeam from "../pages/manger/ManagerTeam";
 import ManagerActivities from "../pages/manger/ManagerActivities.tsx";
 import ManagerDashboard from "../pages/manger/ManagerDashboard";
 import ManagerActivityReviewPage from "../pages/manger/ManagerActivityReviewPage";
+import ManagerActivityStaffingPage from "../pages/manger/ManagerActivityStaffingPage";
 
 // AI pages
 import TextCorrectionPage from "../pages/ai/TextCorrectionPage";
@@ -39,6 +40,8 @@ import TextCorrectionPage from "../pages/ai/TextCorrectionPage";
 // Employee pages
 import CvUpload from "../pages/employee/CvUpload";
 import MySkillsPage from "../pages/employee/skills/MySkillsPage";
+import EmployeeActivityInvitationsPage from "../pages/employee/EmployeeActivityInvitationsPage";
+import EmployeeActivityInvitationDetailPage from "../pages/employee/EmployeeActivityInvitationDetailPage";
 
 import Blank from "../pages/Blank";
 import Profile from "../pages/profile/Profile";
@@ -195,6 +198,7 @@ export const router = createBrowserRouter([
           { path: "team", element: <ManagerTeam /> },
           { path: "activities", element: <ManagerActivities /> },
           { path: "activities/:activityId/review", element: <ManagerActivityReviewPage /> },
+          { path: "activities/:activityId/staffing", element: <ManagerActivityStaffingPage /> },
           { path: "skills", element: <SkillsManagementPage /> },
           { path: "skills/assign", element: <AssignSkillPage /> },
           { path: "profile", element: <Profile /> },
@@ -219,6 +223,11 @@ export const router = createBrowserRouter([
           { path: "profile", element: <Profile /> },
           { path: "cv", element: <CvUpload /> },
           { path: "skills", element: <MySkillsPage /> },
+          { path: "activity-invitations", element: <EmployeeActivityInvitationsPage /> },
+          {
+            path: "activity-invitations/:invitationId",
+            element: <EmployeeActivityInvitationDetailPage />,
+          },
           { path: "notifications", element: <NotificationsPage /> },
           { path: "notifications/:side", element: <NotificationsPage /> },
         ],

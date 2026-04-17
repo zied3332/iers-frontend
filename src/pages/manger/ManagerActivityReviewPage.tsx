@@ -49,6 +49,8 @@ export default function ManagerActivityReviewPage() {
   const [selectedFinalIds, setSelectedFinalIds] = useState<string[]>([]);
   /** Reasons when an HR-suggested employee is excluded from the final list */
   const [exclusionReasons, setExclusionReasons] = useState<Record<string, string>>({});
+  /** Default calendar days for replacement invites after a decline or missed deadline */
+  const [managerReplacementResponseDays, setManagerReplacementResponseDays] = useState(3);
 
   const hrShortlistIds = useMemo(
     () => new Set(review?.hrSelectedEmployeeIds || []),
@@ -216,6 +218,7 @@ export default function ManagerActivityReviewPage() {
       const managerNote = buildManagerNoteFromExclusions();
       await approveActivityReview(activityId, {
         managerSelectedEmployeeIds: selectedFinalIds,
+        managerReplacementResponseDays,
         ...(managerNote ? { managerNote } : {}),
       });
       navigate("/manager/activities");
@@ -527,22 +530,43 @@ export default function ManagerActivityReviewPage() {
           </div>
         </section>
 
-        <div className="manager-review-actions--footer">
-          <button
-            type="button"
-            className="manager-footer-btn manager-footer-btn--secondary"
-            onClick={() => navigate(-1)}
-          >
-            Back
-          </button>
-          <button
-            type="button"
-            className="manager-footer-btn manager-footer-btn--primary"
-            onClick={handleApprove}
-            disabled={submitting || !canManagerAct || !review}
-          >
-            {submitting ? "…" : "Approve & notify"}
-          </button>
+        <div className="manager-review-actions--footer manager-review-footer-stack">
+          <div className="manager-replacement-deadline-field">
+            <label htmlFor="mgr-repl-days">Replacement invite deadline (days)</label>
+            <input
+              id="mgr-repl-days"
+              type="number"
+              min={1}
+              max={365}
+              disabled={!canManagerAct}
+              value={managerReplacementResponseDays}
+              onChange={(e) =>
+                setManagerReplacementResponseDays(
+                  Math.max(1, Math.min(365, Number(e.target.value) || 1))
+                )
+              }
+            />
+            <span className="manager-replacement-deadline-hint">
+              Used when someone declines or misses the HR deadline and you invite a backup.
+            </span>
+          </div>
+          <div className="manager-review-footer-buttons">
+            <button
+              type="button"
+              className="manager-footer-btn manager-footer-btn--secondary"
+              onClick={() => navigate(-1)}
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              className="manager-footer-btn manager-footer-btn--primary"
+              onClick={handleApprove}
+              disabled={submitting || !canManagerAct || !review}
+            >
+              {submitting ? "…" : "Approve & notify"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
