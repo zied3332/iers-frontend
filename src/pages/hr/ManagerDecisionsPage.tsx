@@ -1,9 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getActivityById, type ActivityRecord } from "../../services/activities.service";
-import { getActivityInvitations } from "../../services/activityInvitations.service";
+import {
+  getActivityInvitations,
+  hrFinalLaunch,
+} from "../../services/activityInvitations.service";
 import type { ActivityInvitationItem } from "../../types/activity-invitations";
-import { FiArrowLeft, FiCheckCircle, FiXCircle, FiClock, FiUsers } from "react-icons/fi";
+import { FiArrowLeft, FiCheckCircle, FiLock, FiUsers } from "react-icons/fi";
 import "./ManagerDecisionsPage.css";
 
 export default function ManagerDecisionsPage() {
@@ -14,6 +17,7 @@ export default function ManagerDecisionsPage() {
   const [invitations, setInvitations] = useState<ActivityInvitationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [finalizing, setFinalizing] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -27,9 +31,9 @@ export default function ManagerDecisionsPage() {
         ]);
         setActivity(activityData);
         setInvitations(invitationsData);
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error("Failed to load data:", e);
-        setError(e?.message || "Failed to load manager decisions.");
+        setError(e instanceof Error ? e.message : "Failed to load manager list.");
       } finally {
         setLoading(false);
       }
@@ -38,63 +42,72 @@ export default function ManagerDecisionsPage() {
     loadData();
   }, [activityId]);
 
-  const acceptedCandidates = invitations.filter(
-    (inv) => inv.status === "ACCEPTED"
-  );
-  const rejectedCandidates = invitations.filter(
-    (inv) => inv.status === "DECLINED"
-  );
-  const pendingCandidates = invitations.filter(
-    (inv) => inv.status === "INVITED"
+  const acceptedCandidates = useMemo(
+    () => invitations.filter((inv) => inv.status === "ACCEPTED"),
+    [invitations]
   );
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "ACCEPTED":
-      case "APPROVED":
-        return <FiCheckCircle style={{ color: "#166534" }} />;
-      case "DECLINED":
-      case "REJECTED":
-        return <FiXCircle style={{ color: "#b91c1c" }} />;
-      default:
-        return <FiClock style={{ color: "#d97706" }} />;
-    }
-  };
+  const launched = Boolean(
+    activity?.hrFinalLaunchAt ||
+      activity?.status === "IN_PROGRESS" ||
+      activity?.workflowStatus === "IN_PROGRESS"
+  );
 
-  const getStatusClass = (status: string) => {
-    switch (status) {
-      case "ACCEPTED":
-      case "APPROVED":
-        return "status-accepted";
-      case "DECLINED":
-      case "REJECTED":
-        return "status-rejected";
-      default:
-        return "status-pending";
+  const canFinalValidation =
+    Boolean(activity?.rosterReadyForHrAt) && !launched && !activity?.hrFinalLaunchAt;
+
+  const handleFinalValidation = async () => {
+    if (!activityId) return;
+    setError("");
+    setFinalizing(true);
+    try {
+      await hrFinalLaunch(activityId);
+      const [activityData, invitationsData] = await Promise.all([
+        getActivityById(activityId),
+        getActivityInvitations(activityId),
+      ]);
+      setActivity(activityData);
+      setInvitations(invitationsData);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Final validation failed.");
+    } finally {
+      setFinalizing(false);
     }
   };
 
   if (loading) {
     return (
       <div className="manager-decisions-page">
-        <div className="decisions-shell">
-          <div style={{ textAlign: "center", padding: 40 }}>
-            <p>Loading manager decisions...</p>
+        <div className="decisions-shell decisions-shell--wide">
+          <div className="decisions-shell-state decisions-shell-state--loading">
+            <p>Loading manager list…</p>
           </div>
         </div>
       </div>
     );
   }
 
-  if (error || !activity) {
+  if (error && !activity) {
     return (
       <div className="manager-decisions-page">
-        <div className="decisions-shell">
-          <div style={{ textAlign: "center", padding: 40, color: "#b91c1c" }}>
-            <p>{error || "Activity not found"}</p>
-            <button onClick={() => navigate(-1)} style={{ marginTop: 16 }}>
-              <FiArrowLeft /> Go Back
+        <div className="decisions-shell decisions-shell--wide">
+          <div className="decisions-shell-state decisions-shell-state--error">
+            <p>{error}</p>
+            <button type="button" className="decisions-secondary-btn" onClick={() => navigate(-1)}>
+              Go back
             </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!activity) {
+    return (
+      <div className="manager-decisions-page">
+        <div className="decisions-shell decisions-shell--wide">
+          <div className="decisions-shell-state decisions-shell-state--muted">
+            <p>Activity not found</p>
           </div>
         </div>
       </div>
@@ -103,167 +116,154 @@ export default function ManagerDecisionsPage() {
 
   return (
     <div className="manager-decisions-page">
-      <div className="decisions-shell">
+      <div className="decisions-shell decisions-shell--wide">
         <div className="decisions-header">
           <button
+            type="button"
             className="back-btn"
             onClick={() => navigate(`/hr/activities/${activityId}/staffing`)}
           >
-            <FiArrowLeft /> Back to Staffing
+            <FiArrowLeft /> Back to staffing
           </button>
-          <div>
-            <span className="decisions-kicker">Manager Decisions</span>
+          <div className="decisions-header__lead">
+            <span className="decisions-kicker">Manager list</span>
             <h1>{activity.title}</h1>
-            <p>View the manager's approval decisions for candidate selections.</p>
+            <p>
+              {launched
+                ? "Final participant list — read-only."
+                : "Participants and invitation outcomes for this activity."}
+            </p>
           </div>
         </div>
 
         {error ? <div className="decisions-error">{error}</div> : null}
 
-        <div className="decisions-stats-grid">
-          <div className="decisions-stat-card accepted">
-            <FiCheckCircle size={24} />
+        {canFinalValidation ? (
+          <div className="manager-decisions-final-banner">
             <div>
-              <span>Accepted</span>
-              <strong>{acceptedCandidates.length}</strong>
+              <strong>Final validation</strong>
+              <p>
+                The manager confirmed every seat is accepted. Validate once to move the activity to{" "}
+                <strong>In progress</strong> and lock staffing.
+              </p>
             </div>
-          </div>
-          <div className="decisions-stat-card rejected">
-            <FiXCircle size={24} />
-            <div>
-              <span>Rejected</span>
-              <strong>{rejectedCandidates.length}</strong>
-            </div>
-          </div>
-          <div className="decisions-stat-card pending">
-            <FiClock size={24} />
-            <div>
-              <span>Pending Review</span>
-              <strong>{pendingCandidates.length}</strong>
-            </div>
-          </div>
-          <div className="decisions-stat-card total">
-            <FiUsers size={24} />
-            <div>
-              <span>Total Candidates</span>
-              <strong>{invitations.length}</strong>
-            </div>
-          </div>
-        </div>
-
-        {acceptedCandidates.length > 0 && (
-          <section className="decisions-section">
-            <div className="section-header accepted">
-              <FiCheckCircle />
-              <h2>Accepted Candidates ({acceptedCandidates.length})</h2>
-            </div>
-            <div className="candidates-list">
-              {acceptedCandidates.map((invitation) => (
-                <div key={invitation._id || invitation.id} className="candidate-card accepted">
-                  <div className="candidate-info">
-                    <div className="candidate-name">
-                      {getStatusIcon("ACCEPTED")}
-                      <h3>{invitation.employeeName || `Employee ID: ${invitation.employeeId}`}</h3>
-                      <span className={`status-badge ${getStatusClass("ACCEPTED")}`}>
-                        ACCEPTED
-                      </span>
-                    </div>
-                    {invitation.hrNote && (
-                      <p className="manager-note">
-                        <strong>Note:</strong> {invitation.hrNote}
-                      </p>
-                    )}
-                    <p className="invited-date">
-                      Invited: {invitation.invitedAt
-                        ? new Date(invitation.invitedAt).toLocaleDateString()
-                        : "—"}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {rejectedCandidates.length > 0 && (
-          <section className="decisions-section">
-            <div className="section-header rejected">
-              <FiXCircle />
-              <h2>Rejected Candidates ({rejectedCandidates.length})</h2>
-            </div>
-            <div className="candidates-list">
-              {rejectedCandidates.map((invitation) => (
-                <div key={invitation._id || invitation.id} className="candidate-card rejected">
-                  <div className="candidate-info">
-                    <div className="candidate-name">
-                      {getStatusIcon("REJECTED")}
-                      <h3>{invitation.employeeName || `Employee ID: ${invitation.employeeId}`}</h3>
-                      <span className={`status-badge ${getStatusClass("REJECTED")}`}>
-                        REJECTED
-                      </span>
-                    </div>
-                    {invitation.hrNote && (
-                      <p className="manager-note">
-                        <strong>Note:</strong> {invitation.hrNote}
-                      </p>
-                    )}
-                    {invitation.declineReason && (
-                      <p className="decline-reason">
-                        <strong>Decline Reason:</strong> {invitation.declineReason}
-                      </p>
-                    )}
-                    <p className="invited-date">
-                      Invited: {invitation.invitedAt
-                        ? new Date(invitation.invitedAt).toLocaleDateString()
-                        : "—"}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {pendingCandidates.length > 0 && (
-          <section className="decisions-section">
-            <div className="section-header pending">
-              <FiClock />
-              <h2>Pending Review ({pendingCandidates.length})</h2>
-            </div>
-            <div className="candidates-list">
-              {pendingCandidates.map((invitation) => (
-                <div key={invitation._id || invitation.id} className="candidate-card pending">
-                  <div className="candidate-info">
-                    <div className="candidate-name">
-                      {getStatusIcon("PENDING")}
-                      <h3>{invitation.employeeName || `Employee ID: ${invitation.employeeId}`}</h3>
-                      <span className={`status-badge ${getStatusClass("PENDING")}`}>
-                        WAITING
-                      </span>
-                    </div>
-                    <p className="invited-date">
-                      Invited: {invitation.invitedAt
-                        ? new Date(invitation.invitedAt).toLocaleDateString()
-                        : "—"}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {invitations.length === 0 && (
-          <div className="empty-state">
-            <FiUsers size={48} />
-            <p>No candidates have been sent to the manager yet.</p>
             <button
-              className="primary-btn"
-              onClick={() => navigate(`/hr/activities/${activityId}/staffing`)}
+              type="button"
+              className="manager-decisions-final-btn"
+              disabled={finalizing}
+              onClick={() => void handleFinalValidation()}
             >
-              Go to Staffing Page
+              {finalizing ? "…" : "Final validation"}
             </button>
           </div>
+        ) : null}
+
+        {!activity.rosterReadyForHrAt && !launched ? (
+          <div className="manager-decisions-hint-banner">
+            <FiUsers />
+            <span>
+              The manager must send the roster from their review page (<strong>Send to HR</strong>)
+              once everyone has accepted. Then final validation unlocks here.
+            </span>
+          </div>
+        ) : null}
+
+        {launched ? (
+          <section className="decisions-section decisions-section--final">
+            <div className="section-header accepted">
+              <FiLock />
+              <h2>Final participant list ({acceptedCandidates.length})</h2>
+            </div>
+            <p className="decisions-final-note">
+              Activity status: <strong>In progress</strong>. Staffing choices are closed.
+            </p>
+            {acceptedCandidates.length === 0 ? (
+              <div className="empty-state">
+                <p>No accepted invitations on record.</p>
+              </div>
+            ) : (
+              <div className="candidates-list">
+                {acceptedCandidates.map((invitation) => (
+                  <div key={invitation._id || invitation.id} className="candidate-card accepted">
+                    <div className="candidate-info">
+                      <div className="candidate-name">
+                        <FiCheckCircle className="candidate-check-icon" aria-hidden />
+                        <h3>{invitation.employeeName || `Employee ${invitation.employeeId}`}</h3>
+                        <span className="status-badge status-accepted">ACCEPTED</span>
+                      </div>
+                      <p className="invited-date">
+                        Accepted:{" "}
+                        {invitation.respondedAt
+                          ? new Date(invitation.respondedAt).toLocaleString()
+                          : "—"}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        ) : (
+          <>
+            <div className="decisions-stats-grid">
+              <div className="decisions-stat-card accepted">
+                <FiCheckCircle size={24} />
+                <div>
+                  <span>Accepted</span>
+                  <strong>{acceptedCandidates.length}</strong>
+                </div>
+              </div>
+              <div className="decisions-stat-card pending">
+                <FiUsers size={24} />
+                <div>
+                  <span>All invitations</span>
+                  <strong>{invitations.length}</strong>
+                </div>
+              </div>
+            </div>
+
+            {acceptedCandidates.length > 0 && (
+              <section className="decisions-section">
+                <div className="section-header accepted">
+                  <FiCheckCircle />
+                  <h2>Accepted ({acceptedCandidates.length})</h2>
+                </div>
+                <div className="candidates-list">
+                  {acceptedCandidates.map((invitation) => (
+                    <div key={invitation._id || invitation.id} className="candidate-card accepted">
+                      <div className="candidate-info">
+                        <div className="candidate-name">
+                          <FiCheckCircle className="candidate-check-icon" aria-hidden />
+                          <h3>{invitation.employeeName || `Employee ID: ${invitation.employeeId}`}</h3>
+                          <span className="status-badge status-accepted">ACCEPTED</span>
+                        </div>
+                        <p className="invited-date">
+                          Invited:{" "}
+                          {invitation.invitedAt
+                            ? new Date(invitation.invitedAt).toLocaleDateString()
+                            : "—"}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {invitations.length === 0 && (
+              <div className="empty-state">
+                <FiUsers size={48} />
+                <p>No invitations yet.</p>
+                <button
+                  type="button"
+                  className="primary-btn"
+                  onClick={() => navigate(`/hr/activities/${activityId}/staffing`)}
+                >
+                  Go to staffing
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

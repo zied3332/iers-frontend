@@ -29,6 +29,9 @@ export type ActivityRecord = {
   priorityContext: PriorityContext;
   targetLevel: DesiredLevel;
   createdAt: string;
+  workflowStatus?: string;
+  rosterReadyForHrAt?: string | null;
+  hrFinalLaunchAt?: string | null;
 };
 
 export type CreateActivityInput = Omit<ActivityRecord, "_id" | "createdAt">;
@@ -137,6 +140,9 @@ function mapApiActivity(raw: any): ActivityRecord {
     "MEDIUM"
   );
 
+  const rosterReady = raw?.rosterReadyForHrAt;
+  const hrLaunch = raw?.hrFinalLaunchAt;
+
   return {
     _id: String(raw?._id || ""),
     title: String(raw?.title || ""),
@@ -154,6 +160,19 @@ function mapApiActivity(raw: any): ActivityRecord {
     priorityContext: normalizedContext,
     targetLevel: normalizedLevel,
     createdAt: String(raw?.created_at || raw?.createdAt || ""),
+    workflowStatus: raw?.workflowStatus != null ? String(raw.workflowStatus) : undefined,
+    rosterReadyForHrAt:
+      rosterReady != null
+        ? typeof rosterReady === "string"
+          ? rosterReady
+          : new Date(rosterReady).toISOString()
+        : null,
+    hrFinalLaunchAt:
+      hrLaunch != null
+        ? typeof hrLaunch === "string"
+          ? hrLaunch
+          : new Date(hrLaunch).toISOString()
+        : null,
   };
 }
 

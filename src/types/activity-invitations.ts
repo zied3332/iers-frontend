@@ -52,6 +52,8 @@ export type ActivityStaffingStatusResponse = {
   filledSeats: number;
   reservedSeats: number;
   emptySeats: number;
+  /** Accepted + pending people minus seats when over capacity */
+  overOpenInvites?: number;
   hrInvitationResponseDays?: number | null;
   managerReplacementResponseDays?: number | null;
   invitations: ActivityInvitationItem[];

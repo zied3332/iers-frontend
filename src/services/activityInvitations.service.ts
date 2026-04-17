@@ -103,3 +103,27 @@ export async function getNextBackupCandidates(
   );
   return res.data;
 }
+
+export async function markRosterReadyForHr(activityId: string): Promise<{
+  message: string;
+  activity: unknown;
+}> {
+  const res = await axios.post(
+    `${API_URL}/activity-invitations/activity/${encodeURIComponent(activityId)}/roster-ready-for-hr`,
+    {},
+    { headers: authHeaders() }
+  );
+  return res.data;
+}
+
+export async function hrFinalLaunch(activityId: string): Promise<{
+  message: string;
+  activity: unknown;
+}> {
+  const res = await axios.post(
+    `${API_URL}/activity-invitations/activity/${encodeURIComponent(activityId)}/hr-final-launch`,
+    {},
+    { headers: authHeaders() }
+  );
+  return res.data;
+}

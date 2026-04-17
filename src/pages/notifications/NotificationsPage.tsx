@@ -38,6 +38,36 @@ function normalizeSideView(value: unknown): 'unread' | 'read' | null {
   return null;
 }
 
+function getRoleFromLocalStorage(): string | null {
+  try {
+    const raw = localStorage.getItem("user");
+    if (!raw) return null;
+    const u = JSON.parse(raw) as { role?: string };
+    return u?.role ? String(u.role) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Older notifications linked to HR-only staffing URLs; managers must use their review page.
+ */
+function resolveNotificationTargetPath(link: string): string {
+  const role = String(getRoleFromLocalStorage() || "").toUpperCase();
+  if (role !== "MANAGER") return link;
+
+  const staffing = /^\/hr\/activities\/([^/]+)\/staffing\/?$/i.exec(link);
+  if (staffing) return `/manager/activities/${staffing[1]}/review`;
+
+  const decisions = /^\/hr\/activities\/([^/]+)\/manager-decisions\/?$/i.exec(link);
+  if (decisions) return `/manager/activities/${decisions[1]}/review`;
+
+  const mgrStaff = /^\/manager\/activities\/([^/]+)\/staffing\/?$/i.exec(link);
+  if (mgrStaff) return `/manager/activities/${mgrStaff[1]}/review`;
+
+  return link;
+}
+
 function getNotificationsBasePath(pathname: string) {
   const roleBase = pathname.match(/^\/(hr|super-manager|manager|me)\//i)?.[1];
   if (roleBase) return `/${roleBase}/notifications`;
@@ -751,7 +781,7 @@ export default function NotificationsPage() {
 
       const link = notification.link?.trim();
       if (link && link.startsWith('/')) {
-        navigate(link);
+        navigate(resolveNotificationTargetPath(link));
         return;
       }
 
@@ -922,7 +952,7 @@ export default function NotificationsPage() {
 
   const openLinkedPage = useCallback(() => {
     if (!selectedNotification?.link) return;
-    navigate(selectedNotification.link);
+    navigate(resolveNotificationTargetPath(selectedNotification.link.trim()));
   }, [navigate, selectedNotification]);
 
   useEffect(() => {

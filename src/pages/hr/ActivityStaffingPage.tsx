@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { getActivityById, type ActivityRecord } from "../../services/activities.service";
 import {
   getActivityStaffingStatus,
   getNextBackupCandidates,
@@ -32,6 +33,7 @@ export default function ActivityStaffingPage() {
 
   const [statusData, setStatusData] =
     useState<ActivityStaffingStatusResponse | null>(null);
+  const [activityRecord, setActivityRecord] = useState<ActivityRecord | null>(null);
 
   const [primaryCandidates, setPrimaryCandidates] = useState<CandidateItem[]>([]);
   const [backupCandidates, setBackupCandidates] = useState<CandidateItem[]>([]);
@@ -47,14 +49,16 @@ export default function ActivityStaffingPage() {
       setError("");
       setLoading(true);
 
-      const [staffing, recommendations, nextBackups, review] = await Promise.all([
+      const [staffing, recommendations, nextBackups, review, activity] = await Promise.all([
         getActivityStaffingStatus(activityId),
         getCandidates(activityId),
         getNextBackupCandidates(activityId, 10),
         getActivityReview(activityId),
+        getActivityById(activityId),
       ]);
 
       setStatusData(staffing);
+      setActivityRecord(activity);
       setHrInvitationResponseDays(staffing.hrInvitationResponseDays ?? 3);
       setActivityReview(review);
       const primaries = recommendations.primaryCandidates || [];
@@ -88,6 +92,19 @@ export default function ActivityStaffingPage() {
     return s === "SUBMITTED_TO_MANAGER" || s === "APPROVED_BY_MANAGER";
   }, [activityReview?.status]);
 
+  const staffingLocked = useMemo(() => {
+    if (!activityRecord) return false;
+    return Boolean(
+      activityRecord.hrFinalLaunchAt ||
+        activityRecord.status === "IN_PROGRESS" ||
+        activityRecord.workflowStatus === "IN_PROGRESS"
+    );
+  }, [activityRecord]);
+
+  const rosterReadyAwaitingHr = Boolean(
+    activityRecord?.rosterReadyForHrAt && !activityRecord?.hrFinalLaunchAt
+  );
+
   const invitedEmployeeIds = useMemo(() => {
     return new Set((statusData?.invitations || []).map((inv) => inv.employeeId));
   }, [statusData]);
@@ -109,6 +126,7 @@ export default function ActivityStaffingPage() {
   };
 
   const handleSendToManager = async () => {
+    if (staffingLocked) return;
     if (!activityId || selectedPrimaryIds.length === 0) {
       setError("Select at least one employee before sending to manager.");
       return;
@@ -149,7 +167,7 @@ export default function ActivityStaffingPage() {
 
     const seatItems: Array<{
       label: string;
-      state: "accepted" | "invited" | "declined" | "empty";
+      state: "accepted" | "invited" | "declined" | "replaced" | "empty";
     }> = [];
 
     for (let i = 0; i < statusData.accepted; i++) {
@@ -162,6 +180,10 @@ export default function ActivityStaffingPage() {
 
     for (let i = 0; i < statusData.declined; i++) {
       seatItems.push({ label: `D${i + 1}`, state: "declined" });
+    }
+
+    for (let i = 0; i < (statusData.replaced ?? 0); i++) {
+      seatItems.push({ label: `R${i + 1}`, state: "replaced" });
     }
 
     for (let i = 0; i < statusData.emptySeats; i++) {
@@ -189,6 +211,32 @@ export default function ActivityStaffingPage() {
         {error ? <div className="staffing-error">{error}</div> : null}
         {success ? <div className="staffing-success">{success}</div> : null}
 
+        {staffingLocked ? (
+          <div className="staffing-locked-banner" role="status">
+            <strong>Activity in progress</strong>
+            <p>
+              Staffing is closed. Open{" "}
+              <Link to={`/hr/activities/${activityId}/manager-decisions`} className="staffing-inline-link">
+                Manager list
+              </Link>{" "}
+              to see the final participant list (read-only).
+            </p>
+          </div>
+        ) : null}
+
+        {!staffingLocked && rosterReadyAwaitingHr ? (
+          <div className="staffing-roster-ready-banner" role="status">
+            <strong>Roster sent by manager</strong>
+            <p>
+              Open{" "}
+              <Link to={`/hr/activities/${activityId}/manager-decisions`} className="staffing-inline-link">
+                Manager list
+              </Link>{" "}
+              and run <strong>Final validation</strong> to start the activity.
+            </p>
+          </div>
+        ) : null}
+
         {loading ? (
           <div className="staffing-loading-card">Loading staffing dashboard...</div>
         ) : !statusData ? (
@@ -208,7 +256,7 @@ export default function ActivityStaffingPage() {
                   type="number"
                   min={1}
                   max={365}
-                  disabled={listSentToManager}
+                  disabled={listSentToManager || staffingLocked}
                   value={hrInvitationResponseDays}
                   onChange={(e) =>
                     setHrInvitationResponseDays(
@@ -237,6 +285,10 @@ export default function ActivityStaffingPage() {
                 <span>Declined</span>
                 <strong>{statusData.declined}</strong>
               </div>
+              <div className="staffing-stat-card replaced">
+                <span>Replaced (old slot)</span>
+                <strong>{statusData.replaced ?? 0}</strong>
+              </div>
               <div className="staffing-stat-card empty">
                 <span>Currently selected</span>
                 <strong>{selectedPrimaryIds.length}</strong>
@@ -246,7 +298,10 @@ export default function ActivityStaffingPage() {
             <div className="staffing-seat-board">
               <div className="section-head">
                 <h2>Current seat board</h2>
-                <p>Green accepted, yellow pending, red declined, gray empty.</p>
+                <p>
+                  Green accepted, yellow pending, red declined, violet replaced (declined slot filled by someone
+                  new — they appear as pending separately), gray empty.
+                </p>
               </div>
 
               <div className="seat-grid">
@@ -275,7 +330,7 @@ export default function ActivityStaffingPage() {
                       type="button"
                       className="secondary-staffing-btn"
                       onClick={handleSelectAll}
-                      disabled={listSentToManager}
+                      disabled={listSentToManager || staffingLocked}
                     >
                       Select all
                     </button>
@@ -283,7 +338,7 @@ export default function ActivityStaffingPage() {
                       type="button"
                       className="secondary-staffing-btn"
                       onClick={handleClearSelection}
-                      disabled={listSentToManager}
+                      disabled={listSentToManager || staffingLocked}
                     >
                       Clear
                     </button>
@@ -298,7 +353,7 @@ export default function ActivityStaffingPage() {
                     const selected = selectedPrimaryIds.includes(
                       candidate.employeeId
                     );
-                    const selectionLocked = listSentToManager || alreadyInvited;
+                    const selectionLocked = listSentToManager || alreadyInvited || staffingLocked;
 
                     return (
                       <div key={candidate.employeeId} className="staffing-candidate-card">
@@ -348,7 +403,15 @@ export default function ActivityStaffingPage() {
                   })}
                 </div>
 
-                {listSentToManager ? (
+                {staffingLocked ? (
+                  <button
+                    type="button"
+                    className="primary-staffing-btn"
+                    onClick={() => navigate(`/hr/activities/${activityId}/manager-decisions`)}
+                  >
+                    Manager list (final roster)
+                  </button>
+                ) : listSentToManager ? (
                   <button
                     type="button"
                     className="primary-staffing-btn"

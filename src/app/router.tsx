@@ -32,7 +32,6 @@ import ManagerTeam from "../pages/manger/ManagerTeam";
 import ManagerActivities from "../pages/manger/ManagerActivities.tsx";
 import ManagerDashboard from "../pages/manger/ManagerDashboard";
 import ManagerActivityReviewPage from "../pages/manger/ManagerActivityReviewPage";
-import ManagerActivityStaffingPage from "../pages/manger/ManagerActivityStaffingPage";
 
 // AI pages
 import TextCorrectionPage from "../pages/ai/TextCorrectionPage";
@@ -103,6 +102,11 @@ function NotificationsRedirect() {
   if (role === "EMPLOYEE") return <Navigate to={`/me/notifications${safeSide}`} replace />;
 
   return <Navigate to="/auth/login" replace />;
+}
+
+function ManagerStaffingToReviewRedirect() {
+  const { activityId = "" } = useParams();
+  return <Navigate to={`/manager/activities/${activityId}/review`} replace />;
 }
 
 export const router = createBrowserRouter([
@@ -201,7 +205,7 @@ export const router = createBrowserRouter([
           { path: "team", element: <ManagerTeam /> },
           { path: "activities", element: <ManagerActivities /> },
           { path: "activities/:activityId/review", element: <ManagerActivityReviewPage /> },
-          { path: "activities/:activityId/staffing", element: <ManagerActivityStaffingPage /> },
+          { path: "activities/:activityId/staffing", element: <ManagerStaffingToReviewRedirect /> },
           { path: "skills", element: <SkillsManagementPage /> },
           { path: "skills/assign", element: <AssignSkillPage /> },
           { path: "profile", element: <Profile /> },

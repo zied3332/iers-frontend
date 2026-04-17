@@ -476,6 +476,250 @@
   background: #f8fafc;
 }
 
+.manager-review-success-banner {
+  margin-bottom: 16px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  border: 1px solid #bbf7d0;
+  background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+  color: #166534;
+  font-weight: 600;
+}
+
+.manager-staffing-overview__hint {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.55;
+}
+
+.manager-staffing-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.manager-staffing-stat-card {
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.manager-staffing-stat-card span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+}
+
+.manager-staffing-stat-card strong {
+  font-size: 26px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.manager-staffing-stat-card--ok {
+  border-color: #bbf7d0;
+  background: linear-gradient(180deg, #ecfdf5 0%, #f8fafc 100%);
+}
+
+.manager-staffing-stat-card--pending {
+  border-color: #fde68a;
+  background: linear-gradient(180deg, #fffbeb 0%, #f8fafc 100%);
+}
+
+.manager-staffing-stat-card--bad {
+  border-color: #fecaca;
+  background: linear-gradient(180deg, #fef2f2 0%, #f8fafc 100%);
+}
+
+.manager-staffing-stat-footnote {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.manager-staffing-capacity-note {
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #fcd34d;
+  background: #fffbeb;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  line-height: 1.45;
+}
+
+.manager-roster-hr-actions {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid #c7d2fe;
+  background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.manager-roster-hr-actions__text {
+  margin: 0;
+  max-width: 48em;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #334155;
+  font-weight: 500;
+}
+
+.manager-roster-hr-actions__btn {
+  padding: 12px 22px;
+  border-radius: 12px;
+  border: none;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  color: #fff;
+  background: linear-gradient(135deg, #4f46e5, #0d9488);
+  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.25);
+}
+
+.manager-roster-hr-actions__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.manager-roster-hr-waiting {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.manager-roster-hr-live {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #ecfdf5;
+  border: 1px solid #6ee7b7;
+  color: #166534;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.manager-candidate-row__badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.manager-invite-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #475569;
+}
+
+.manager-invite-badge--muted {
+  opacity: 0.88;
+  background: #f1f5f9;
+}
+
+.manager-invite-badge--pending {
+  border-color: #fcd34d;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.manager-invite-badge--ok {
+  border-color: #86efac;
+  background: #ecfdf5;
+  color: #166534;
+}
+
+.manager-invite-badge--bad {
+  border-color: #fca5a5;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.manager-invite-replace {
+  padding: 14px 22px 18px;
+  border-top: 1px solid #f1f5f9;
+  background: #fffbeb;
+}
+
+.manager-invite-replace__meta {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #92400e;
+  line-height: 1.45;
+}
+
+.manager-invite-replace__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.manager-invite-replace__select {
+  flex: 1 1 200px;
+  min-width: min(100%, 220px);
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #fcd34d;
+  font: inherit;
+  font-size: 15px;
+  background: #fff;
+  color: #0f172a;
+}
+
+.manager-invite-replace__btn {
+  padding: 10px 18px;
+  border-radius: 12px;
+  border: none;
+  font-weight: 800;
+  cursor: pointer;
+  background: linear-gradient(135deg, #1d4ed8, #15803d);
+  color: #fff;
+}
+
+.manager-invite-replace__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.manager-invite-replace__warn {
+  margin: 10px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #b45309;
+}
+
+.manager-candidate-row--readonly {
+  padding-right: 8px;
+}
+
 .manager-review-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -571,6 +815,10 @@
 
 @media (max-width: 1200px) {
   .manager-review-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .manager-staffing-stat-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -774,6 +1022,78 @@
   background: var(--surface-2);
   border-color: var(--border);
   color: var(--muted);
+}
+
+:root[data-theme="dark"] .manager-review-success-banner {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #6ee7b7;
+}
+
+:root[data-theme="dark"] .manager-staffing-stat-footnote {
+  color: var(--muted);
+}
+
+:root[data-theme="dark"] .manager-staffing-capacity-note {
+  background: rgba(202, 138, 4, 0.15);
+  border-color: rgba(202, 138, 4, 0.45);
+  color: #fde68a;
+}
+
+:root[data-theme="dark"] .manager-staffing-overview__hint,
+:root[data-theme="dark"] .manager-staffing-stat-card span {
+  color: var(--muted);
+}
+
+:root[data-theme="dark"] .manager-staffing-stat-card,
+:root[data-theme="dark"] .manager-staffing-stat-card--ok,
+:root[data-theme="dark"] .manager-staffing-stat-card--pending,
+:root[data-theme="dark"] .manager-staffing-stat-card--bad {
+  background: var(--card);
+  border-color: var(--border);
+}
+
+:root[data-theme="dark"] .manager-staffing-stat-card strong {
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .manager-invite-badge {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+:root[data-theme="dark"] .manager-invite-badge--pending {
+  background: rgba(202, 138, 4, 0.2);
+  border-color: rgba(202, 138, 4, 0.45);
+  color: #fde68a;
+}
+
+:root[data-theme="dark"] .manager-invite-badge--ok {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #6ee7b7;
+}
+
+:root[data-theme="dark"] .manager-invite-badge--bad {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fecaca;
+}
+
+:root[data-theme="dark"] .manager-invite-replace {
+  background: rgba(202, 138, 4, 0.1);
+  border-top-color: var(--border);
+}
+
+:root[data-theme="dark"] .manager-invite-replace__meta {
+  color: #fde68a;
+}
+
+:root[data-theme="dark"] .manager-invite-replace__select {
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--text);
 }
 
 :root[data-theme="dark"] .section-head p {
