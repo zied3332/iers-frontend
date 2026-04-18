@@ -327,7 +327,7 @@ export default function ActivitiesManagement() {
       setError("");
       try {
         const [activitiesRes, usersRes, departmentsRes, skillsRes] = await Promise.allSettled([
-          listActivities({ hrView: "drafts" }), getUsers(), getAllDepartments(), listSkills(),
+          listActivities(), getUsers(), getAllDepartments(), listSkills(),
         ]);
         if (activitiesRes.status === "fulfilled") setActivities(activitiesRes.value || []);
         if (usersRes.status === "fulfilled") setUsers(usersRes.value || []);
@@ -747,12 +747,6 @@ export default function ActivitiesManagement() {
         <div className="page-header" style={{ alignItems: "start", gap: "16px", flexWrap: "wrap" }}>
           <div>
             <h1 className="page-title" style={{ margin: 0 }}>Activity Management</h1>
-            <p className="page-subtitle" style={{ maxWidth: "720px" }}>
-              <strong>New &amp; not started:</strong> only activities that are still <strong>Planned</strong> with no
-              staffing flow yet (before IA recommendations and before the list is sent to the manager). Use{" "}
-              <strong>Staffing &amp; validation</strong> in the sidebar once you begin. Delete is allowed here only for
-              these draft activities.
-            </p>
           </div>
           <button
             type="button"
@@ -780,7 +774,7 @@ export default function ActivitiesManagement() {
           {/* Toolbar */}
           <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border)", background: "var(--surface)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
-              <div style={styles.subheading}>Draft activities</div>
+              <div style={styles.subheading}>Activities</div>
               <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
                 {/* Group By */}
                 <div style={{ position: "relative" }}>
