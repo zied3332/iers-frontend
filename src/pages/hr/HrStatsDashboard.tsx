@@ -11,6 +11,19 @@ type Skill = {
   description?: string;
 };
 
+type InsightItem = {
+  title: string;
+  description: string;
+  severity: "high" | "medium" | "low";
+};
+
+type RecommendationItem = {
+  title: string;
+  reason: string;
+  score: number;
+  actionPath: string;
+};
+
 function buildSmoothPath(points: Array<{ x: number; y: number }>) {
   if (points.length < 2) return "";
   let path = `M ${points[0].x} ${points[0].y}`;
@@ -24,6 +37,62 @@ function buildSmoothPath(points: Array<{ x: number; y: number }>) {
   const last = points[points.length - 1];
   path += ` T ${last.x} ${last.y}`;
   return path;
+}
+
+function formatDateRange(start?: string, end?: string) {
+  const startDate = start ? new Date(start) : null;
+  const endDate = end ? new Date(end) : null;
+
+  const isValid = (d: Date | null) => !!d && !Number.isNaN(d.getTime());
+
+  if (!isValid(startDate) && !isValid(endDate)) return "Date not available";
+  if (isValid(startDate) && !isValid(endDate)) {
+    return startDate!.toLocaleDateString("en", { month: "short", day: "2-digit" });
+  }
+  if (!isValid(startDate) && isValid(endDate)) {
+    return endDate!.toLocaleDateString("en", { month: "short", day: "2-digit" });
+  }
+
+  return `${startDate!.toLocaleDateString("en", {
+    month: "short",
+    day: "2-digit",
+  })} — ${endDate!.toLocaleDateString("en", {
+    month: "short",
+    day: "2-digit",
+  })}`;
+}
+
+function getSeverityColors(severity: InsightItem["severity"]) {
+  if (severity === "high") {
+    return {
+      bg: "rgba(239, 68, 68, 0.10)",
+      border: "rgba(239, 68, 68, 0.24)",
+      text: "#991b1b",
+      badgeBg: "rgba(239, 68, 68, 0.14)",
+    };
+  }
+
+  if (severity === "medium") {
+    return {
+      bg: "rgba(245, 158, 11, 0.10)",
+      border: "rgba(245, 158, 11, 0.24)",
+      text: "#92400e",
+      badgeBg: "rgba(245, 158, 11, 0.16)",
+    };
+  }
+
+  return {
+    bg: "rgba(16, 185, 129, 0.10)",
+    border: "rgba(16, 185, 129, 0.24)",
+    text: "#065f46",
+    badgeBg: "rgba(16, 185, 129, 0.16)",
+  };
+}
+
+function getCategoryLabel(category: Skill["category"]) {
+  if (category === "KNOWLEDGE") return "Knowledge";
+  if (category === "KNOW_HOW") return "Know-how";
+  return "Soft";
 }
 
 export default function HrStatsDashboard() {
@@ -75,12 +144,19 @@ export default function HrStatsDashboard() {
       byStatus[a.status] = (byStatus[a.status] || 0) + 1;
     });
 
+    const active = (byStatus.PLANNED || 0) + (byStatus.IN_PROGRESS || 0);
+    const completionRate = activities.length
+      ? Math.round(((byStatus.COMPLETED || 0) / activities.length) * 100)
+      : 0;
+
     return {
       total: activities.length,
       planned: byStatus.PLANNED || 0,
       inProgress: byStatus.IN_PROGRESS || 0,
       completed: byStatus.COMPLETED || 0,
       cancelled: byStatus.CANCELLED || 0,
+      active,
+      completionRate,
     };
   }, [activities]);
 
@@ -95,11 +171,16 @@ export default function HrStatsDashboard() {
       byCategory[s.category] = (byCategory[s.category] || 0) + 1;
     });
 
+    const total = skills.length;
+
     return {
-      total: skills.length,
+      total,
       knowledge: byCategory.KNOWLEDGE || 0,
       knowHow: byCategory.KNOW_HOW || 0,
       soft: byCategory.SOFT || 0,
+      coverageRatio: total
+        ? Math.round(((byCategory.KNOWLEDGE || 0) + (byCategory.KNOW_HOW || 0)) / total * 100)
+        : 0,
     };
   }, [skills]);
 
@@ -116,7 +197,7 @@ export default function HrStatsDashboard() {
 
     return Array.from(counter.entries())
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 6);
+      .slice(0, 8);
   }, [activities]);
 
   const recentActivities = useMemo(() => {
@@ -127,6 +208,22 @@ export default function HrStatsDashboard() {
           new Date(a.createdAt || 0).getTime()
       )
       .slice(0, 6);
+  }, [activities]);
+
+  const upcomingActivities = useMemo(() => {
+    const now = Date.now();
+
+    return [...activities]
+      .filter((a) => {
+        const start = new Date(a.startDate || "").getTime();
+        return !Number.isNaN(start) && start >= now;
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.startDate || "").getTime() -
+          new Date(b.startDate || "").getTime()
+      )
+      .slice(0, 4);
   }, [activities]);
 
   const monthTrend = useMemo(() => {
@@ -252,6 +349,130 @@ export default function HrStatsDashboard() {
     ];
   }, [skillStats]);
 
+  const skillCatalogMap = useMemo(() => {
+    const map = new Map<string, Skill>();
+    skills.forEach((skill) => {
+      map.set(skill.name.trim().toLowerCase(), skill);
+    });
+    return map;
+  }, [skills]);
+
+  const inferredGapInsights = useMemo<InsightItem[]>(() => {
+    const insights: InsightItem[] = [];
+
+    topRequiredSkills.forEach(([name, count]) => {
+      const existing = skillCatalogMap.get(name.trim().toLowerCase());
+
+      if (!existing && count >= 2) {
+        insights.push({
+          title: `Catalog gap: ${name}`,
+          description: `This skill appears in ${count} activities but is missing from the central skill catalog.`,
+          severity: "high",
+        });
+        return;
+      }
+
+      if (existing && count >= 3) {
+        insights.push({
+          title: `High demand area: ${name}`,
+          description: `${name} is repeatedly requested across activities. Consider focused training or talent prioritization.`,
+          severity: "medium",
+        });
+      }
+    });
+
+    if (skillStats.soft === 0 && skillStats.total > 0) {
+      insights.push({
+        title: "Soft skills visibility is low",
+        description:
+          "No soft-skill catalog items were detected. Add behavioral competencies to strengthen recommendation quality.",
+        severity: "medium",
+      });
+    }
+
+    if (activityStats.cancelled >= 2) {
+      insights.push({
+        title: "Cancelled activities need review",
+        description:
+          "A noticeable number of cancelled activities may indicate planning friction or poor activity fit.",
+        severity: "medium",
+      });
+    }
+
+    if (insights.length === 0) {
+      insights.push({
+        title: "No major gaps detected",
+        description:
+          "Current activity demand and catalog structure look stable. Keep monitoring demand spikes and missing skills.",
+        severity: "low",
+      });
+    }
+
+    return insights.slice(0, 4);
+  }, [topRequiredSkills, skillCatalogMap, skillStats, activityStats]);
+
+  const recommendationFeed = useMemo<RecommendationItem[]>(() => {
+    const items: RecommendationItem[] = [];
+
+    const firstDemand = topRequiredSkills[0];
+    const secondDemand = topRequiredSkills[1];
+    const mostRecentPlanned = recentActivities.find(
+      (a) => a.status === "PLANNED" || a.status === "IN_PROGRESS"
+    );
+
+    if (mostRecentPlanned) {
+      items.push({
+        title: `Prioritize staffing for "${mostRecentPlanned.title}"`,
+        reason:
+          "This activity is active in the pipeline. Use recommendation scoring first on this item to speed assignment.",
+        score: 94,
+        actionPath: "/hr/activities/pipeline",
+      });
+    }
+
+    if (firstDemand) {
+      items.push({
+        title: `Launch a targeted path for ${firstDemand[0]}`,
+        reason: `${firstDemand[0]} is currently the most requested skill across activities (${firstDemand[1]} occurrences).`,
+        score: 91,
+        actionPath: "/hr/skills",
+      });
+    }
+
+    if (secondDemand) {
+      items.push({
+        title: `Create an assignment campaign for ${secondDemand[0]}`,
+        reason:
+          "High repeated demand suggests this skill should be mapped quickly to employees for better matching.",
+        score: 88,
+        actionPath: "/hr/skills/assign",
+      });
+    }
+
+    items.push({
+      title: "Open HR Copilot for recommendation review",
+      reason:
+        "Use the intelligence workspace to explain candidate ranking and recommendation logic for new activities.",
+      score: 96,
+      actionPath: "/hr/copilot",
+    });
+
+    return items.slice(0, 4);
+  }, [topRequiredSkills, recentActivities]);
+
+  const dashboardPulse = useMemo(() => {
+    const demandSignals = topRequiredSkills.length;
+    const pressureScore = Math.min(
+      100,
+      activityStats.active * 8 + demandSignals * 6 + Math.max(inferredGapInsights.length - 1, 0) * 10
+    );
+
+    let label = "Stable";
+    if (pressureScore >= 70) label = "High attention";
+    else if (pressureScore >= 45) label = "Moderate";
+    return { pressureScore, label };
+  }, [activityStats.active, topRequiredSkills.length, inferredGapInsights.length]);
+
   return (
     <div
       style={{
@@ -314,24 +535,43 @@ export default function HrStatsDashboard() {
                 marginTop: "8px",
                 fontSize: "14px",
                 color: "var(--muted)",
+                maxWidth: "760px",
               }}
             >
-              Real-time overview of activities, execution status, and skill demand.
+              Real-time overview of activity execution, skill demand, inferred gaps,
+              and recommendation priorities for HR decision-making.
             </div>
           </div>
 
           <div
             style={{
-              padding: "10px 14px",
-              borderRadius: "14px",
-              background: "var(--surface-2)",
-              border: "1px solid var(--border)",
-              fontSize: "13px",
-              color: "var(--muted)",
-              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              flexWrap: "wrap",
             }}
           >
-            Last 6 Months
+            <div
+              style={{
+                padding: "10px 14px",
+                borderRadius: "14px",
+                background: "var(--surface-2)",
+                border: "1px solid var(--border)",
+                fontSize: "13px",
+                color: "var(--muted)",
+                fontWeight: 700,
+              }}
+            >
+              Last 6 Months
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => navigate("/hr/copilot")}
+            >
+              Open HR Copilot
+            </button>
           </div>
         </section>
 
@@ -344,7 +584,7 @@ export default function HrStatsDashboard() {
         <section
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+            gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
             gap: "18px",
           }}
         >
@@ -354,38 +594,37 @@ export default function HrStatsDashboard() {
               value: activityStats.total,
               percent: 100,
               color: "#1ea672",
+              sub: "All tracked activities",
             },
             {
-              title: "In Progress",
-              value: activityStats.inProgress,
+              title: "Active Pipeline",
+              value: activityStats.active,
               percent: activityStats.total
-                ? Math.round(
-                    (activityStats.inProgress / activityStats.total) * 100
-                  )
+                ? Math.round((activityStats.active / activityStats.total) * 100)
                 : 0,
               color: "#f59e0b",
+              sub: "Planned + in progress",
             },
             {
               title: "Completed",
               value: activityStats.completed,
-              percent: activityStats.total
-                ? Math.round(
-                    (activityStats.completed / activityStats.total) * 100
-                  )
-                : 0,
+              percent: activityStats.completionRate,
               color: "#22a16d",
+              sub: "Completion ratio",
             },
             {
-              title: "Total Skills",
+              title: "Skill Catalog",
               value: skillStats.total,
-              percent: skillStats.total
-                ? Math.round(
-                    ((skillStats.knowledge + skillStats.knowHow) /
-                      skillStats.total) *
-                      100
-                  )
-                : 0,
+              percent: skillStats.coverageRatio,
               color: "#7c3aed",
+              sub: "Knowledge + know-how weight",
+            },
+            {
+              title: "Dashboard Pulse",
+              value: `${dashboardPulse.pressureScore}%`,
+              percent: dashboardPulse.pressureScore,
+              color: "#0ea5e9",
+              sub: dashboardPulse.label,
             },
           ].map((item) => (
             <div
@@ -418,7 +657,7 @@ export default function HrStatsDashboard() {
 
                 <div
                   style={{
-                    fontSize: "42px",
+                    fontSize: "38px",
                     fontWeight: 800,
                     lineHeight: 1,
                     color: "var(--text)",
@@ -429,13 +668,13 @@ export default function HrStatsDashboard() {
 
                 <div
                   style={{
-                    fontSize: "14px",
+                    fontSize: "13px",
                     color: "var(--muted)",
                     marginTop: "8px",
                     fontWeight: 700,
                   }}
                 >
-                  {loading ? "..." : `${item.percent}% ratio`}
+                  {loading ? "..." : item.sub}
                 </div>
               </div>
 
@@ -460,7 +699,7 @@ export default function HrStatsDashboard() {
                     placeItems: "center",
                     fontWeight: 800,
                     color: "var(--text)",
-                    fontSize: "15px",
+                    fontSize: "14px",
                   }}
                 >
                   {loading ? "..." : `${item.percent}%`}
@@ -473,7 +712,7 @@ export default function HrStatsDashboard() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(0, 1.55fr) minmax(340px, 0.95fr)",
+            gridTemplateColumns: "minmax(0, 1.55fr) minmax(360px, 0.95fr)",
             gap: "20px",
             alignItems: "start",
           }}
@@ -522,19 +761,19 @@ export default function HrStatsDashboard() {
                   alignItems: "flex-start",
                   justifyContent: "space-between",
                   gap: "16px",
-                  marginBottom: "20px",
+                  marginBottom: "18px",
                   flexWrap: "wrap",
                 }}
               >
                 <div>
                   <div
                     style={{
-                      fontSize: "16px",
+                      fontSize: "20px",
                       fontWeight: 800,
                       color: "var(--text)",
                     }}
                   >
-                    Activity Trend
+                    HR Recommendation Feed
                   </div>
                   <div
                     style={{
@@ -543,118 +782,95 @@ export default function HrStatsDashboard() {
                       marginTop: "4px",
                     }}
                   >
-                    Activities scheduled during each month (using start and end
-                    dates).
+                    Suggested next actions based on current demand, activity flow,
+                    and catalog signals.
                   </div>
                 </div>
+
+                <button
+                  type="button"
+                  className="btn btn-small"
+                  onClick={() => navigate("/hr/copilot")}
+                >
+                  Review with AI
+                </button>
               </div>
 
-              <svg
-                viewBox={`0 0 ${chartData.w} ${chartData.h}`}
-                style={{ width: "100%" }}
-              >
-                <defs>
-                  <linearGradient id="hrTrendArea" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#1ea672" stopOpacity="0.4" />
-                    <stop offset="100%" stopColor="#1ea672" stopOpacity="0.03" />
-                  </linearGradient>
-                </defs>
-
-                <path d={chartData.areaPath} fill="url(#hrTrendArea)" />
-                <path
-                  d={chartData.linePath}
-                  stroke="#15803d"
-                  strokeWidth="3"
-                  fill="none"
-                  strokeLinecap="round"
-                />
-
-                {chartData.points.map((p, i) => (
-                  <g key={i}>
-                    <circle cx={p.x} cy={p.y} r="4" fill="#15803d" />
-                    <text
-                      x={p.x}
-                      y={chartData.h - 2}
-                      textAnchor="middle"
-                      fontSize="11"
-                      fill="var(--muted)"
+              <div style={{ display: "grid", gap: "12px" }}>
+                {(loading ? [] : recommendationFeed).map((item, index) => (
+                  <div
+                    key={`${item.title}-${index}`}
+                    style={{
+                      border: "1px solid var(--border)",
+                      borderRadius: "18px",
+                      background: "var(--surface)",
+                      padding: "16px",
+                      display: "grid",
+                      gap: "10px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: "12px",
+                        flexWrap: "wrap",
+                      }}
                     >
-                      {monthTrend.labels[i]}
-                    </text>
-                  </g>
+                      <div
+                        style={{
+                          fontWeight: 800,
+                          fontSize: "16px",
+                          color: "var(--text)",
+                        }}
+                      >
+                        {item.title}
+                      </div>
+
+                      <div
+                        style={{
+                          borderRadius: "999px",
+                          padding: "6px 10px",
+                          fontWeight: 800,
+                          fontSize: "12px",
+                          color: "#065f46",
+                          background: "rgba(16, 185, 129, 0.12)",
+                          border: "1px solid rgba(16, 185, 129, 0.24)",
+                        }}
+                      >
+                        Match priority {item.score}%
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        fontSize: "14px",
+                        color: "var(--muted)",
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      {item.reason}
+                    </div>
+
+                    <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                      <button
+                        type="button"
+                        className="btn btn-small btn-primary"
+                        onClick={() => navigate(item.actionPath)}
+                      >
+                        Open
+                      </button>
+                    </div>
+                  </div>
                 ))}
-              </svg>
-            </section>
 
-            <section
-              style={{
-                background: "var(--card)",
-                borderRadius: "26px",
-                padding: "24px",
-                border: "1px solid var(--border)",
-                boxShadow: "0 8px 30px rgba(21, 61, 46, 0.05)",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "20px",
-                  fontWeight: 800,
-                  color: "var(--text)",
-                  marginBottom: "12px",
-                }}
-              >
-                Recent Activities
-              </div>
-
-              <div className="table-wrapper">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th style={{ fontSize: "16px", fontWeight: 800 }}>Title</th>
-                      <th style={{ fontSize: "16px", fontWeight: 800 }}>Status</th>
-                      <th style={{ fontSize: "16px", fontWeight: 800 }}>Type</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loading ? (
-                      <tr>
-                        <td
-                          colSpan={3}
-                          className="empty-state"
-                          style={{ fontSize: "15px" }}
-                        >
-                          Loading...
-                        </td>
-                      </tr>
-                    ) : recentActivities.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={3}
-                          className="empty-state"
-                          style={{ fontSize: "15px" }}
-                        >
-                          No activities found.
-                        </td>
-                      </tr>
-                    ) : (
-                      recentActivities.map((a) => (
-                        <tr key={a._id}>
-                          <td className="cell-title" style={{ fontSize: "16px" }}>
-                            {a.title}
-                          </td>
-                          <td style={{ fontSize: "16px", fontWeight: 600 }}>
-                            {a.status}
-                          </td>
-                          <td style={{ fontSize: "16px", fontWeight: 600 }}>
-                            {a.type}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                {loading && <span className="muted">Loading recommendations...</span>}
               </div>
             </section>
+
+        
+
           </div>
 
           <div style={{ display: "grid", gap: "20px" }}>
@@ -853,18 +1069,188 @@ export default function HrStatsDashboard() {
                 ) : topRequiredSkills.length === 0 ? (
                   <span className="muted">No required-skills data yet.</span>
                 ) : (
-                  topRequiredSkills.map(([name, count]) => (
+                  topRequiredSkills.map(([name, count]) => {
+                    const matched = skillCatalogMap.get(name.toLowerCase());
+                    return (
+                      <div
+                        key={name}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: 8,
+                          color: "var(--text)",
+                          borderBottom: "1px solid var(--border)",
+                          paddingBottom: 8,
+                        }}
+                      >
+                        <div style={{ display: "grid", gap: 2 }}>
+                          <span>{name}</span>
+                          <span
+                            style={{
+                              fontSize: "12px",
+                              color: "var(--muted)",
+                            }}
+                          >
+                            {matched
+                              ? getCategoryLabel(matched.category)
+                              : "Missing from catalog"}
+                          </span>
+                        </div>
+                        <strong>{count}</strong>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </section>
+
+            <section
+              style={{
+                background: "var(--card)",
+                borderRadius: "26px",
+                padding: "24px",
+                border: "1px solid var(--border)",
+                boxShadow: "0 8px 30px rgba(21, 61, 46, 0.05)",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "16px",
+                  fontWeight: 800,
+                  color: "var(--text)",
+                  marginBottom: "12px",
+                }}
+              >
+                Inferred Gap Alerts
+              </div>
+
+              <div style={{ display: "grid", gap: "12px" }}>
+                {(loading ? [] : inferredGapInsights).map((item, index) => {
+                  const colors = getSeverityColors(item.severity);
+                  return (
                     <div
-                      key={name}
+                      key={`${item.title}-${index}`}
                       style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        color: "var(--text)",
+                        borderRadius: "18px",
+                        padding: "14px",
+                        border: `1px solid ${colors.border}`,
+                        background: colors.bg,
+                        display: "grid",
+                        gap: "8px",
                       }}
                     >
-                      <span>{name}</span>
-                      <strong>{count}</strong>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: "12px",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontWeight: 800,
+                            color: colors.text,
+                            fontSize: "15px",
+                          }}
+                        >
+                          {item.title}
+                        </div>
+
+                        <div
+                          style={{
+                            borderRadius: "999px",
+                            padding: "5px 10px",
+                            background: colors.badgeBg,
+                            color: colors.text,
+                            fontSize: "11px",
+                            fontWeight: 800,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.04em",
+                          }}
+                        >
+                          {item.severity}
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          color: colors.text,
+                          fontSize: "13px",
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        {item.description}
+                      </div>
                     </div>
+                  );
+                })}
+
+                {loading && <span className="muted">Loading insights...</span>}
+              </div>
+            </section>
+
+            <section
+              style={{
+                background: "var(--card)",
+                borderRadius: "26px",
+                padding: "24px",
+                border: "1px solid var(--border)",
+                boxShadow: "0 8px 30px rgba(21, 61, 46, 0.05)",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "16px",
+                  fontWeight: 800,
+                  color: "var(--text)",
+                  marginBottom: "12px",
+                }}
+              >
+                Upcoming Activities
+              </div>
+
+              <div style={{ display: "grid", gap: 10 }}>
+                {loading ? (
+                  <span className="muted">Loading...</span>
+                ) : upcomingActivities.length === 0 ? (
+                  <span className="muted">No upcoming activities scheduled.</span>
+                ) : (
+                  upcomingActivities.map((item) => (
+                    <button
+                      key={item._id}
+                      type="button"
+                      onClick={() => navigate("/hr/calendar")}
+                      style={{
+                        textAlign: "left",
+                        border: "1px solid var(--border)",
+                        background: "var(--surface)",
+                        borderRadius: "16px",
+                        padding: "14px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <div
+                        style={{
+                          color: "var(--text)",
+                          fontWeight: 800,
+                          fontSize: "14px",
+                          marginBottom: "6px",
+                        }}
+                      >
+                        {item.title}
+                      </div>
+                      <div
+                        style={{
+                          color: "var(--muted)",
+                          fontSize: "13px",
+                        }}
+                      >
+                        {formatDateRange(item.startDate, item.endDate)}
+                      </div>
+                    </button>
                   ))
                 )}
               </div>
@@ -883,13 +1269,40 @@ export default function HrStatsDashboard() {
         >
           <div
             style={{
-              fontSize: "16px",
-              fontWeight: 800,
-              color: "var(--text)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
               marginBottom: "12px",
             }}
           >
-            Quick Skill Snapshot
+            <div
+              style={{
+                fontSize: "16px",
+                fontWeight: 800,
+                color: "var(--text)",
+              }}
+            >
+              Quick Skill Snapshot
+            </div>
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className="btn btn-small"
+                onClick={() => navigate("/hr/skills")}
+              >
+                Manage skills
+              </button>
+              <button
+                type="button"
+                className="btn btn-small btn-primary"
+                onClick={() => navigate("/hr/skills/assign")}
+              >
+                Assign skills
+              </button>
+            </div>
           </div>
 
           <div
