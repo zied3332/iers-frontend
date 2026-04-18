@@ -4,9 +4,10 @@ import React from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { signOut } from "../utils/auth";
 import "../index.css";
-import NotificationBell from '../components/notifications/NotificationBell';
+import NotificationBell from "../components/notifications/NotificationBell";
 
 const logoSrc = "/images/logo.png";
+
 type NavItem = {
   to: string;
   label: string;
@@ -60,13 +61,7 @@ function SidebarAvatar({ avatarUrl, name }: { avatarUrl?: string; name: string }
   const [loadError, setLoadError] = React.useState(false);
 
   if (!avatarUrl) {
-    return (
-      <img
-        className="avatar-sm"
-        src={FALLBACK_AVATAR}
-        alt={name}
-      />
-    );
+    return <img className="avatar-sm" src={FALLBACK_AVATAR} alt={name} />;
   }
 
   if (loadError) {
@@ -102,7 +97,6 @@ function SidebarAvatar({ avatarUrl, name }: { avatarUrl?: string; name: string }
   );
 }
 
-// Simple inline profile icon (no extra libs)
 function ProfileIcon() {
   return (
     <svg
@@ -152,14 +146,16 @@ export default function AppShell({
   };
 }) {
   const navigate = useNavigate();
+
   const [themeMode, setThemeMode] = React.useState<ThemeMode>(() => {
     const current = document.documentElement.getAttribute("data-theme");
     if (current === "dark" || current === "light") {
       return current;
     }
-
     return getStoredThemeMode();
   });
+
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
 
   React.useEffect(() => {
     applyThemeMode(themeMode);
@@ -170,13 +166,23 @@ export default function AppShell({
     }
   }, [themeMode]);
 
- 
   const SIDE_W = 350;
-  const workspaceCode = (badge || "HR").replace(/[^A-Za-z]/g, "").slice(0, 2).toUpperCase() || "HR";
+  const workspaceCode =
+    (badge || "HR").replace(/[^A-Za-z]/g, "").slice(0, 2).toUpperCase() || "HR";
+
   const navGroups: NavGroup[] = [
-    { title: "Main menu", items: nav.filter((item) => getNavGroup(item.label) === "Main menu") },
-    { title: "Intelligence", items: nav.filter((item) => getNavGroup(item.label) === "Intelligence") },
-    { title: "System", items: nav.filter((item) => getNavGroup(item.label) === "System") },
+    {
+      title: "Main menu",
+      items: nav.filter((item) => getNavGroup(item.label) === "Main menu"),
+    },
+    {
+      title: "Intelligence",
+      items: nav.filter((item) => getNavGroup(item.label) === "Intelligence"),
+    },
+    {
+      title: "System",
+      items: nav.filter((item) => getNavGroup(item.label) === "System"),
+    },
   ].filter((group) => group.items.length > 0);
 
   return (
@@ -185,22 +191,49 @@ export default function AppShell({
       style={{
         minHeight: "100vh",
         ["--side-w" as string]: `${SIDE_W}px`,
+        position: "relative",
       }}
     >
-      {/* Sidebar (fixed) */}
-      <aside className="side sidebar">
+      <aside
+        className="side sidebar"
+        style={{
+          width: SIDE_W,
+          minWidth: SIDE_W,
+          maxWidth: SIDE_W,
+          transform: isSidebarOpen ? "translateX(0)" : `translateX(-${SIDE_W}px)`,
+          transition: "transform 0.3s ease",
+          position: "fixed",
+          top: 0,
+          left: 0,
+          height: "100vh",
+          zIndex: 1000,
+          overflowY: "auto",
+        }}
+      >
         <div className="sidebar-top">
-          <div className="side-brand brand">
-            <div className="dash-logo-wrap">
-              <img
-                className="dash-logo-img"
-                src={logoSrc}
-                alt="IntelliHR logo"
-              />
+          <div className="sidebar-brand-row">
+            <div className="side-brand brand">
+              <div className="dash-logo-wrap">
+                <img
+                  className="dash-logo-img"
+                  src={logoSrc}
+                  alt="IntelliHR logo"
+                />
+              </div>
+              <div className="brand-text">
+                <h1>IntelliHR</h1>
+              </div>
             </div>
-            <div className="brand-text">
-              <h1>IntelliHR</h1>
-            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen(false)}
+              aria-label="Close sidebar"
+              title="Close sidebar"
+              className="sidebar-close-btn"
+            >
+              ✕
+            </button>
           </div>
 
           <div className="workspace-switcher">
@@ -222,7 +255,7 @@ export default function AppShell({
         <div className="sidebar-menu">
           {navGroups.map((group) => (
             <div className="menu-group" key={group.title}>
-              <p className="menu-title">{group.title}</p>
+              <p className="menu-title sidebar-section-title">{group.title}</p>
 
               <nav className="side-nav">
                 {group.items.map((item) => (
@@ -235,7 +268,7 @@ export default function AppShell({
                     <span className="side-link-icon" aria-hidden="true">
                       <NavItemIcon label={item.label} />
                     </span>
-                    <span>{item.label}</span>
+                    <span className="side-link-text">{item.label}</span>
                   </NavLink>
                 ))}
               </nav>
@@ -244,7 +277,9 @@ export default function AppShell({
                 <button
                   type="button"
                   className="theme-toggle-btn"
-                  onClick={() => setThemeMode((prev) => (prev === "light" ? "dark" : "light"))}
+                  onClick={() =>
+                    setThemeMode((prev) => (prev === "light" ? "dark" : "light"))
+                  }
                   aria-label={`Switch to ${themeMode === "light" ? "dark" : "light"} mode`}
                   title={`Switch to ${themeMode === "light" ? "dark" : "light"} mode`}
                 >
@@ -254,9 +289,15 @@ export default function AppShell({
                     </span>
                     <span className="theme-toggle-subtext">Appearance</span>
                   </span>
-                  <span className={`theme-toggle-track ${themeMode === "dark" ? "is-dark" : ""}`}>
-                    <span className="theme-toggle-icon sun" aria-hidden="true">☀</span>
-                    <span className="theme-toggle-icon moon" aria-hidden="true">☾</span>
+                  <span
+                    className={`theme-toggle-track ${themeMode === "dark" ? "is-dark" : ""}`}
+                  >
+                    <span className="theme-toggle-icon sun" aria-hidden="true">
+                      ☀
+                    </span>
+                    <span className="theme-toggle-icon moon" aria-hidden="true">
+                      ☾
+                    </span>
                     <span className="theme-toggle-thumb" />
                   </span>
                 </button>
@@ -268,10 +309,7 @@ export default function AppShell({
         <div className="sidebar-bottom">
           {userCard ? (
             <div className="user-card">
-              <SidebarAvatar
-                avatarUrl={userCard.avatarUrl}
-                name={userCard.name}
-              />
+              <SidebarAvatar avatarUrl={userCard.avatarUrl} name={userCard.name} />
 
               <div className="user-meta">
                 <strong>{userCard.name}</strong>
@@ -298,12 +336,23 @@ export default function AppShell({
         </div>
       </aside>
 
-      {/* Main */}
-      <div className="main">
+      <div
+        className="main"
+        style={{
+          marginLeft: isSidebarOpen ? SIDE_W : 0,
+          transition: "margin-left 0.3s ease",
+          minHeight: "100vh",
+        }}
+      >
         <header className="main-topbar topbar">
           <div className="topbar-left">
-            <button className="mobile-menu-btn" type="button" aria-label="Open menu">
-              ☰
+            <button
+              className="mobile-menu-btn"
+              type="button"
+              aria-label={isSidebarOpen ? "Close menu" : "Open menu"}
+              onClick={() => setIsSidebarOpen((prev) => !prev)}
+            >
+              {isSidebarOpen ? "✕" : "☰"}
             </button>
 
             <div>
@@ -319,19 +368,16 @@ export default function AppShell({
             </div>
 
             <NotificationBell />
-           
 
-            <NavLink
-              to={profilePath}
-              className="profile-btn"
-            >
+            {topbarRight}
+
+            <NavLink to={profilePath} className="profile-btn">
               <ProfileIcon />
               Profile
             </NavLink>
           </div>
         </header>
 
-        {/* Page content */}
         <div className="main-content">
           <Outlet />
         </div>
@@ -358,7 +404,12 @@ function NavItemIcon({ label }: { label: string }) {
     return (
       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="4" y="5" width="16" height="15" rx="3" stroke="currentColor" strokeWidth="2" />
-        <path d="M8 3V7M16 3V7M8 12H16M8 16H13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path
+          d="M8 3V7M16 3V7M8 12H16M8 16H13"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
       </svg>
     );
   }
@@ -366,9 +417,19 @@ function NavItemIcon({ label }: { label: string }) {
   if (text.includes("user") || text.includes("employee") || text.includes("team")) {
     return (
       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M16 21V19C16 16.8 14.2 15 12 15H7C4.8 15 3 16.8 3 19V21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path
+          d="M16 21V19C16 16.8 14.2 15 12 15H7C4.8 15 3 16.8 3 19V21"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
         <circle cx="9.5" cy="8" r="3" stroke="currentColor" strokeWidth="2" />
-        <path d="M17 11C18.7 11 20 9.7 20 8C20 6.3 18.7 5 17 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path
+          d="M17 11C18.7 11 20 9.7 20 8C20 6.3 18.7 5 17 5"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
       </svg>
     );
   }
@@ -385,7 +446,12 @@ function NavItemIcon({ label }: { label: string }) {
   if (text.includes("recommend") || text.includes("copilot") || text.includes("analytic")) {
     return (
       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 3L14.8 8.2L20.5 9.1L16.3 13.1L17.3 18.8L12 16L6.7 18.8L7.7 13.1L3.5 9.1L9.2 8.2L12 3Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+        <path
+          d="M12 3L14.8 8.2L20.5 9.1L16.3 13.1L17.3 18.8L12 16L6.7 18.8L7.7 13.1L3.5 9.1L9.2 8.2L12 3Z"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
       </svg>
     );
   }
@@ -393,8 +459,17 @@ function NavItemIcon({ label }: { label: string }) {
   if (text.includes("notification")) {
     return (
       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M6 9C6 5.7 8.7 3 12 3C15.3 3 18 5.7 18 9V13L20 15V16H4V15L6 13V9Z" stroke="currentColor" strokeWidth="2" />
-        <path d="M10 19C10.4 20.2 11.1 21 12 21C12.9 21 13.6 20.2 14 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path
+          d="M6 9C6 5.7 8.7 3 12 3C15.3 3 18 5.7 18 9V13L20 15V16H4V15L6 13V9Z"
+          stroke="currentColor"
+          strokeWidth="2"
+        />
+        <path
+          d="M10 19C10.4 20.2 11.1 21 12 21C12.9 21 13.6 20.2 14 19"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
       </svg>
     );
   }
