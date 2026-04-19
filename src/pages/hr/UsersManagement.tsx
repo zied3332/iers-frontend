@@ -10,13 +10,22 @@ import {
   updateUser,
   type User,
 } from "../../services/users.service";
-import { getAllDepartments, type Department } from "../../services/departments.service";
+import {
+  getAllDepartments,
+  type Department,
+} from "../../services/departments.service";
 import { ImportUsersModal } from "./components/ImportUsersModal";
 
-/** Normalize DB roles like "HR" -> "hr" */
+/** Normalize DB roles like "HR" -> "HR" */
 function normalizeRole(r: any): User["role"] {
   const x = String(r || "").toUpperCase();
-  if (x === "SUPER MANGER" || x === "SUPER MANAGER" || x === "SUPER_MANAGER") return "SUPER_MANAGER";
+  if (
+    x === "SUPER MANGER" ||
+    x === "SUPER MANAGER" ||
+    x === "SUPER_MANAGER"
+  ) {
+    return "SUPER_MANAGER";
+  }
   if (x === "HR") return "HR";
   if (x === "MANAGER") return "MANAGER";
   return "EMPLOYEE";
@@ -34,8 +43,12 @@ function getRoleFromSession(): User["role"] | null {
 }
 
 function getUserDepartmentValue(u: any): string {
-  if (typeof u?.department === "string" && u.department.trim()) return u.department;
-  if (typeof u?.departement_id === "string" && u.departement_id.trim()) return u.departement_id;
+  if (typeof u?.department === "string" && u.department.trim()) {
+    return u.department;
+  }
+  if (typeof u?.departement_id === "string" && u.departement_id.trim()) {
+    return u.departement_id;
+  }
   if (u?.departement_id && typeof u.departement_id === "object") {
     const id = u.departement_id._id;
     if (typeof id === "string" && id.trim()) return id;
@@ -65,9 +78,21 @@ type Tone = "neutral" | "success" | "danger";
 type BtnVariant = "primary" | "outline" | "danger";
 
 const PILL_TONES: Record<Tone, { bg: string; bd: string; fg: string }> = {
-  neutral: { bg: "rgba(100,116,139,0.12)", bd: "rgba(100,116,139,0.20)", fg: "#334155" },
-  success: { bg: "rgba(22,163,74,0.12)", bd: "rgba(22,163,74,0.20)", fg: "#166534" },
-  danger: { bg: "rgba(239,68,68,0.10)", bd: "rgba(239,68,68,0.20)", fg: "#b91c1c" },
+  neutral: {
+    bg: "rgba(100,116,139,0.12)",
+    bd: "rgba(100,116,139,0.20)",
+    fg: "#334155",
+  },
+  success: {
+    bg: "rgba(22,163,74,0.12)",
+    bd: "rgba(22,163,74,0.20)",
+    fg: "#166534",
+  },
+  danger: {
+    bg: "rgba(239,68,68,0.10)",
+    bd: "rgba(239,68,68,0.20)",
+    fg: "#b91c1c",
+  },
 };
 
 const BTN_BASE: React.CSSProperties = {
@@ -112,6 +137,7 @@ function Pill({
   strong?: boolean;
 }) {
   const map = PILL_TONES[tone];
+
   return (
     <span
       style={{
@@ -133,19 +159,48 @@ function Pill({
 }
 
 const IconEye = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
     <circle cx="12" cy="12" r="3" />
   </svg>
 );
+
 const IconPencil = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
   </svg>
 );
+
 const IconTrash = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <polyline points="3 6 5 6 21 6" />
     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
     <line x1="10" y1="11" x2="10" y2="17" />
@@ -153,9 +208,32 @@ const IconTrash = () => (
   </svg>
 );
 
-function UserAvatar({ name, email, avatarUrl, size = 36 }: { name: string; email: string; avatarUrl?: string; size?: number }) {
-  const initials = (name || "U").trim().split(/\s+/).map((s) => s[0]).join("").toUpperCase().slice(0, 2);
-  const hue = ((email || "").split("").reduce((a, c) => (a + c.charCodeAt(0)) % 360, 0) + 200) % 360;
+function UserAvatar({
+  name,
+  email,
+  avatarUrl,
+  size = 36,
+}: {
+  name: string;
+  email: string;
+  avatarUrl?: string;
+  size?: number;
+}) {
+  const initials = (name || "U")
+    .trim()
+    .split(/\s+/)
+    .map((s) => s[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  const hue =
+    ((email || "")
+      .split("")
+      .reduce((a, c) => (a + c.charCodeAt(0)) % 360, 0) +
+      200) %
+    360;
+
   if (avatarUrl) {
     return (
       <img
@@ -171,6 +249,7 @@ function UserAvatar({ name, email, avatarUrl, size = 36 }: { name: string; email
       />
     );
   }
+
   return (
     <div
       style={{
@@ -241,8 +320,8 @@ function Modal({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
-    document.addEventListener("keydown", onKey);
 
+    document.addEventListener("keydown", onKey);
     const old = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
@@ -267,7 +346,7 @@ function Modal({
             )}
           </div>
 
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             {right}
             <Button variant="outline" onClick={onClose}>
               Close
@@ -287,7 +366,14 @@ function Modal({
 
 type EditableUser = Pick<
   User,
-  "_id" | "name" | "email" | "telephone" | "matricule" | "department" | "date_embauche" | "role"
+  | "_id"
+  | "name"
+  | "email"
+  | "telephone"
+  | "matricule"
+  | "department"
+  | "date_embauche"
+  | "role"
 > & {
   departement_id?: string;
   manager_id?: string;
@@ -337,23 +423,15 @@ const INITIAL_NEW_USER: NewUserForm = {
   date_embauche: "",
   role: "EMPLOYEE",
 };
-function getBasePath(): string {
-  try {
-    const u = JSON.parse(localStorage.getItem("user") || "{}");
-    const role = String(u?.role || "").toUpperCase();
-    if (role === "SUPER_MANAGER") return "/super-manager";
-    if (role === "MANAGER") return "/manager";
-    return "/hr";
-  } catch {
-    return "/hr";
-  }
-}
 
 export default function UsersManagement() {
   const location = useLocation();
   const navigate = useNavigate();
+
   const [users, setUsers] = useState<User[]>([]);
-  const [currentUserRole, setCurrentUserRole] = useState<User["role"] | null>(() => getRoleFromSession());
+  const [currentUserRole, setCurrentUserRole] = useState<User["role"] | null>(
+    () => getRoleFromSession()
+  );
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -365,16 +443,12 @@ export default function UsersManagement() {
   const [editErr, setEditErr] = useState("");
   const [form, setForm] = useState<EditableUser | null>(null);
 
-  // add modal
   const [addOpen, setAddOpen] = useState(false);
   const [addSaving, setAddSaving] = useState(false);
   const [addErr, setAddErr] = useState("");
   const [addForm, setAddForm] = useState<NewUserForm>(INITIAL_NEW_USER);
 
-  // search
   const [q, setQ] = useState("");
-
-  // filters
   const [filterRole, setFilterRole] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterDepartment, setFilterDepartment] = useState("");
@@ -383,10 +457,8 @@ export default function UsersManagement() {
 
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [deleting, setDeleting] = useState(false);
-const [importOpen, setImportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
-
-  // Open add modal when navigating with state.openAdd
   useEffect(() => {
     const state = location.state as { openAdd?: boolean } | null;
     if (state?.openAdd) {
@@ -400,13 +472,19 @@ const [importOpen, setImportOpen] = useState(false);
   const load = useCallback(async () => {
     setErr("");
     setLoading(true);
+
     try {
       const [data, depts, me] = await Promise.all([
         getUsers(),
         getAllDepartments(),
         getCurrentUser().catch(() => null),
       ]);
-      const normalized = (data as any[]).map((u) => ({ ...u, role: normalizeRole(u.role) }));
+
+      const normalized = (data as any[]).map((u) => ({
+        ...u,
+        role: normalizeRole(u.role),
+      }));
+
       setUsers(normalized as User[]);
       setDepartments(depts || []);
       setCurrentUserRole(me?.role ? normalizeRole(me.role) : getRoleFromSession());
@@ -441,7 +519,6 @@ const [importOpen, setImportOpen] = useState(false);
   const filtered = useMemo(() => {
     let result = users;
 
-    // Search filter
     const s = q.trim().toLowerCase();
     if (s) {
       result = result.filter((u: any) => {
@@ -449,23 +526,29 @@ const [importOpen, setImportOpen] = useState(false);
         const email = String(u.email || "").toLowerCase();
         const dep = getDepartmentLabel(getUserDepartmentValue(u)).toLowerCase();
         const mat = String(u.matricule || "").toLowerCase();
-        return name.includes(s) || email.includes(s) || dep.includes(s) || mat.includes(s);
+        return (
+          name.includes(s) ||
+          email.includes(s) ||
+          dep.includes(s) ||
+          mat.includes(s)
+        );
       });
     }
 
-    // Role filter
     if (filterRole) {
       result = result.filter((u: any) => normalizeRole(u.role) === filterRole);
     }
 
-    // Status filter
     if (filterStatus) {
-      result = result.filter((u: any) => (u.en_ligne ? "online" : "offline") === filterStatus);
+      result = result.filter(
+        (u: any) => (u.en_ligne ? "online" : "offline") === filterStatus
+      );
     }
 
-    // Department filter
     if (filterDepartment) {
-      result = result.filter((u: any) => getUserDepartmentValue(u) === filterDepartment);
+      result = result.filter(
+        (u: any) => getUserDepartmentValue(u) === filterDepartment
+      );
     }
 
     return result;
@@ -491,7 +574,10 @@ const [importOpen, setImportOpen] = useState(false);
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [users, departments, getDepartmentLabel]);
 
-  const totalPages = useMemo(() => Math.max(1, Math.ceil(filtered.length / pageSize)), [filtered.length]);
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(filtered.length / pageSize)),
+    [filtered.length]
+  );
 
   const paginatedUsers = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -511,7 +597,11 @@ const [importOpen, setImportOpen] = useState(false);
       setErr("");
       const fixedRole = normalizeRole(role);
       const old = [...users];
-      setUsers((prev) => prev.map((u) => (u._id === userId ? { ...u, role: fixedRole } : u)));
+
+      setUsers((prev) =>
+        prev.map((u) => (u._id === userId ? { ...u, role: fixedRole } : u))
+      );
+
       try {
         await updateUserRole(userId, fixedRole);
       } catch (e: any) {
@@ -526,7 +616,11 @@ const [importOpen, setImportOpen] = useState(false);
     async (userId: string, department: string) => {
       setErr("");
       const old = [...users];
-      setUsers((prev) => prev.map((u) => (u._id === userId ? { ...u, department } : u)));
+
+      setUsers((prev) =>
+        prev.map((u) => (u._id === userId ? { ...u, department } : u))
+      );
+
       try {
         await updateUser(userId, { department });
       } catch (e: any) {
@@ -539,6 +633,7 @@ const [importOpen, setImportOpen] = useState(false);
 
   const onConfirmDelete = useCallback(async () => {
     if (!deleteTarget) return;
+
     const targetRole = normalizeRole(deleteTarget.role);
     if (currentUserRole === "HR" && targetRole === "HR") {
       setErr("Only super manager can delete HR accounts.");
@@ -547,18 +642,19 @@ const [importOpen, setImportOpen] = useState(false);
     }
 
     const userId = deleteTarget._id;
-
     setDeleting(true);
     setErr("");
 
     try {
       await deleteUser(userId);
       setUsers((prev) => prev.filter((u) => u._id !== userId));
+
       if (selected?._id === userId) setSelected(null);
       if (form?._id === userId) {
         setEditOpen(false);
         setForm(null);
       }
+
       setDeleteTarget(null);
     } catch (e: any) {
       setErr(e?.message || "Delete failed");
@@ -587,32 +683,48 @@ const [importOpen, setImportOpen] = useState(false);
     if (!form) return;
 
     setEditErr("");
+
     let validationErr = "";
     if (!form.name.trim()) validationErr = "Name is required.";
-    else if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) validationErr = "Valid email is required.";
-    else if (!(form.department || "").trim()) validationErr = "Department is required.";
-    else if (!form.date_embauche) validationErr = "Hire date is required.";
-    else if (!(form.matricule || "").trim()) validationErr = "Matricule is required.";
-    else if (!(form.telephone || "").trim() || !/^[+0-9\s-]+$/.test(form.telephone || "")) validationErr = "Valid phone number is required.";
-    if (validationErr) return setEditErr(validationErr);
+    else if (
+      !form.email.trim() ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
+    ) {
+      validationErr = "Valid email is required.";
+    } else if (!(form.department || "").trim()) {
+      validationErr = "Department is required.";
+    } else if (!form.date_embauche) {
+      validationErr = "Hire date is required.";
+    } else if (!(form.matricule || "").trim()) {
+      validationErr = "Matricule is required.";
+    } else if (
+      !(form.telephone || "").trim() ||
+      !/^[+0-9\s-]+$/.test(form.telephone || "")
+    ) {
+      validationErr = "Valid phone number is required.";
+    }
+
+    if (validationErr) {
+      setEditErr(validationErr);
+      return;
+    }
 
     setEditSaving(true);
-
     const snapshot = [...users];
 
     setUsers((prev) =>
       prev.map((u: any) =>
         u._id === form._id
           ? {
-            ...u,
-            name: form.name,
-            email: form.email,
-            telephone: form.telephone || "",
-            matricule: form.matricule || "",
-            department: form.department || "",
-            date_embauche: form.date_embauche || "",
-            role: normalizeRole(form.role),
-          }
+              ...u,
+              name: form.name,
+              email: form.email,
+              telephone: form.telephone || "",
+              matricule: form.matricule || "",
+              department: form.department || "",
+              date_embauche: form.date_embauche || "",
+              role: normalizeRole(form.role),
+            }
           : u
       )
     );
@@ -627,6 +739,7 @@ const [importOpen, setImportOpen] = useState(false);
         date_embauche: form.date_embauche || undefined,
         role: normalizeRole(form.role),
       });
+
       setEditOpen(false);
       setForm(null);
     } catch (e: any) {
@@ -637,7 +750,10 @@ const [importOpen, setImportOpen] = useState(false);
     }
   }, [form, users]);
 
-  const onlineCount = useMemo(() => users.filter((u: any) => u.en_ligne).length, [users]);
+  const onlineCount = useMemo(
+    () => users.filter((u: any) => u.en_ligne).length,
+    [users]
+  );
 
   const closeAdd = useCallback(() => {
     setAddOpen(false);
@@ -651,17 +767,35 @@ const [importOpen, setImportOpen] = useState(false);
 
     let validationErr = "";
     if (!addForm.name.trim()) validationErr = "Name is required.";
-    else if (!addForm.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addForm.email)) validationErr = "Valid email is required.";
-    else if (!addForm.password.trim()) validationErr = "Password is required.";
-    else if (addForm.password.length < 8) validationErr = "Password must contain at least 8 characters.";
-    else if (!/\d/.test(addForm.password)) validationErr = "Password must contain at least one number.";
-    else if (!addForm.date_embauche) validationErr = "Hire date is required.";
-    else if (!addForm.matricule.trim()) validationErr = "Matricule is required.";
-    else if (!addForm.telephone.trim() || !/^[+0-9\s-]+$/.test(addForm.telephone)) validationErr = "Valid phone number is required.";
+    else if (
+      !addForm.email.trim() ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addForm.email)
+    ) {
+      validationErr = "Valid email is required.";
+    } else if (!addForm.password.trim()) {
+      validationErr = "Password is required.";
+    } else if (addForm.password.length < 8) {
+      validationErr = "Password must contain at least 8 characters.";
+    } else if (!/\d/.test(addForm.password)) {
+      validationErr = "Password must contain at least one number.";
+    } else if (!addForm.date_embauche) {
+      validationErr = "Hire date is required.";
+    } else if (!addForm.matricule.trim()) {
+      validationErr = "Matricule is required.";
+    } else if (
+      !addForm.telephone.trim() ||
+      !/^[+0-9\s-]+$/.test(addForm.telephone)
+    ) {
+      validationErr = "Valid phone number is required.";
+    }
 
-    if (validationErr) return setAddErr(validationErr);
+    if (validationErr) {
+      setAddErr(validationErr);
+      return;
+    }
 
     setAddSaving(true);
+
     try {
       const payload: any = {
         name: addForm.name.trim(),
@@ -674,7 +808,10 @@ const [importOpen, setImportOpen] = useState(false);
       };
 
       const created = await createUser(payload);
-      setUsers((prev) => [...prev, { ...created, role: normalizeRole((created as any).role) } as User]);
+      setUsers((prev) => [
+        ...prev,
+        { ...created, role: normalizeRole((created as any).role) } as User,
+      ]);
       closeAdd();
     } catch (e: any) {
       setAddErr(e?.message || "Failed to create user");
@@ -702,7 +839,9 @@ const [importOpen, setImportOpen] = useState(false);
 
         <div style={{ ...S.statCard, borderLeftColor: "rgba(100,116,139,0.4)" }}>
           <div style={S.statCardInner}>
-            <span style={{ ...S.statValue, color: "var(--muted)" }}>{users.length - onlineCount}</span>
+            <span style={{ ...S.statValue, color: "var(--muted)" }}>
+              {users.length - onlineCount}
+            </span>
             <span style={S.statLabel}>Offline</span>
           </div>
         </div>
@@ -717,28 +856,51 @@ const [importOpen, setImportOpen] = useState(false);
         <div style={S.headerRow}>
           <div style={S.searchWrap}>
             <span style={S.searchIcon}>🔍</span>
-            <input className="input" placeholder="Name, email, matricule…" value={q} onChange={(e) => setQ(e.target.value)} style={S.searchInput} />
+            <input
+              className="input"
+              placeholder="Name, email, matricule…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              style={S.searchInput}
+            />
           </div>
 
           <div style={S.headerActions}>
             <button className="btn" onClick={load} disabled={loading} style={S.simpleBtn}>
               {loading ? "Loading…" : "Refresh"}
             </button>
-            <button className="btn" onClick={() => setImportOpen(true)} disabled={loading} style={S.simpleBtn}>
+
+            <button
+              className="btn"
+              onClick={() => setImportOpen(true)}
+              disabled={loading}
+              style={S.simpleBtn}
+            >
               Import Excel
             </button>
-            <button className="btn btn-primary" onClick={() => setAddOpen(true)} disabled={loading} style={S.addBtn}>
+
+            <button
+              className="btn btn-primary"
+              onClick={() => setAddOpen(true)}
+              disabled={loading}
+              style={S.addBtn}
+            >
               + Add
             </button>
-            <ImportUsersModal open={importOpen} onClose={() => setImportOpen(false)} onImported={load} />
+
+            <ImportUsersModal
+              open={importOpen}
+              onClose={() => setImportOpen(false)}
+              onImported={load}
+            />
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+        <div style={S.filtersRow}>
           <select
             value={filterRole}
             onChange={(e) => setFilterRole(e.target.value)}
-            style={{ ...S.roleSelect, flex: "0 0 auto" }}
+            style={S.roleSelect}
           >
             <option value="">All Roles</option>
             <option value="EMPLOYEE">Employee</option>
@@ -750,7 +912,7 @@ const [importOpen, setImportOpen] = useState(false);
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            style={{ ...S.roleSelect, flex: "0 0 auto" }}
+            style={S.roleSelect}
           >
             <option value="">All Status</option>
             <option value="online">Online</option>
@@ -760,7 +922,7 @@ const [importOpen, setImportOpen] = useState(false);
           <select
             value={filterDepartment}
             onChange={(e) => setFilterDepartment(e.target.value)}
-            style={{ ...S.roleSelect, flex: "0 0 auto" }}
+            style={S.roleSelect}
           >
             <option value="">All Departments</option>
             {departmentOptions.map((dept) => (
@@ -782,26 +944,44 @@ const [importOpen, setImportOpen] = useState(false);
         <table style={S.table}>
           <thead>
             <tr>
-              <th style={S.th}></th>
+              <th style={S.thAvatar}></th>
               <th style={S.th}>Name</th>
               <th style={S.th}>Role</th>
               <th style={S.th}>Department</th>
               <th style={S.th}>Status</th>
-              <th style={{ ...S.th, width: 120, minWidth: 120 }}>Actions</th>
+              <th style={S.thActions}>Actions</th>
             </tr>
           </thead>
 
           <tbody>
             {paginatedUsers.map((u: any, i) => (
-              <tr key={u._id} style={{ ...S.tr, background: i % 2 === 1 ? "var(--surface-2)" : "var(--surface)" }}>
-                <td style={S.td}>
-                  <UserAvatar name={u.name} email={u.email} avatarUrl={u.avatarUrl} size={60} />
+              <tr
+                key={u._id}
+                style={{
+                  ...S.tr,
+                  background: i % 2 === 1 ? "var(--surface-2)" : "var(--surface)",
+                }}
+              >
+                <td style={S.tdAvatar}>
+                  <UserAvatar
+                    name={u.name}
+                    email={u.email}
+                    avatarUrl={u.avatarUrl}
+                    size={60}
+                  />
                 </td>
 
-                <td style={{ ...S.td, fontWeight: 800, color: "var(--text)" }}>{u.name}</td>
+                <td style={S.tdName}>{u.name}</td>
 
                 <td style={S.td}>
-                  <select className="select" value={normalizeRole(u.role)} onChange={(e) => onChangeRole(u._id, normalizeRole(e.target.value))} style={S.roleSelect}>
+                  <select
+                    className="select"
+                    value={normalizeRole(u.role)}
+                    onChange={(e) =>
+                      onChangeRole(u._id, normalizeRole(e.target.value))
+                    }
+                    style={S.tableSelect}
+                  >
                     <option value="EMPLOYEE">Employee</option>
                     <option value="MANAGER">Manager</option>
                     <option value="HR">HR</option>
@@ -810,7 +990,12 @@ const [importOpen, setImportOpen] = useState(false);
                 </td>
 
                 <td style={S.td}>
-                  <select className="select" value={getUserDepartmentValue(u)} onChange={(e) => onChangeDepartment(u._id, e.target.value)} style={S.roleSelect}>
+                  <select
+                    className="select"
+                    value={getUserDepartmentValue(u)}
+                    onChange={(e) => onChangeDepartment(u._id, e.target.value)}
+                    style={S.tableSelect}
+                  >
                     <option value="">No dept</option>
                     {departmentOptions.map((dept) => (
                       <option key={dept.value} value={dept.value}>
@@ -821,19 +1006,40 @@ const [importOpen, setImportOpen] = useState(false);
                 </td>
 
                 <td style={S.td}>
-                  <Pill text={u.en_ligne ? "Online" : "Offline"} tone={u.en_ligne ? "success" : "neutral"} strong />
+                  <Pill
+                    text={u.en_ligne ? "Online" : "Offline"}
+                    tone={u.en_ligne ? "success" : "neutral"}
+                    strong
+                  />
                 </td>
 
-                <td style={{ ...S.td, whiteSpace: "nowrap" }}>
+                <td style={S.tdActions}>
                   <div style={S.actionsGroup}>
-                    <button type="button" onClick={() => openView(u)} style={S.actionBtn} title="View">
+                    <button
+                      type="button"
+                      onClick={() => openView(u)}
+                      style={S.actionBtn}
+                      title="View"
+                    >
                       <IconEye />
                     </button>
-                    <button type="button" onClick={() => openEdit(u)} style={{ ...S.actionBtn, ...S.actionBtnPrimary }} title="Edit">
+
+                    <button
+                      type="button"
+                      onClick={() => openEdit(u)}
+                      style={{ ...S.actionBtn, ...S.actionBtnPrimary }}
+                      title="Edit"
+                    >
                       <IconPencil />
                     </button>
+
                     {!(currentUserRole === "HR" && normalizeRole(u.role) === "HR") ? (
-                      <button type="button" onClick={() => setDeleteTarget(u)} style={{ ...S.actionBtn, ...S.actionBtnDanger }} title="Delete">
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget(u)}
+                        style={{ ...S.actionBtn, ...S.actionBtnDanger }}
+                        title="Delete"
+                      >
                         <IconTrash />
                       </button>
                     ) : null}
@@ -855,14 +1061,34 @@ const [importOpen, setImportOpen] = useState(false);
         {!loading && filtered.length > 0 && (
           <div style={S.paginationRow}>
             <div style={S.paginationInfo}>
-              Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, filtered.length)} of {filtered.length} users
+              Showing {(page - 1) * pageSize + 1} to{" "}
+              {Math.min(page * pageSize, filtered.length)} of {filtered.length} users
             </div>
+
             <div style={S.paginationControls}>
-              <button className="btn" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} style={S.simpleBtn} aria-label="Previous page" title="Previous page">
+              <button
+                className="btn"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                style={S.simpleBtn}
+                aria-label="Previous page"
+                title="Previous page"
+              >
                 &lt;
               </button>
-              <span style={S.pageBadge}>Page {page} / {totalPages}</span>
-              <button className="btn" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={S.simpleBtn} aria-label="Next page" title="Next page">
+
+              <span style={S.pageBadge}>
+                Page {page} / {totalPages}
+              </span>
+
+              <button
+                className="btn"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                style={S.simpleBtn}
+                aria-label="Next page"
+                title="Next page"
+              >
                 &gt;
               </button>
             </div>
@@ -871,20 +1097,42 @@ const [importOpen, setImportOpen] = useState(false);
       </div>
 
       {deleteTarget && (
-        <div style={S.modalBackdrop} onClick={() => !deleting && setDeleteTarget(null)}>
+        <div
+          style={S.modalBackdrop}
+          onClick={() => !deleting && setDeleteTarget(null)}
+        >
           <div style={S.deleteModalCard} onClick={(e) => e.stopPropagation()}>
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 18, fontWeight: 900, color: "var(--text)" }}>Delete user?</div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: "var(--text)" }}>
+                Delete user?
+              </div>
               <div style={{ marginTop: 6, color: "var(--muted)", fontSize: 14 }}>
-                <strong>{deleteTarget.name}</strong> ({deleteTarget.email}) will be permanently deleted.
+                <strong>{deleteTarget.name}</strong> ({deleteTarget.email}) will be
+                permanently deleted.
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-              <button type="button" className="btn" onClick={() => !deleting && setDeleteTarget(null)} disabled={deleting}>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => !deleting && setDeleteTarget(null)}
+                disabled={deleting}
+              >
                 Cancel
               </button>
-              <button type="button" className="btn btn-danger" onClick={onConfirmDelete} disabled={deleting} style={{ background: "#dc2626", color: "#fff", border: "none" }}>
+
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={onConfirmDelete}
+                disabled={deleting}
+                style={{
+                  background: "#dc2626",
+                  color: "#fff",
+                  border: "none",
+                }}
+              >
                 {deleting ? "Deleting…" : "Delete"}
               </button>
             </div>
@@ -899,7 +1147,13 @@ const [importOpen, setImportOpen] = useState(false);
         onClose={closeView}
         right={
           selected ? (
-            <Button variant="primary" onClick={() => { closeView(); openEdit(selected); }}>
+            <Button
+              variant="primary"
+              onClick={() => {
+                closeView();
+                openEdit(selected);
+              }}
+            >
               Edit
             </Button>
           ) : null
@@ -914,7 +1168,11 @@ const [importOpen, setImportOpen] = useState(false);
         subtitle="HR can update any user account"
         onClose={closeEdit}
         right={
-          <Button variant="primary" onClick={saveEdit} disabled={editSaving || !form}>
+          <Button
+            variant="primary"
+            onClick={saveEdit}
+            disabled={editSaving || !form}
+          >
             {editSaving ? "Saving..." : "Save changes"}
           </Button>
         }
@@ -925,10 +1183,17 @@ const [importOpen, setImportOpen] = useState(false);
           </div>
         )}
 
-        {form && <EditForm value={form} onChange={setForm} onChangeRole={(role) => setForm((p) => (p ? { ...p, role } : p))} />}
+        {form && (
+          <EditForm
+            value={form}
+            onChange={setForm}
+            onChangeRole={(role) =>
+              setForm((p) => (p ? { ...p, role } : p))
+            }
+          />
+        )}
       </Modal>
 
-      {/* ADD EMPLOYEE MODAL */}
       <Modal
         open={addOpen}
         title="Add Employee"
@@ -945,6 +1210,7 @@ const [importOpen, setImportOpen] = useState(false);
             <span style={{ color: "#ef4444", fontWeight: 800 }}>{addErr}</span>
           </div>
         )}
+
         <AddUserForm value={addForm} onChange={setAddForm} />
       </Modal>
     </div>
@@ -958,16 +1224,34 @@ const [importOpen, setImportOpen] = useState(false);
 function UserDetailsGrid({ user }: { user: any }) {
   return (
     <div style={{ display: "grid", gap: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
-        <UserAvatar name={user.name} email={user.email} avatarUrl={user.avatarUrl} size={56} />
+      <div style={S.detailsHeader}>
+        <UserAvatar
+          name={user.name}
+          email={user.email}
+          avatarUrl={user.avatarUrl}
+          size={56}
+        />
+
         <div>
-          <div style={{ fontSize: 18, fontWeight: 900, color: "var(--text)" }}>{user.name}</div>
+          <div style={{ fontSize: 18, fontWeight: 900, color: "var(--text)" }}>
+            {user.name}
+          </div>
           <div style={{ fontSize: 14, color: "var(--muted)" }}>{user.email}</div>
-          <Pill text={normalizeRole(user.role)} tone={["HR", "SUPER_MANAGER"].includes(normalizeRole(user.role)) ? "success" : "neutral"} />
+          <div style={{ marginTop: 8 }}>
+            <Pill
+              text={normalizeRole(user.role)}
+              tone={
+                ["HR", "SUPER_MANAGER"].includes(normalizeRole(user.role))
+                  ? "success"
+                  : "neutral"
+              }
+            />
+          </div>
         </div>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <div className="card" style={{ padding: 12 }}>
+
+      <div style={S.detailsGrid}>
+        <div className="card" style={S.infoCard}>
           <div style={S.blockTitle}>Identity</div>
 
           <div className="muted">ID</div>
@@ -980,7 +1264,7 @@ function UserDetailsGrid({ user }: { user: any }) {
           <div style={S.blockValue}>{user.telephone || "-"}</div>
         </div>
 
-        <div className="card" style={{ padding: 12 }}>
+        <div className="card" style={S.infoCard}>
           <div style={S.blockTitle}>Account</div>
 
           <div className="muted">Email</div>
@@ -995,7 +1279,7 @@ function UserDetailsGrid({ user }: { user: any }) {
           </div>
         </div>
 
-        <div className="card" style={{ padding: 12 }}>
+        <div className="card" style={S.infoCard}>
           <div style={S.blockTitle}>Work</div>
 
           <div className="muted">Department</div>
@@ -1005,7 +1289,7 @@ function UserDetailsGrid({ user }: { user: any }) {
           <div style={S.blockValue}>{user.manager_id || "-"}</div>
         </div>
 
-        <div className="card" style={{ padding: 12 }}>
+        <div className="card" style={S.infoCard}>
           <div style={S.blockTitle}>Timeline</div>
 
           <div className="muted">Date d’embauche</div>
@@ -1021,7 +1305,7 @@ function UserDetailsGrid({ user }: { user: any }) {
           <div style={S.blockValue}>{fmtDateTime(user.lastLogin)}</div>
         </div>
 
-        <div className="card" style={{ padding: 12, gridColumn: "1 / -1" }}>
+        <div className="card" style={{ ...S.infoCard, gridColumn: "1 / -1" }}>
           <div style={S.blockTitle}>Flags</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <Pill text={`Online: ${user.en_ligne ? "Yes" : "No"}`} tone={user.en_ligne ? "success" : "neutral"} />
@@ -1044,8 +1328,8 @@ function EditForm({
   onChangeRole: (role: User["role"]) => void;
 }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-      <div className="card" style={{ padding: 12 }}>
+    <div style={S.formGrid}>
+      <div className="card" style={S.infoCard}>
         <div style={S.blockTitle}>Basic</div>
 
         <Label text="Name *" />
@@ -1055,7 +1339,7 @@ function EditForm({
           onChange={(e) => onChange((p) => (p ? { ...p, name: e.target.value } : p))}
         />
 
-        <div style={{ height: 10 }} />
+        <div style={S.spacerSm} />
 
         <Label text="Email *" />
         <input
@@ -1064,7 +1348,7 @@ function EditForm({
           onChange={(e) => onChange((p) => (p ? { ...p, email: e.target.value } : p))}
         />
 
-        <div style={{ height: 10 }} />
+        <div style={S.spacerSm} />
 
         <Label text="Role" />
         <select
@@ -1079,7 +1363,7 @@ function EditForm({
         </select>
       </div>
 
-      <div className="card" style={{ padding: 12 }}>
+      <div className="card" style={S.infoCard}>
         <div style={S.blockTitle}>Work</div>
 
         <Label text="Department *" />
@@ -1089,7 +1373,7 @@ function EditForm({
           onChange={(e) => onChange((p) => (p ? { ...p, department: e.target.value } : p))}
         />
 
-        <div style={{ height: 10 }} />
+        <div style={S.spacerSm} />
 
         <Label text="Hire date *" />
         <input
@@ -1099,7 +1383,7 @@ function EditForm({
           onChange={(e) => onChange((p) => (p ? { ...p, date_embauche: e.target.value } : p))}
         />
 
-        <div style={{ height: 10 }} />
+        <div style={S.spacerSm} />
 
         <Label text="Matricule *" />
         <input
@@ -1108,7 +1392,7 @@ function EditForm({
           onChange={(e) => onChange((p) => (p ? { ...p, matricule: e.target.value } : p))}
         />
 
-        <div style={{ height: 10 }} />
+        <div style={S.spacerSm} />
 
         <Label text="Telephone *" />
         <input
@@ -1137,8 +1421,8 @@ function AddUserForm({
   onChange: React.Dispatch<React.SetStateAction<NewUserForm>>;
 }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-      <div className="card" style={{ padding: 12 }}>
+    <div style={S.formGrid}>
+      <div className="card" style={S.infoCard}>
         <div style={S.blockTitle}>Basic Information</div>
 
         <Label text="Name *" />
@@ -1149,7 +1433,7 @@ function AddUserForm({
           onChange={(e) => onChange((p) => ({ ...p, name: e.target.value }))}
         />
 
-        <div style={{ height: 10 }} />
+        <div style={S.spacerSm} />
 
         <Label text="Email *" />
         <input
@@ -1160,7 +1444,7 @@ function AddUserForm({
           onChange={(e) => onChange((p) => ({ ...p, email: e.target.value }))}
         />
 
-        <div style={{ height: 10 }} />
+        <div style={S.spacerSm} />
 
         <Label text="Password *" />
         <input
@@ -1170,11 +1454,12 @@ function AddUserForm({
           value={value.password}
           onChange={(e) => onChange((p) => ({ ...p, password: e.target.value }))}
         />
+
         <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
           Minimum 8 characters and 1 number required
         </div>
 
-        <div style={{ height: 10 }} />
+        <div style={S.spacerSm} />
 
         <Label text="Role" />
         <select
@@ -1189,7 +1474,7 @@ function AddUserForm({
         </select>
       </div>
 
-      <div className="card" style={{ padding: 12 }}>
+      <div className="card" style={S.infoCard}>
         <div style={S.blockTitle}>Professional Information</div>
 
         <Label text="Hire Date *" />
@@ -1200,7 +1485,7 @@ function AddUserForm({
           onChange={(e) => onChange((p) => ({ ...p, date_embauche: e.target.value }))}
         />
 
-        <div style={{ height: 10 }} />
+        <div style={S.spacerSm} />
 
         <Label text="Matricule *" />
         <input
@@ -1210,7 +1495,7 @@ function AddUserForm({
           onChange={(e) => onChange((p) => ({ ...p, matricule: e.target.value }))}
         />
 
-        <div style={{ height: 10 }} />
+        <div style={S.spacerSm} />
 
         <Label text="Phone *" />
         <input
@@ -1234,13 +1519,62 @@ const S: Record<string, React.CSSProperties> = {
     borderRadius: 0,
     background: "transparent",
   },
-  pageCard: {
-    padding: 20,
+
+  statsRow: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: 20,
+    marginBottom: 24,
+  },
+
+  statCard: {
+    padding: "18px 20px",
     borderRadius: 16,
     background: "var(--surface)",
     border: "1px solid var(--border)",
-    boxShadow: "0 4px 20px rgba(15,23,42,0.06)",
+    borderLeft: "4px solid rgba(15,23,42,0.12)",
   },
+
+  statCardInner: {
+    display: "flex",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 16,
+  },
+
+  statValue: {
+    fontSize: 34,
+    fontWeight: 900,
+    color: "var(--text)",
+    lineHeight: 1,
+  },
+
+  statLabel: {
+    fontSize: 16,
+    fontWeight: 800,
+    color: "var(--muted)",
+    whiteSpace: "nowrap",
+  },
+
+  pageTitle: {
+    fontSize: 40,
+    fontWeight: 900,
+    color: "var(--text)",
+    lineHeight: 1.1,
+  },
+
+  pageSubtitle: {
+    fontSize: 21,
+    fontWeight: 700,
+    color: "var(--muted)",
+    marginTop: 8,
+    lineHeight: 1.3,
+  },
+
+  headerTop: {
+    marginBottom: 16,
+  },
+
   searchCard: {
     background: "var(--surface)",
     border: "1px solid var(--border)",
@@ -1249,58 +1583,91 @@ const S: Record<string, React.CSSProperties> = {
     marginTop: 12,
     marginBottom: 16,
   },
-  statsRow: {
-    display: "flex",
-    gap: 20,
-    marginBottom: 24,
-    flexWrap: "wrap",
-  },
-  statCard: {
-    flex: "1 1 220px",
-    minWidth: 220,
-    padding: "18px 20px",
-    borderRadius: 16,
-    background: "var(--surface)",
-    border: "1px solid var(--border)",
-    borderLeft: "4px solid rgba(15,23,42,0.12)",
-  },
-  statCardInner: {
-    display: "flex",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    gap: 16,
-  },
-  statValue: { fontSize: 34, fontWeight: 900, color: "var(--text)", lineHeight: 1 },
-  statLabel: { fontSize: 16, fontWeight: 800, color: "var(--muted)", whiteSpace: "nowrap" },
 
-  pageTitle: { fontSize: 40, fontWeight: 900, color: "var(--text)", lineHeight: 1.1 },
-  pageSubtitle: { fontSize: 21, fontWeight: 700, color: "var(--muted)", marginTop: 8, lineHeight: 1.3 },
-
-  headerTop: {
-    marginBottom: 16,
-  },
   headerRow: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 590,
+    gap: 16,
+    flexWrap: "wrap",
   },
-  headerLeft: {
+
+  headerActions: {
     display: "flex",
     alignItems: "center",
-    flex: "0 0 auto",
+    gap: 10,
+    flexWrap: "wrap",
   },
-  headerActions: { display: "flex", alignItems: "center", gap: 10, flex: "0 0 auto" },
-  simpleBtn: { borderRadius: 12, fontWeight: 800, fontSize: 16, padding: "12px 16px", border: "1px solid var(--input-border)", background: "var(--surface)", color: "var(--text)" },
-  addBtn: { borderRadius: 12, fontWeight: 800, fontSize: 16, padding: "12px 16px", background: "rgba(31,122,90,0.10)", border: "1px solid rgba(31,122,90,0.20)", color: "#19dd98" },
+
+  simpleBtn: {
+    borderRadius: 12,
+    fontWeight: 800,
+    fontSize: 16,
+    padding: "12px 16px",
+    border: "1px solid var(--input-border)",
+    background: "var(--surface)",
+    color: "var(--text)",
+  },
+
+  addBtn: {
+    borderRadius: 12,
+    fontWeight: 800,
+    fontSize: 16,
+    padding: "12px 16px",
+    background: "rgba(31,122,90,0.10)",
+    border: "1px solid rgba(31,122,90,0.20)",
+    color: "#19dd98",
+  },
+
   searchWrap: {
     position: "relative",
     display: "inline-flex",
     alignItems: "center",
+    minWidth: 280,
+    flex: "1 1 320px",
+    maxWidth: 420,
   },
-  searchIcon: { position: "absolute", left: 12, fontSize: 16, opacity: 0.6 },
-  searchInput: { minWidth: 320, fontSize: 16, paddingLeft: 40, borderRadius: 12, border: "1px solid var(--input-border)" },
-  refreshBtn: { borderRadius: 12, fontWeight: 800 },
+
+  searchIcon: {
+    position: "absolute",
+    left: 12,
+    fontSize: 16,
+    opacity: 0.6,
+  },
+
+  searchInput: {
+    width: "100%",
+    fontSize: 16,
+    paddingLeft: 40,
+    borderRadius: 12,
+    border: "1px solid var(--input-border)",
+  },
+
+  filtersRow: {
+    display: "flex",
+    gap: 10,
+    marginTop: 12,
+    flexWrap: "wrap",
+  },
+
+  roleSelect: {
+    padding: "10px 10px",
+    borderRadius: 10,
+    border: "1px solid var(--input-border)",
+    fontWeight: 800,
+    fontSize: 16,
+    minWidth: 170,
+  },
+
+  tableSelect: {
+    padding: "10px 10px",
+    borderRadius: 10,
+    border: "1px solid var(--input-border)",
+    fontWeight: 800,
+    fontSize: 16,
+    width: "100%",
+    minWidth: 150,
+  },
 
   errorBox: {
     marginTop: 12,
@@ -1310,36 +1677,28 @@ const S: Record<string, React.CSSProperties> = {
     background: "rgba(239,68,68,0.06)",
   },
 
-  tableWrap: { overflowX: "auto", marginTop: 0, borderRadius: 12, border: "1px solid var(--border)", background: "var(--surface)", overflow: "hidden" },
-  paginationRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 12,
-    padding: "12px 14px",
-    borderTop: "1px solid rgba(15,23,42,0.08)",
-    flexWrap: "wrap",
-  },
-  paginationInfo: {
-    color: "var(--muted)",
-    fontSize: 15,
-    fontWeight: 700,
-  },
-  paginationControls: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-  },
-  pageBadge: {
-    padding: "8px 12px",
-    borderRadius: 10,
+  tableWrap: {
+    overflowX: "auto",
+    marginTop: 0,
+    borderRadius: 12,
     border: "1px solid var(--border)",
     background: "var(--surface)",
-    color: "var(--text)",
-    fontWeight: 800,
-    fontSize: 15,
+    overflow: "hidden",
   },
-  table: { width: "100%", borderCollapse: "collapse" },
+
+  table: {
+    width: "100%",
+    borderCollapse: "collapse",
+    minWidth: 980,
+  },
+
+  thAvatar: {
+    width: 86,
+    padding: "14px 6px",
+    background: "var(--surface-2)",
+    borderBottom: "1px solid var(--border)",
+  },
+
   th: {
     padding: "14px 6px",
     textAlign: "left",
@@ -1351,9 +1710,51 @@ const S: Record<string, React.CSSProperties> = {
     background: "var(--surface-2)",
     borderBottom: "1px solid var(--border)",
   },
-  tr: { borderBottom: "1px solid var(--border)" },
-  td: { padding: "14px 6px", fontSize: 18, fontWeight: 600 },
-  roleSelect: { padding: "10px 10px", borderRadius: 10, border: "1px solid var(--input-border)", fontWeight: 800, fontSize: 16 },
+
+  thActions: {
+    width: 120,
+    minWidth: 120,
+    padding: "14px 6px",
+    textAlign: "left",
+    fontSize: 18,
+    fontWeight: 900,
+    color: "var(--muted)",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    background: "var(--surface-2)",
+    borderBottom: "1px solid var(--border)",
+  },
+
+  tr: {
+    borderBottom: "1px solid var(--border)",
+  },
+
+  tdAvatar: {
+    padding: "14px 6px",
+    fontSize: 18,
+    fontWeight: 600,
+  },
+
+  td: {
+    padding: "14px 6px",
+    fontSize: 18,
+    fontWeight: 600,
+  },
+
+  tdName: {
+    padding: "14px 6px",
+    fontSize: 18,
+    fontWeight: 800,
+    color: "var(--text)",
+  },
+
+  tdActions: {
+    padding: "14px 6px",
+    fontSize: 18,
+    fontWeight: 600,
+    whiteSpace: "nowrap",
+  },
+
   actionsGroup: {
     display: "inline-flex",
     flexWrap: "nowrap",
@@ -1364,6 +1765,7 @@ const S: Record<string, React.CSSProperties> = {
     border: "1px solid var(--border)",
     background: "var(--surface-2)",
   },
+
   actionBtn: {
     width: 38,
     height: 38,
@@ -1376,17 +1778,56 @@ const S: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
   },
-  actionBtnPrimary: { color: "#166534", borderRight: "1px solid var(--border)" },
-  actionBtnDanger: { color: "#b91c1c", borderRight: "none" },
-  emptyCell: { padding: 32, textAlign: "center", color: "var(--muted)", fontWeight: 800, fontSize: 18 },
 
-  deleteModalCard: {
+  actionBtnPrimary: {
+    color: "#166534",
+    borderRight: "1px solid var(--border)",
+  },
+
+  actionBtnDanger: {
+    color: "#b91c1c",
+    borderRight: "none",
+  },
+
+  emptyCell: {
+    padding: 32,
+    textAlign: "center",
+    color: "var(--muted)",
+    fontWeight: 800,
+    fontSize: 18,
+  },
+
+  paginationRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+    padding: "12px 14px",
+    borderTop: "1px solid rgba(15,23,42,0.08)",
+    flexWrap: "wrap",
+  },
+
+  paginationInfo: {
+    color: "var(--muted)",
+    fontSize: 15,
+    fontWeight: 700,
+  },
+
+  paginationControls: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    flexWrap: "wrap",
+  },
+
+  pageBadge: {
+    padding: "8px 12px",
+    borderRadius: 10,
+    border: "1px solid var(--border)",
     background: "var(--surface)",
-    borderRadius: 16,
-    padding: 24,
-    maxWidth: 400,
-    width: "100%",
-    boxShadow: "0 24px 64px rgba(0,0,0,0.2)",
+    color: "var(--text)",
+    fontWeight: 800,
+    fontSize: 15,
   },
 
   modalBackdrop: {
@@ -1398,6 +1839,7 @@ const S: Record<string, React.CSSProperties> = {
     zIndex: 50,
     padding: 16,
   },
+
   modalCard: {
     width: "min(860px, 96vw)",
     borderRadius: 16,
@@ -1405,14 +1847,70 @@ const S: Record<string, React.CSSProperties> = {
     boxShadow: "0 24px 64px rgba(0,0,0,0.2)",
     background: "var(--surface)",
   },
+
   modalHead: {
     display: "flex",
     alignItems: "start",
     justifyContent: "space-between",
     gap: 12,
+    flexWrap: "wrap",
   },
-  modalTitle: { fontSize: 26, fontWeight: 900, color: "var(--text)" },
 
-  blockTitle: { fontWeight: 900, fontSize: 18, marginBottom: 10, color: "var(--text)" },
-  blockValue: { fontWeight: 800, fontSize: 16, marginBottom: 10, color: "var(--text)" },
+  modalTitle: {
+    fontSize: 26,
+    fontWeight: 900,
+    color: "var(--text)",
+  },
+
+  deleteModalCard: {
+    background: "var(--surface)",
+    borderRadius: 16,
+    padding: 24,
+    maxWidth: 400,
+    width: "100%",
+    boxShadow: "0 24px 64px rgba(0,0,0,0.2)",
+  },
+
+  detailsHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: 16,
+    padding: "12px 0",
+    borderBottom: "1px solid var(--border)",
+    flexWrap: "wrap",
+  },
+
+  detailsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gap: 12,
+  },
+
+  infoCard: {
+    padding: 12,
+  },
+
+  formGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gap: 12,
+  },
+
+  blockTitle: {
+    fontWeight: 900,
+    fontSize: 18,
+    marginBottom: 10,
+    color: "var(--text)",
+  },
+
+  blockValue: {
+    fontWeight: 800,
+    fontSize: 16,
+    marginBottom: 10,
+    color: "var(--text)",
+  },
+
+  spacerSm: {
+    height: 10,
+  },
 };
