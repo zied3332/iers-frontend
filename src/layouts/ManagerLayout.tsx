@@ -3,6 +3,14 @@ import AppShell from "./AppShell";
 import { getSidebarUserCard } from "../utils/sidebarUser";
 import "../index.css";
 
+type ManagerNavItem = {
+  to: string;
+  label: string;
+  end?: boolean;
+  group?: string;
+  icon?: string;
+};
+
 export default function ManagerLayout() {
   const [avatarRefresh, setAvatarRefresh] = useState(0);
 
@@ -17,23 +25,76 @@ export default function ManagerLayout() {
     [avatarRefresh]
   );
 
+  const nav: ManagerNavItem[] = useMemo(
+    () => [
+      {
+        to: "/manager/dashboard",
+        label: "Dashboard",
+        group: "Main menu",
+        icon: "dashboard",
+      },
+      {
+        to: "/manager/team",
+        label: "My Team",
+        group: "Organization",
+        icon: "employee",
+      },
+      {
+        to: "/manager/activities",
+        label: "Activities",
+        end: true,
+        group: "Operations",
+        icon: "activity",
+      },
+      {
+        to: "/manager/activities/running",
+        label: "In progress",
+        group: "Operations",
+        icon: "pipeline",
+      },
+      {
+        to: "/manager/activities/archive",
+        label: "Past activities",
+        group: "Operations",
+        icon: "archive",
+      },
+      {
+        to: "/manager/skills",
+        label: "Skills Management",
+        end: true,
+        group: "Skills",
+        icon: "skills",
+      },
+      {
+        to: "/manager/skills/assign",
+        label: "Assign Skills",
+        end: true,
+        group: "Skills",
+        icon: "assign",
+      },
+      {
+        to: "/manager/history",
+        label: "My history",
+        group: "Personal",
+        icon: "history",
+      },
+      {
+        to: "/manager/notifications",
+        label: "Notifications",
+        group: "System",
+        icon: "notifications",
+      },
+    ],
+    []
+  );
+
   return (
     <AppShell
       badge="Manager"
       title="Manager Workspace"
       subtitle="Review activities, validate participants, and monitor team decisions"
       profilePath="/manager/profile"
-      nav={[
-        { to: "/manager/dashboard", label: "Dashboard" },
-        { to: "/manager/team", label: "My Team" },
-        { to: "/manager/activities", label: "Activities", end: true },
-        { to: "/manager/activities/running", label: "In progress" },
-        { to: "/manager/activities/archive", label: "Past activities" },
-        { to: "/manager/skills", label: "Skills Management", end: true },
-        { to: "/manager/skills/assign", label: "Assign Skills", end: true },
-        { to: "/manager/history", label: "My history" },
-        { to: "/manager/notifications", label: "Notifications" },
-      ]}
+      nav={nav}
       topbarRight={
         <>
           <input className="input" placeholder="Search reviews, team, activities…" />

@@ -309,7 +309,7 @@ export default function AppShell({
                     <span className="theme-toggle-text">
                       {themeMode === "light" ? "Switch to dark" : "Switch to light"}
                     </span>
-                    <span className="theme-toggle-subtext">Appearance</span>
+                    <span className="theme-toggle-subtext"></span>
                   </span>
 
                   <span

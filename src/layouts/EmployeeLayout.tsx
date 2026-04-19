@@ -4,6 +4,14 @@ import AppShell from "./AppShell";
 import { getSidebarUserCard } from "../utils/sidebarUser";
 import "../index.css";
 
+type EmployeeNavItem = {
+  to: string;
+  label: string;
+  end?: boolean;
+  group?: string;
+  icon?: string;
+};
+
 export default function EmployeeLayout() {
   const [avatarRefresh, setAvatarRefresh] = useState(0);
 
@@ -21,19 +29,49 @@ export default function EmployeeLayout() {
     [avatarRefresh]
   );
 
+  const nav: EmployeeNavItem[] = useMemo(
+    () => [
+      {
+        to: "/me/skills",
+        label: "My Skills",
+        group: "Skills",
+        icon: "skills",
+      },
+      {
+        to: "/me/activity-invitations",
+        label: "Activity invitations",
+        group: "Operations",
+        icon: "activity",
+      },
+      {
+        to: "/me/activities/archive",
+        label: "Activity archive",
+        group: "Operations",
+        icon: "archive",
+      },
+      {
+        to: "/me/history",
+        label: "My history",
+        group: "Personal",
+        icon: "history",
+      },
+      {
+        to: "/me/notifications",
+        label: "Notifications",
+        group: "System",
+        icon: "notifications",
+      },
+    ],
+    []
+  );
+
   return (
     <AppShell
       badge="Employee"
       title="My Workspace"
       subtitle="Profile, progress, and skills"
       profilePath="/me/profile"
-      nav={[
-        { to: "/me/skills", label: "My Skills" },
-        { to: "/me/activity-invitations", label: "Activity invitations" },
-        { to: "/me/activities/archive", label: "Activity archive" },
-        { to: "/me/history", label: "My history" },
-        { to: "/me/notifications", label: "Notifications" },
-      ]}
+      nav={nav}
       topbarRight={
         <div className="topbar-actions">
           <input className="input" placeholder="Search…" />
