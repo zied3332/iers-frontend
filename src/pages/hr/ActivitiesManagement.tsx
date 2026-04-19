@@ -1,5 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { FiEdit2, FiEye, FiTrash2, FiPlus, FiX, FiSearch, FiFilter, FiExternalLink, FiUsers } from "react-icons/fi";
+import {
+  FiEdit2,
+  FiEye,
+  FiTrash2,
+  FiPlus,
+  FiX,
+  FiSearch,
+  FiFilter,
+  FiExternalLink,
+  FiUsers,
+} from "react-icons/fi";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   updateActivityById,
@@ -20,61 +30,82 @@ import {
   type Skill,
 } from "../../services/activities.service";
 import { getUsers, type User } from "../../services/users.service";
-import { getAllDepartments, type Department } from "../../services/departments.service";
+import {
+  getAllDepartments,
+  type Department,
+} from "../../services/departments.service";
 
-// ─────────────────────────────────────────────────────────────
-// 🎨 Design Tokens (keeping your CSS variables + color palette)
-// ─────────────────────────────────────────────────────────────
 const styles = {
-  // Layout containers
-  page: { minHeight: "100vh", background: "var(--bg)", color: "var(--text)", padding: "24px" } as React.CSSProperties,
-  container: { maxWidth: "1400px", margin: "0 auto" } as React.CSSProperties,
-  
-  // Card system
+  page: {
+    minHeight: "100vh",
+    background: "var(--bg)",
+    color: "var(--text)",
+    padding: "24px",
+  } as React.CSSProperties,
+
+  container: {
+    width: "100%",
+    maxWidth: "1440px",
+    margin: "0 auto",
+  } as React.CSSProperties,
+
   card: {
     background: "var(--card)",
     border: "1px solid var(--border)",
     borderRadius: "20px",
-    padding: "20px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-    transition: "box-shadow 0.2s ease, transform 0.2s ease",
+    padding: "22px",
+    boxShadow: "0 4px 18px rgba(15, 23, 42, 0.04)",
   } as React.CSSProperties,
-  cardHover: {
-    boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-    transform: "translateY(-2px)",
+
+  boardCard: {
+    background: "var(--card)",
+    border: "1px solid var(--border)",
+    borderRadius: "24px",
+    overflow: "hidden",
+    boxShadow: "0 6px 24px rgba(15, 23, 42, 0.04)",
   } as React.CSSProperties,
-  
-  // Inputs & Forms
+
   input: {
     width: "100%",
-    padding: "12px 16px",
+    height: "46px",
+    padding: "0 14px",
     borderRadius: "14px",
     border: "1px solid var(--input-border)",
     outline: "none",
     background: "var(--surface)",
     color: "var(--text)",
-    fontSize: "15px",
+    fontSize: "14px",
     fontWeight: 500,
-    transition: "border-color 0.2s ease, box-shadow 0.2s ease",
   } as React.CSSProperties,
-  inputFocus: {
-    borderColor: "var(--primary, #3b82f6)",
-    boxShadow: "0 0 0 3px rgba(59, 130, 246, 0.15)",
+
+  textarea: {
+    width: "100%",
+    padding: "12px 14px",
+    borderRadius: "14px",
+    border: "1px solid var(--input-border)",
+    outline: "none",
+    background: "var(--surface)",
+    color: "var(--text)",
+    fontSize: "14px",
+    fontWeight: 500,
+    resize: "vertical",
+    minHeight: "100px",
   } as React.CSSProperties,
+
   label: {
     display: "block",
-    fontSize: "13px",
+    fontSize: "12px",
     fontWeight: 700,
     color: "var(--muted)",
     marginBottom: "6px",
     textTransform: "uppercase",
-    letterSpacing: "0.03em",
+    letterSpacing: "0.05em",
   } as React.CSSProperties,
-  
-  // Buttons
+
   btn: {
-    padding: "10px 18px",
-    borderRadius: "14px",
+    height: "42px",
+    padding: "0 16px",
+    borderRadius: "12px",
     border: "1px solid var(--input-border)",
     background: "var(--surface)",
     color: "var(--text)",
@@ -83,96 +114,161 @@ const styles = {
     cursor: "pointer",
     display: "inline-flex",
     alignItems: "center",
+    justifyContent: "center",
     gap: "8px",
-    transition: "all 0.2s ease",
+    transition: "all 0.18s ease",
+    whiteSpace: "nowrap",
   } as React.CSSProperties,
+
   btnPrimary: {
-    background: "#1f7a5a",
-    color: "white",
-    border: "none",
-    boxShadow: "0 4px 12px rgba(31, 122, 90, 0.3)",
+    background: "#167c5a",
+    color: "#ffffff",
+    border: "1px solid #167c5a",
+    boxShadow: "0 10px 24px rgba(22, 124, 90, 0.16)",
   } as React.CSSProperties,
-  btnPrimaryHover: {
-    background: "#1a664a",
-    transform: "translateY(-1px)",
-    boxShadow: "0 6px 16px rgba(31, 122, 90, 0.4)",
+
+  btnSecondary: {
+    background: "#f8fafc",
+    color: "#0f172a",
+    border: "1px solid #dbe3ee",
   } as React.CSSProperties,
-  btnDanger: {
-    background: "#fee2e2",
-    color: "#b91c1c",
-    border: "1px solid #fca5a5",
-  } as React.CSSProperties,
+
   btnGhost: {
     background: "transparent",
-    border: "1px dashed var(--border)",
     color: "var(--muted)",
+    border: "1px dashed var(--border)",
   } as React.CSSProperties,
-  
-  // Badges & Tags
-  badge: (bg: string, color: string) => ({
+
+  btnDangerSoft: {
+    background: "#fff5f5",
+    color: "#b42318",
+    border: "1px solid #f3c7c7",
+  } as React.CSSProperties,
+
+  btnLink: {
+    background: "transparent",
+    border: "none",
+    padding: 0,
+    color: "var(--muted)",
+    fontWeight: 700,
+    fontSize: "13px",
+    cursor: "pointer",
     display: "inline-flex",
     alignItems: "center",
     gap: "6px",
-    padding: "5px 12px",
-    borderRadius: "999px",
-    background: bg,
-    color,
-    fontWeight: 700,
-    fontSize: "12px",
-    letterSpacing: "0.02em",
-  }) as React.CSSProperties,
-  
-  // Typography
-  heading: { fontSize: "36px", fontWeight: 800, margin: 0, lineHeight: 1.2 } as React.CSSProperties,
-  subheading: { fontSize: "22px", fontWeight: 700, margin: 0 } as React.CSSProperties,
-  muted: { color: "var(--muted)", fontWeight: 500 } as React.CSSProperties,
-  
-  // Section headers
+  } as React.CSSProperties,
+
+  badge: (bg: string, color: string) =>
+    ({
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "6px 10px",
+      borderRadius: "999px",
+      background: bg,
+      color,
+      fontWeight: 700,
+      fontSize: "11px",
+      letterSpacing: "0.03em",
+      whiteSpace: "nowrap",
+    }) as React.CSSProperties,
+
+  muted: {
+    color: "var(--muted)",
+    fontWeight: 500,
+  } as React.CSSProperties,
+
+  subheading: {
+    fontSize: "22px",
+    fontWeight: 800,
+    margin: 0,
+    color: "var(--text)",
+  } as React.CSSProperties,
+
   sectionHeader: {
     display: "flex",
     alignItems: "center",
     gap: "12px",
-    marginBottom: "16px",
-    paddingBottom: "12px",
+    marginBottom: "18px",
+    paddingBottom: "10px",
     borderBottom: "1px solid var(--border)",
   } as React.CSSProperties,
-  
-  // Grid layouts
-  grid2: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "14px" } as React.CSSProperties,
-  grid3: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "14px" } as React.CSSProperties,
-  grid4: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "14px" } as React.CSSProperties,
-  
-  // Modal overlay
+
+  grid2: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: "14px",
+  } as React.CSSProperties,
+
+  grid3: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gap: "14px",
+  } as React.CSSProperties,
+
+  grid4: {
+    display: "grid",
+    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+    gap: "14px",
+  } as React.CSSProperties,
+
   modalOverlay: {
     position: "fixed",
     inset: 0,
-    background: "rgba(2,6,23,0.5)",
+    background: "rgba(2, 6, 23, 0.46)",
     backdropFilter: "blur(4px)",
     zIndex: 110,
     display: "grid",
     placeItems: "center",
     padding: "20px",
   } as React.CSSProperties,
-  
-  // Activity card
+
   activityCard: {
-    background: "var(--surface)",
-    border: "1px solid var(--border)",
-    borderRadius: "16px",
+    background: "var(--card)",
+    border: "1px solid #e5eaf1",
+    borderRadius: "18px",
     padding: "18px",
     display: "flex",
     flexDirection: "column",
-    gap: "14px",
-    minHeight: "240px",
-    transition: "all 0.2s ease",
-    cursor: "pointer",
+    gap: "16px",
+    minHeight: "220px",
+    width: "100%",
+    transition: "border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease",
   } as React.CSSProperties,
+
   activityCardHover: {
-    borderColor: "var(--primary, #3b82f6)",
-    boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+    borderColor: "#d5dde8",
+    boxShadow: "0 12px 30px rgba(15, 23, 42, 0.08)",
+    transform: "translateY(-2px)",
   } as React.CSSProperties,
-  
-  // Skill item
+
+  metaRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "8px 14px",
+    color: "var(--muted)",
+    fontSize: "13px",
+    fontWeight: 600,
+  } as React.CSSProperties,
+
+  divider: {
+    height: "1px",
+    background: "var(--border)",
+    width: "100%",
+  } as React.CSSProperties,
+
+  skillChip: {
+    display: "inline-flex",
+    alignItems: "center",
+    padding: "6px 10px",
+    borderRadius: "999px",
+    background: "#f8fafc",
+    border: "1px solid #e6edf5",
+    color: "#475467",
+    fontWeight: 700,
+    fontSize: "12px",
+  } as React.CSSProperties,
+
   skillItem: {
     display: "flex",
     alignItems: "center",
@@ -182,32 +278,47 @@ const styles = {
     borderRadius: "12px",
     border: "1px solid var(--border)",
   } as React.CSSProperties,
-  
-  // Empty state
+
   emptyState: {
     textAlign: "center",
-    padding: "32px 20px",
+    padding: "40px 20px",
     color: "var(--muted)",
   } as React.CSSProperties,
 } as const;
 
-// ─────────────────────────────────────────────────────────────
-// 📋 Constants & Helpers
-// ─────────────────────────────────────────────────────────────
-const activityTypeOptions: ActivityType[] = ["TRAINING", "CERTIFICATION", "PROJECT", "MISSION", "AUDIT"];
+const activityTypeOptions: ActivityType[] = [
+  "TRAINING",
+  "CERTIFICATION",
+  "PROJECT",
+  "MISSION",
+  "AUDIT",
+];
 const levelOptions: DesiredLevel[] = ["LOW", "MEDIUM", "HIGH"];
-const contextOptions: PriorityContext[] = ["UPSKILLING", "EXPERTISE", "DEVELOPMENT"];
-/** Board grouping — lifecycle is system-driven but columns stay for filtering */
-const statusOptions: ActivityStatus[] = ["PLANNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"];
-const skillLevelOptions: ("LOW" | "MEDIUM" | "HIGH" | "EXPERT")[] = ["LOW", "MEDIUM", "HIGH", "EXPERT"];
+const contextOptions: PriorityContext[] = [
+  "UPSKILLING",
+  "EXPERTISE",
+  "DEVELOPMENT",
+];
+const statusOptions: ActivityStatus[] = [
+  "PLANNED",
+  "IN_PROGRESS",
+  "COMPLETED",
+  "CANCELLED",
+];
+const skillLevelOptions: ("LOW" | "MEDIUM" | "HIGH" | "EXPERT")[] = [
+  "LOW",
+  "MEDIUM",
+  "HIGH",
+  "EXPERT",
+];
 
-const formatLabel = (v: string) => v.charAt(0) + v.slice(1).toLowerCase().replace(/_/g, " ");
+const formatLabel = (v: string) =>
+  v.charAt(0) + v.slice(1).toLowerCase().replace(/_/g, " ");
 
 function canDeleteActivity(a: ActivityRecord): boolean {
   return a.status === "PLANNED" && (a.workflowStatus === "DRAFT" || !a.workflowStatus);
 }
 
-// Calculate working days between two dates (excluding weekends)
 const calculateWorkingDays = (startDate: string, endDate: string): number => {
   if (!startDate || !endDate) return 0;
   const start = new Date(startDate);
@@ -218,26 +329,19 @@ const calculateWorkingDays = (startDate: string, endDate: string): number => {
   const current = new Date(start);
   while (current <= end) {
     const dayOfWeek = current.getDay();
-    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-      workingDays++;
-    }
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) workingDays++;
     current.setDate(current.getDate() + 1);
   }
   return workingDays;
 };
 
-const statusPalette: Record<ActivityStatus, { bg: string; color: string }> = {
-  PLANNED: { bg: "#eff6ff", color: "#1d4ed8" },
-  IN_PROGRESS: { bg: "#fef3c7", color: "#a16207" },
-  COMPLETED: { bg: "#ecfdf5", color: "#047857" },
-  CANCELLED: { bg: "#fef2f2", color: "#b91c1c" },
+const statusPalette: Record<ActivityStatus, { bg: string; color: string; border: string }> = {
+  PLANNED: { bg: "#f5f7fa", color: "#475467", border: "#e4e7ec" },
+  IN_PROGRESS: { bg: "#fff7e6", color: "#b54708", border: "#f5d9a6" },
+  COMPLETED: { bg: "#ecfdf3", color: "#067647", border: "#abefc6" },
+  CANCELLED: { bg: "#fef3f2", color: "#b42318", border: "#fecdca" },
 };
 
-const departmentColors = ["#075985", "#5b21b6", "#c2410c", "#166534", "#be123c", "#7c2d12", "#4338ca"];
-
-// ─────────────────────────────────────────────────────────────
-// 🧩 Types
-// ─────────────────────────────────────────────────────────────
 type FormState = {
   title: string;
   type: ActivityType;
@@ -265,22 +369,30 @@ type AssignFormState = {
 };
 
 const INITIAL_FORM: FormState = {
-  title: "", type: "TRAINING", availableSlots: 1, description: "", location: "",
-  startDate: "", endDate: "", duration: "",
-  responsibleManagerId: "", departmentId: "", priorityContext: "UPSKILLING", targetLevel: "MEDIUM",
+  title: "",
+  type: "TRAINING",
+  availableSlots: 1,
+  description: "",
+  location: "",
+  startDate: "",
+  endDate: "",
+  duration: "",
+  responsibleManagerId: "",
+  departmentId: "",
+  priorityContext: "UPSKILLING",
+  targetLevel: "MEDIUM",
 };
 
-// ─────────────────────────────────────────────────────────────
-// 🚀 Main Component
-// ─────────────────────────────────────────────────────────────
 export default function ActivitiesManagement() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [activitySkills, setActivitySkills] = useState<ActivitySkillRecord[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [assignSaving, setAssignSaving] = useState(false);
@@ -295,7 +407,7 @@ export default function ActivitiesManagement() {
     } catch {}
     return "status";
   });
-  
+
   const [createOpen, setCreateOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
   const [viewMoreOpen, setViewMoreOpen] = useState(false);
@@ -304,31 +416,38 @@ export default function ActivitiesManagement() {
   const [selectedActivity, setSelectedActivity] = useState<ActivityRecord | null>(null);
   const [selectedSkills, setSelectedSkills] = useState<SkillSelectionState[]>([]);
   const [assignForm, setAssignForm] = useState<AssignFormState>({
-    responsibleManagerId: "", departmentId: "",
+    responsibleManagerId: "",
+    departmentId: "",
   });
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [calculatedDuration, setCalculatedDuration] = useState<number>(0);
 
   const sectionGroupByParam = searchParams.get("sectionGroupBy");
   const sectionKeyParam = searchParams.get("sectionKey");
-  const isValidSectionGroupBy = sectionGroupByParam === "status" || sectionGroupByParam === "department";
+  const isValidSectionGroupBy =
+    sectionGroupByParam === "status" || sectionGroupByParam === "department";
   const sectionViewGroupBy = isValidSectionGroupBy ? sectionGroupByParam : null;
   const isSectionView = Boolean(sectionViewGroupBy && sectionKeyParam);
 
-  // Persist preference
   useEffect(() => {
-    try { localStorage.setItem("activityGroupBy", groupBy); } catch {}
+    try {
+      localStorage.setItem("activityGroupBy", groupBy);
+    } catch {}
   }, [groupBy]);
 
-  // Load data
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       setError("");
       try {
-        const [activitiesRes, usersRes, departmentsRes, skillsRes] = await Promise.allSettled([
-          listActivities(), getUsers(), getAllDepartments(), listSkills(),
-        ]);
+        const [activitiesRes, usersRes, departmentsRes, skillsRes] =
+          await Promise.allSettled([
+            listActivities(),
+            getUsers(),
+            getAllDepartments(),
+            listSkills(),
+          ]);
+
         if (activitiesRes.status === "fulfilled") setActivities(activitiesRes.value || []);
         if (usersRes.status === "fulfilled") setUsers(usersRes.value || []);
         if (departmentsRes.status === "fulfilled") setDepartments(departmentsRes.value || []);
@@ -339,28 +458,32 @@ export default function ActivitiesManagement() {
         setLoading(false);
       }
     };
+
     load();
   }, []);
 
-  // Derived data
-  const managers = useMemo(() =>
-    (users || []).filter((u) => String(u.role || "").toUpperCase() === "MANAGER"), [users]);
+  const managers = useMemo(
+    () => (users || []).filter((u) => String(u.role || "").toUpperCase() === "MANAGER"),
+    [users]
+  );
 
-  // Filter managers by selected department for the activity form
   const formFilteredManagers = useMemo(() => {
     if (!form.departmentId) return [];
-    return managers.filter((m) =>
-      String(m.department || "").toLowerCase() === String(form.departmentId || "").toLowerCase() ||
-      String(m.department || "") === String(form.departmentId || "")
+    return managers.filter(
+      (m) =>
+        String(m.department || "").toLowerCase() ===
+          String(form.departmentId || "").toLowerCase() ||
+        String(m.department || "") === String(form.departmentId || "")
     );
   }, [managers, form.departmentId]);
 
-  // Filter managers by selected department for the assignment form
   const assignFilteredManagers = useMemo(() => {
     if (!assignForm.departmentId) return [];
-    return managers.filter((m) =>
-      String(m.department || "").toLowerCase() === String(assignForm.departmentId || "").toLowerCase() ||
-      String(m.department || "") === String(assignForm.departmentId || "")
+    return managers.filter(
+      (m) =>
+        String(m.department || "").toLowerCase() ===
+          String(assignForm.departmentId || "").toLowerCase() ||
+        String(m.department || "") === String(assignForm.departmentId || "")
     );
   }, [managers, assignForm.departmentId]);
 
@@ -379,28 +502,45 @@ export default function ActivitiesManagement() {
   const filtered = useMemo(() => {
     const search = q.trim().toLowerCase();
     if (!search) return activities;
+
     return activities.filter((a) => {
       const blob = [
-        a.title, a.type, a.location, a.duration, a.startDate, a.endDate, a.status,
+        a.title,
+        a.type,
+        a.location,
+        a.duration,
+        a.startDate,
+        a.endDate,
+        a.status,
         managerNameById.get(a.responsibleManagerId || "") || "",
         departmentNameById.get(a.departmentId || "") || "",
-        a.description, a.priorityContext, a.targetLevel,
+        a.description,
+        a.priorityContext,
+        a.targetLevel,
         ...a.requiredSkills.map((s) => `${s.name} ${s.type} ${s.desiredLevel}`),
-      ].join(" ").toLowerCase();
+      ]
+        .join(" ")
+        .toLowerCase();
+
       return blob.includes(search);
     });
   }, [activities, q, managerNameById, departmentNameById]);
 
   const groupedBoard = useMemo(() => {
-    const sections: Array<{ key: string; title: string; items: ActivityRecord[]; color?: string }> = [];
-    
+    const sections: Array<{
+      key: string;
+      title: string;
+      items: ActivityRecord[];
+      tone?: string;
+    }> = [];
+
     if (groupBy === "status") {
       statusOptions.forEach((status) => {
         sections.push({
           key: status,
           title: formatLabel(status),
           items: filtered.filter((a) => (a.status || "PLANNED") === status),
-          color: statusPalette[status].color,
+          tone: statusPalette[status].color,
         });
       });
       return sections;
@@ -418,13 +558,13 @@ export default function ActivitiesManagement() {
       String(a.name || "").localeCompare(String(b.name || ""))
     );
 
-    orderedDepartments.forEach((d, i) => {
+    orderedDepartments.forEach((d) => {
       const key = String(d._id);
-      sections.push({ 
-        key, 
-        title: String(d.name || "Unnamed Department"), 
+      sections.push({
+        key,
+        title: String(d.name || "Unnamed Department"),
         items: byDepartment.get(key) || [],
-        color: departmentColors[i % departmentColors.length],
+        tone: "var(--text)",
       });
     });
 
@@ -433,9 +573,10 @@ export default function ActivitiesManagement() {
         key: "__unassigned__",
         title: "Unassigned Department",
         items: byDepartment.get("__unassigned__") || [],
-        color: "var(--muted)",
+        tone: "var(--text)",
       });
     }
+
     return sections;
   }, [filtered, groupBy, departments]);
 
@@ -446,8 +587,8 @@ export default function ActivitiesManagement() {
       sectionViewGroupBy === "status"
         ? formatLabel(sectionKeyParam || "")
         : sectionKeyParam === "__unassigned__"
-          ? "Unassigned Department"
-          : departmentNameById.get(sectionKeyParam || "") || "Department";
+        ? "Unassigned Department"
+        : departmentNameById.get(sectionKeyParam || "") || "Department";
 
     const sectionItems = filtered.filter((a) => {
       if (sectionViewGroupBy === "status") return (a.status || "PLANNED") === sectionKeyParam;
@@ -455,13 +596,27 @@ export default function ActivitiesManagement() {
       return departmentKey === sectionKeyParam;
     });
 
-    const sectionColor =
+    const sectionTone =
       sectionViewGroupBy === "status"
         ? statusPalette[(sectionKeyParam as ActivityStatus) || "PLANNED"]?.color || "var(--text)"
         : "var(--text)";
 
-    return [{ key: sectionKeyParam || "section", title: sectionTitle, items: sectionItems, color: sectionColor }];
-  }, [isSectionView, sectionViewGroupBy, sectionKeyParam, groupedBoard, filtered, departmentNameById]);
+    return [
+      {
+        key: sectionKeyParam || "section",
+        title: sectionTitle,
+        items: sectionItems,
+        tone: sectionTone,
+      },
+    ];
+  }, [
+    isSectionView,
+    sectionViewGroupBy,
+    sectionKeyParam,
+    groupedBoard,
+    filtered,
+    departmentNameById,
+  ]);
 
   const openSectionView = (sectionKey: string) => {
     const params = new URLSearchParams(searchParams);
@@ -477,17 +632,16 @@ export default function ActivitiesManagement() {
     navigate({ search: params.toString() });
   };
 
-  // ─────────────────────────────────────────────────────────
-  // 🎯 Handlers
-  // ─────────────────────────────────────────────────────────
-  const addSelectedSkill = () => setSelectedSkills((prev) => [
-    ...prev, { skillId: "", requiredLevel: "MEDIUM", weight: 1 },
-  ]);
+  const addSelectedSkill = () =>
+    setSelectedSkills((prev) => [
+      ...prev,
+      { skillId: "", requiredLevel: "MEDIUM", weight: 1 },
+    ]);
 
-  const removeSelectedSkill = (index: number) => 
+  const removeSelectedSkill = (index: number) =>
     setSelectedSkills((prev) => prev.filter((_, i) => i !== index));
 
-  const updateSelectedSkill = (index: number, patch: Partial<SkillSelectionState>) => 
+  const updateSelectedSkill = (index: number, patch: Partial<SkillSelectionState>) =>
     setSelectedSkills((prev) => prev.map((s, i) => (i === index ? { ...s, ...patch } : s)));
 
   const validate = (): string => {
@@ -496,11 +650,13 @@ export default function ActivitiesManagement() {
     if (!form.location.trim()) return "Location is required.";
     if (!form.startDate) return "Start date is required.";
     if (!form.endDate) return "End date is required.";
-    if (form.startDate && form.endDate && new Date(form.endDate) < new Date(form.startDate)) 
+    if (form.startDate && form.endDate && new Date(form.endDate) < new Date(form.startDate)) {
       return "End date must be after start date.";
+    }
     if (!form.duration.trim()) return "Duration is required (e.g., 4 weeks, 6 days).";
-    if (!Number.isFinite(form.availableSlots) || form.availableSlots <= 0) 
+    if (!Number.isFinite(form.availableSlots) || form.availableSlots <= 0) {
       return "Seats must be greater than 0.";
+    }
     if (!form.departmentId) return "Department is required.";
     if (!form.responsibleManagerId) return "Responsible manager is required.";
     return "";
@@ -508,23 +664,35 @@ export default function ActivitiesManagement() {
 
   const onCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(""); setSuccess("");
+    setError("");
+    setSuccess("");
+
     const validationErr = validate();
-    if (validationErr) { setError(validationErr); return; }
+    if (validationErr) {
+      setError(validationErr);
+      return;
+    }
 
     const payload: CreateActivityInput = {
-      title: form.title.trim(), type: form.type, requiredSkills: [],
-      availableSlots: Number(form.availableSlots), description: form.description.trim(),
-      location: form.location.trim(), startDate: form.startDate, endDate: form.endDate,
+      title: form.title.trim(),
+      type: form.type,
+      requiredSkills: [],
+      availableSlots: Number(form.availableSlots),
+      description: form.description.trim(),
+      location: form.location.trim(),
+      startDate: form.startDate,
+      endDate: form.endDate,
       duration: form.duration.trim(),
       responsibleManagerId: form.responsibleManagerId || undefined,
       departmentId: form.departmentId || undefined,
-      priorityContext: form.priorityContext, targetLevel: form.targetLevel,
+      priorityContext: form.priorityContext,
+      targetLevel: form.targetLevel,
     };
 
     setSaving(true);
     try {
       let activity: ActivityRecord;
+
       if (selectedActivity) {
         activity = await updateActivityById(selectedActivity._id, payload);
         setActivities((prev) => prev.map((a) => (a._id === activity._id ? activity : a)));
@@ -536,19 +704,26 @@ export default function ActivitiesManagement() {
         setSuccess("✓ Activity created successfully");
       }
 
-      // Handle skills
       if (selectedActivity) {
         for (const oldSkill of activitySkills) {
           await removeSkillFromActivity(selectedActivity._id, oldSkill.skill_id._id);
         }
       }
+
       for (const skillSel of selectedSkills) {
         if (skillSel.skillId) {
-          await addSkillToActivity(activity._id, skillSel.skillId, skillSel.requiredLevel, skillSel.weight);
+          await addSkillToActivity(
+            activity._id,
+            skillSel.skillId,
+            skillSel.requiredLevel,
+            skillSel.weight
+          );
         }
       }
 
-      setForm(INITIAL_FORM); setSelectedSkills([]); setActivitySkills([]);
+      setForm(INITIAL_FORM);
+      setSelectedSkills([]);
+      setActivitySkills([]);
       setCreateOpen(false);
     } catch (e: any) {
       setError(e?.message || "Failed to save activity.");
@@ -562,7 +737,10 @@ export default function ActivitiesManagement() {
     try {
       const skills = await getActivitySkills(a._id);
       setActivitySkills(skills);
-    } catch (e) { console.error("Failed to load skills:", e); setActivitySkills([]); }
+    } catch (e) {
+      console.error("Failed to load skills:", e);
+      setActivitySkills([]);
+    }
     setViewMoreOpen(true);
   };
 
@@ -570,25 +748,46 @@ export default function ActivitiesManagement() {
     setSelectedActivity(a);
     const workingDays = calculateWorkingDays(a.startDate, a.endDate);
     setCalculatedDuration(workingDays);
+
     setForm({
-      title: a.title, type: a.type, availableSlots: a.availableSlots,
-      description: a.description, location: a.location, startDate: a.startDate,
-      endDate: a.endDate, duration: a.duration,
-      responsibleManagerId: a.responsibleManagerId || "", departmentId: a.departmentId || "",
-      priorityContext: a.priorityContext, targetLevel: a.targetLevel,
+      title: a.title,
+      type: a.type,
+      availableSlots: a.availableSlots,
+      description: a.description,
+      location: a.location,
+      startDate: a.startDate,
+      endDate: a.endDate,
+      duration: a.duration,
+      responsibleManagerId: a.responsibleManagerId || "",
+      departmentId: a.departmentId || "",
+      priorityContext: a.priorityContext,
+      targetLevel: a.targetLevel,
     });
+
     try {
       const actSkills = await getActivitySkills(a._id);
       setActivitySkills(actSkills);
-      setSelectedSkills(actSkills.map((as) => ({
-        skillId: as.skill_id._id, requiredLevel: as.required_level, weight: as.weight,
-      })));
-    } catch (e) { console.error("Failed to load skills:", e); setActivitySkills([]); setSelectedSkills([]); }
+      setSelectedSkills(
+        actSkills.map((as) => ({
+          skillId: as.skill_id._id,
+          requiredLevel: as.required_level,
+          weight: as.weight,
+        }))
+      );
+    } catch (e) {
+      console.error("Failed to load skills:", e);
+      setActivitySkills([]);
+      setSelectedSkills([]);
+    }
+
     setCreateOpen(true);
   };
 
   const onDelete = async (activityId: string) => {
-    setDeleting(true); setError(""); setSuccess("");
+    setDeleting(true);
+    setError("");
+    setSuccess("");
+
     try {
       await deleteActivityById(activityId);
       setActivities((prev) => prev.filter((x) => x._id !== activityId));
@@ -596,37 +795,49 @@ export default function ActivitiesManagement() {
       setSuccess("✓ Activity deleted");
     } catch (e: any) {
       setError(e?.message || "Failed to delete activity.");
-    } finally { setDeleting(false); }
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const saveAssign = async () => {
     if (!selectedActivity) return;
-    setAssignSaving(true); setError(""); setSuccess("");
+
+    setAssignSaving(true);
+    setError("");
+    setSuccess("");
+
     try {
       const updated = await updateActivityById(selectedActivity._id, {
         responsibleManagerId: assignForm.responsibleManagerId || undefined,
         departmentId: assignForm.departmentId || undefined,
       });
+
       setActivities((prev) => prev.map((x) => (x._id === updated._id ? updated : x)));
-      setAssignOpen(false); setSelectedActivity(null);
+      setAssignOpen(false);
+      setSelectedActivity(null);
       setSuccess("✓ Assignment updated");
     } catch (e: any) {
       setError(e?.message || "Failed to update assignment.");
-    } finally { setAssignSaving(false); }
+    } finally {
+      setAssignSaving(false);
+    }
   };
 
-  // ─────────────────────────────────────────────────────────
-  // 🎨 Render Helpers
-  // ─────────────────────────────────────────────────────────
   const renderAlert = () => {
     if (!error && !success) return null;
+
     return (
-      <div style={{
-        ...styles.card, marginTop: "16px",
-        borderLeft: `4px solid ${error ? "#dc2626" : "#16a34a"}`,
-        background: error ? "rgba(239,68,68,0.06)" : "rgba(22,163,74,0.08)",
-      }}>
-        <span style={{ color: error ? "#b91c1c" : "#166534", fontWeight: 700 }}>
+      <div
+        style={{
+          ...styles.card,
+          marginTop: "16px",
+          padding: "16px 18px",
+          borderLeft: `4px solid ${error ? "#d92d20" : "#067647"}`,
+          background: error ? "#fff7f7" : "#f3fff8",
+        }}
+      >
+        <span style={{ color: error ? "#b42318" : "#067647", fontWeight: 700 }}>
           {error || success}
         </span>
       </div>
@@ -635,162 +846,262 @@ export default function ActivitiesManagement() {
 
   const renderActivityCard = (a: ActivityRecord) => {
     const statusColors = statusPalette[a.status] || statusPalette.PLANNED;
+    const managerName = managerNameById.get(a.responsibleManagerId || "") || "Unassigned";
+    const departmentName = departmentNameById.get(a.departmentId || "") || "Unassigned";
+
     return (
       <div
         key={a._id}
         style={styles.activityCard}
         onMouseEnter={(e) => Object.assign(e.currentTarget.style, styles.activityCardHover)}
         onMouseLeave={(e) => {
-          e.currentTarget.style.borderColor = "var(--border)";
+          e.currentTarget.style.borderColor = "#e5eaf1";
           e.currentTarget.style.boxShadow = "none";
           e.currentTarget.style.transform = "none";
         }}
       >
-        {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: "12px" }}>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: "18px", lineHeight: 1.3, color: "var(--text)" }} title={a.title}>
+          <div style={{ minWidth: 0 }}>
+            <div
+              style={{
+                fontWeight: 800,
+                fontSize: "18px",
+                lineHeight: 1.35,
+                color: "var(--text)",
+                marginBottom: "6px",
+              }}
+              title={a.title}
+            >
               {a.title}
             </div>
-            <div style={{ ...styles.muted, fontSize: "13px", marginTop: "4px" }}>
-              {formatLabel(a.type)} • {a.duration}
+
+            <div style={styles.metaRow}>
+              <span>{formatLabel(a.type)}</span>
+              <span>•</span>
+              <span>{a.duration}</span>
             </div>
           </div>
-          <span style={styles.badge(statusColors.bg, statusColors.color)}>
+
+          <span
+            style={{
+              ...styles.badge(statusColors.bg, statusColors.color),
+              border: `1px solid ${statusColors.border}`,
+            }}
+          >
             {formatLabel(a.status)}
           </span>
         </div>
 
-        {/* Meta Grid */}
-        <div style={styles.grid2}>
-          <div>
-            <div style={styles.label}>Priority</div>
-            <div style={{ fontWeight: 600 }}>{formatLabel(a.targetLevel)}</div>
-          </div>
-          <div>
-            <div style={styles.label}>Seats</div>
-            <div style={{ fontWeight: 600 }}>{a.availableSlots}</div>
-          </div>
-          <div>
-            <div style={styles.label}>Context</div>
-            <div style={{ fontWeight: 600 }}>{formatLabel(a.priorityContext)}</div>
-          </div>
-          <div>
-            <div style={styles.label}>Location</div>
-            <div style={{ fontWeight: 600, fontSize: "14px" }}>{a.location}</div>
-          </div>
+        <div style={styles.metaRow}>
+          <span>
+            <strong style={{ color: "var(--text)" }}>{formatLabel(a.targetLevel)}</strong> priority
+          </span>
+          <span>•</span>
+          <span>
+            <strong style={{ color: "var(--text)" }}>{a.availableSlots}</strong> seats
+          </span>
+          <span>•</span>
+          <span>{formatLabel(a.priorityContext)}</span>
         </div>
 
-        {/* Skills Preview */}
+        <div style={styles.metaRow}>
+          <span>{departmentName}</span>
+          <span>•</span>
+          <span>{managerName}</span>
+        </div>
+
+        <div
+          style={{
+            fontSize: "13px",
+            lineHeight: 1.5,
+            color: "var(--muted)",
+            minHeight: "20px",
+            overflow: "hidden",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+          }}
+        >
+          {a.location}
+        </div>
+
         {a.requiredSkills?.length > 0 && (
-          <div>
-            <div style={styles.label}>Skills</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-              {a.requiredSkills.slice(0, 3).map((s, i) => (
-                <span key={i} style={styles.badge("var(--surface-2)", "var(--muted)")}>
-                  {s.name}
-                </span>
-              ))}
-              {a.requiredSkills.length > 3 && (
-                <span style={{ ...styles.muted, fontSize: "12px", alignSelf: "center" }}>
-                  +{a.requiredSkills.length - 3} more
-                </span>
-              )}
-            </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+            {a.requiredSkills.slice(0, 3).map((s, i) => (
+              <span key={i} style={styles.skillChip}>
+                {s.name}
+              </span>
+            ))}
+            {a.requiredSkills.length > 3 && (
+              <span style={{ ...styles.skillChip, background: "transparent" }}>
+                +{a.requiredSkills.length - 3} more
+              </span>
+            )}
           </div>
         )}
 
-        {/* Actions */}
-        <div style={{ marginTop: "auto", display: "flex", gap: "8px", paddingTop: "12px", borderTop: "1px solid var(--border)" }}>
-          <button
-            type="button"
-            style={{ ...styles.btn, fontSize: "13px", padding: "8px 12px", background: "#e0f2fe", border: "1px solid #7dd3fc", color: "#075985" }}
-            onClick={(e) => { e.stopPropagation(); openViewMore(a); }}
-          >
-            <FiEye size={14} /> View
-          </button>
-          <button
-            type="button"
-            style={{ ...styles.btn, fontSize: "13px", padding: "8px 12px", background: "#ede9fe", border: "1px solid #c4b5fd", color: "#5b21b6" }}
-            onClick={(e) => { e.stopPropagation(); openEdit(a); }}
-          >
-            <FiEdit2 size={14} /> Edit
-          </button>
-          <button
-            type="button"
-            style={{ ...styles.btn, fontSize: "13px", padding: "8px 12px", background: "#dcfce7", border: "1px solid #86efac", color: "#166534" }}
-            onClick={(e) => { e.stopPropagation(); navigate(`/hr/activities/${a._id}/staffing`); }}
-          >
-            <FiUsers size={14} /> Staff
-          </button>
-          {canDeleteActivity(a) ? (
+        <div style={styles.divider} />
+
+        <div
+          style={{
+            marginTop: "auto",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "12px",
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
             <button
               type="button"
-              style={{ ...styles.btn, ...styles.btnDanger, fontSize: "13px", padding: "8px 12px" }}
-              onClick={(e) => { e.stopPropagation(); setDeleteConfirm(a._id); }}
+              style={{ ...styles.btn, ...styles.btnSecondary }}
+              onClick={(e) => {
+                e.stopPropagation();
+                openViewMore(a);
+              }}
             >
-              <FiTrash2 size={14} /> Delete
+              <FiEye size={15} />
+              View
             </button>
-          ) : null}
+
+            <button
+              type="button"
+              style={{ ...styles.btn, ...styles.btnPrimary, height: "40px" }}
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/hr/activities/${a._id}/staffing`);
+              }}
+            >
+              <FiUsers size={15} />
+              Staff
+            </button>
+          </div>
+
+          <div style={{ display: "flex", gap: "14px", alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              style={styles.btnLink}
+              onClick={(e) => {
+                e.stopPropagation();
+                openEdit(a);
+              }}
+            >
+              <FiEdit2 size={14} />
+              Edit
+            </button>
+
+            {canDeleteActivity(a) ? (
+              <button
+                type="button"
+                style={{ ...styles.btnLink, color: "#b42318" }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteConfirm(a._id);
+                }}
+              >
+                <FiTrash2 size={14} />
+                Delete
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
     );
   };
 
-  // ─────────────────────────────────────────────────────────
-  // 🖼️ Main Render
-  // ─────────────────────────────────────────────────────────
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-        {/* Header */}
-        <div className="page-header" style={{ alignItems: "start", gap: "16px", flexWrap: "wrap" }}>
+        <div
+          className="page-header"
+          style={{
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "16px",
+            flexWrap: "wrap",
+            marginBottom: "8px",
+          }}
+        >
           <div>
-            <h1 className="page-title" style={{ margin: 0 }}>Activity Management</h1>
+            <h1 className="page-title" style={{ margin: 0 }}>
+              Activity Management
+            </h1>
+            <p style={{ ...styles.muted, margin: "8px 0 0", fontSize: "14px" }}>
+              Organize activities, manage staffing, and track progress in one clean view.
+            </p>
           </div>
+
           <button
             type="button"
-            style={{ ...styles.btn, ...styles.btnPrimary, fontSize: "16px", padding: "12px 20px" }}
-            onMouseEnter={(e) => Object.assign(e.currentTarget.style, styles.btnPrimaryHover)}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "#1f7a5a";
-              e.currentTarget.style.transform = "none";
-              e.currentTarget.style.boxShadow = "0 4px 12px rgba(31, 122, 90, 0.3)";
-            }}
+            style={{ ...styles.btn, ...styles.btnPrimary, height: "46px", padding: "0 18px" }}
             onClick={() => {
-              setError(""); setSuccess(""); setForm(INITIAL_FORM); setSelectedSkills([]);
-              setSelectedActivity(null); setCalculatedDuration(0); setCreateOpen(true);
+              setError("");
+              setSuccess("");
+              setForm(INITIAL_FORM);
+              setSelectedSkills([]);
+              setSelectedActivity(null);
+              setCalculatedDuration(0);
+              setCreateOpen(true);
             }}
           >
-            <FiPlus size={18} /> Create New Activity
+            <FiPlus size={17} />
+            Create Activity
           </button>
         </div>
 
-        {/* Alert */}
         {renderAlert()}
 
-        {/* Main Board */}
-        <div style={{ ...styles.card, marginTop: "20px", padding: 0, overflow: "hidden" }}>
-          {/* Toolbar */}
-          <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border)", background: "var(--surface)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+        <div style={{ ...styles.boardCard, marginTop: "22px" }}>
+          <div
+            style={{
+              padding: "22px 24px",
+              borderBottom: "1px solid var(--border)",
+              background: "var(--card)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: "16px",
+                flexWrap: "wrap",
+              }}
+            >
               <div style={styles.subheading}>Activities</div>
-              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-                {/* Group By */}
+
+              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
                 <div style={{ position: "relative" }}>
-                  <FiFilter style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "var(--muted)" }} />
+                  <FiFilter
+                    style={{
+                      position: "absolute",
+                      left: "14px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      color: "var(--muted)",
+                    }}
+                  />
                   <select
-                    style={{ ...styles.input, paddingLeft: "38px", width: "230px", cursor: "pointer" }}
+                    style={{ ...styles.input, paddingLeft: "38px", width: "220px", cursor: "pointer" }}
                     value={groupBy}
                     onChange={(e) => setGroupBy(e.target.value as "status" | "department")}
                   >
-                    <option value="status">Group by Status</option>
-                    <option value="department">Group by Department</option>
+                    <option value="status">Group by status</option>
+                    <option value="department">Group by department</option>
                   </select>
                 </div>
-                {/* Search */}
-                <div style={{ position: "relative", width: "320px" }}>
-                  <FiSearch style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "var(--muted)" }} />
+
+                <div style={{ position: "relative", width: "320px", maxWidth: "100%" }}>
+                  <FiSearch
+                    style={{
+                      position: "absolute",
+                      left: "14px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      color: "var(--muted)",
+                    }}
+                  />
                   <input
                     style={{ ...styles.input, paddingLeft: "38px" }}
                     placeholder="Search activities..."
@@ -802,61 +1113,81 @@ export default function ActivitiesManagement() {
             </div>
           </div>
 
-          {/* Content */}
           <div style={{ padding: "24px" }}>
             {loading ? (
               <div style={{ ...styles.emptyState, fontSize: "16px" }}>Loading activities...</div>
             ) : filtered.length === 0 ? (
               <div style={styles.emptyState}>
-                <div style={{ fontSize: "48px", marginBottom: "12px" }}>📭</div>
-                <div style={{ fontWeight: 700, fontSize: "18px", marginBottom: "4px" }}>No activities found</div>
-                <div style={{ fontSize: "14px" }}>Try adjusting your search or create a new activity</div>
+                <div style={{ fontSize: "42px", marginBottom: "12px" }}>📭</div>
+                <div style={{ fontWeight: 800, fontSize: "18px", marginBottom: "6px" }}>
+                  No activities found
+                </div>
+                <div style={{ fontSize: "14px" }}>
+                  Try changing your filters or create a new activity.
+                </div>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
                 {activeBoard.map((section) => {
                   const items = section.items || [];
                   const visibleItems = isSectionView ? items : items.slice(-3);
                   const hasOverflow = !isSectionView && items.length > 3;
+
                   return (
                     <div key={section.key}>
                       <div style={styles.sectionHeader}>
-                        <div style={{ fontWeight: 800, fontSize: "20px", color: section.color || "var(--text)" }}>
+                        <div
+                          style={{
+                            fontWeight: 800,
+                            fontSize: "19px",
+                            color: "var(--text)",
+                          }}
+                        >
                           {section.title}
                         </div>
-                        <span style={styles.badge("var(--surface-2)", "var(--muted)")}>{items.length}</span>
+
+                        <span
+                          style={{
+                            ...styles.badge("#f8fafc", "#667085"),
+                            border: "1px solid #e6edf5",
+                          }}
+                        >
+                          {items.length} activities
+                        </span>
+
                         {hasOverflow && (
                           <button
                             type="button"
-                            style={{
-                              ...styles.btn,
-                              marginLeft: "auto",
-                              padding: "8px 12px",
-                              borderRadius: "12px",
-                              background: "#e0f2fe",
-                              border: "1px solid #7dd3fc",
-                              color: "#075985",
-                              fontSize: "13px",
-                              fontWeight: 800,
-                            }}
+                            style={{ ...styles.btn, marginLeft: "auto", height: "38px" }}
                             title={`Show all ${section.title} activities`}
                             onClick={() => openSectionView(section.key)}
                           >
-                            <FiExternalLink size={16} /> View all
+                            <FiExternalLink size={15} />
+                            View all
                           </button>
                         )}
+
                         {isSectionView && (
                           <button
                             type="button"
-                            style={{ ...styles.btn, marginLeft: "auto", padding: "6px 12px", fontSize: "12px" }}
+                            style={{ ...styles.btn, marginLeft: "auto", height: "38px" }}
                             onClick={clearSectionView}
                           >
                             Back to all sections
                           </button>
                         )}
                       </div>
+
                       {items.length === 0 ? (
-                        <div style={{ ...styles.emptyState, padding: "20px", background: "var(--surface)", borderRadius: "14px" }}>
+                        <div
+                          style={{
+                            ...styles.emptyState,
+                            padding: "22px",
+                            background: "var(--surface)",
+                            borderRadius: "16px",
+                            border: "1px solid var(--border)",
+                          }}
+                        >
                           No activities in this section
                         </div>
                       ) : (
@@ -866,11 +1197,15 @@ export default function ActivitiesManagement() {
                               ? {
                                   display: "grid",
                                   gap: "16px",
-                                  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                                  gridTemplateColumns: "repeat(auto-fit, minmax(310px, 1fr))",
                                   width: "100%",
-                                  maxWidth: "1120px",
                                 }
-                              : { display: "flex", gap: "16px", overflowX: "auto", paddingBottom: "8px", scrollBehavior: "smooth" }
+                              : {
+                                  display: "grid",
+                                  gap: "16px",
+                                  gridTemplateColumns: "repeat(auto-fit, minmax(310px, 1fr))",
+                                  width: "100%",
+                                }
                           }
                         >
                           {visibleItems.map((a) => renderActivityCard(a))}
@@ -884,9 +1219,6 @@ export default function ActivitiesManagement() {
           </div>
         </div>
 
-        {/* ─────────────────────────────────────────────
-            📝 Create/Edit Modal
-            ───────────────────────────────────────────── */}
         {createOpen && (
           <div
             onClick={() => !saving && (setCreateOpen(false), setSelectedActivity(null))}
@@ -896,33 +1228,56 @@ export default function ActivitiesManagement() {
               onSubmit={onCreate}
               onClick={(e) => e.stopPropagation()}
               style={{
-                ...styles.card, width: "min(1100px, 98vw)", maxHeight: "92vh",
-                overflowY: "auto", fontSize: "15px", padding: "28px",
-                boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
+                ...styles.card,
+                width: "min(1100px, 98vw)",
+                maxHeight: "92vh",
+                overflowY: "auto",
+                padding: "28px",
+                boxShadow: "0 20px 60px rgba(0,0,0,0.20)",
               }}
             >
-              {/* Modal Header */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", paddingBottom: "16px", borderBottom: "1px solid var(--border)" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "12px",
+                  marginBottom: "24px",
+                  paddingBottom: "16px",
+                  borderBottom: "1px solid var(--border)",
+                }}
+              >
                 <div>
                   <div style={{ fontWeight: 800, fontSize: "24px", color: "var(--text)" }}>
-                    {selectedActivity ? "✏️ Edit Activity" : "✨ Create Activity"}
+                    {selectedActivity ? "Edit Activity" : "Create Activity"}
                   </div>
                   <div style={{ ...styles.muted, fontSize: "14px", marginTop: "4px" }}>
-                    Fill in the details below to {selectedActivity ? "update" : "create"} this activity
+                    Fill in the details below to {selectedActivity ? "update" : "create"} this
+                    activity.
                   </div>
                 </div>
-                <button 
-                  type="button" 
-                  style={{ ...styles.btn, padding: "8px 14px" }} 
+
+                <button
+                  type="button"
+                  style={{ ...styles.btn, width: "42px", padding: 0 }}
                   onClick={() => !saving && (setCreateOpen(false), setSelectedActivity(null))}
                 >
-                  <FiX size={16} /> Close
+                  <FiX size={16} />
                 </button>
               </div>
 
-              {/* Basic Info */}
               <div style={{ marginBottom: "24px" }}>
-                <div style={{ fontWeight: 800, fontSize: "16px", marginBottom: "16px", color: "var(--text)" }}>📋 Basic Information</div>
+                <div
+                  style={{
+                    fontWeight: 800,
+                    fontSize: "16px",
+                    marginBottom: "16px",
+                    color: "var(--text)",
+                  }}
+                >
+                  Basic Information
+                </div>
+
                 <div style={styles.grid2}>
                   <div>
                     <label style={styles.label}>Activity Title *</label>
@@ -933,46 +1288,97 @@ export default function ActivitiesManagement() {
                       onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
                     />
                   </div>
+
                   <div>
                     <label style={styles.label}>Type</label>
                     <select
                       style={styles.input}
                       value={form.type}
-                      onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value as ActivityType }))}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          type: e.target.value as ActivityType,
+                        }))
+                      }
                     >
-                      {activityTypeOptions.map((x) => <option key={x} value={x}>{formatLabel(x)}</option>)}
+                      {activityTypeOptions.map((x) => (
+                        <option key={x} value={x}>
+                          {formatLabel(x)}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
+
                 <div style={{ marginTop: "14px" }}>
                   <label style={styles.label}>Description *</label>
                   <textarea
-                    style={{ ...styles.input, minHeight: "100px", resize: "vertical" }}
+                    style={styles.textarea}
                     placeholder="Detailed description of the activity..."
                     value={form.description}
-                    onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, description: e.target.value }))
+                    }
                   />
                 </div>
               </div>
 
-              {/* Skills Section */}
-              <div style={{ marginBottom: "24px", padding: "16px", background: "var(--surface)", borderRadius: "16px", border: "1px solid var(--border)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-                  <div style={{ fontWeight: 800, fontSize: "16px", color: "var(--text)" }}>🎯 Required Skills</div>
+              <div
+                style={{
+                  marginBottom: "24px",
+                  padding: "16px",
+                  background: "var(--surface)",
+                  borderRadius: "16px",
+                  border: "1px solid var(--border)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: "12px",
+                    marginBottom: "14px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div style={{ fontWeight: 800, fontSize: "16px", color: "var(--text)" }}>
+                    Required Skills
+                  </div>
+
                   {skills.length > 0 && (
-                    <button type="button" style={{ ...styles.btn, ...styles.btnGhost, fontSize: "13px" }} onClick={addSelectedSkill}>
-                      <FiPlus size={14} /> Add Skill
+                    <button
+                      type="button"
+                      style={{ ...styles.btn, ...styles.btnGhost }}
+                      onClick={addSelectedSkill}
+                    >
+                      <FiPlus size={14} />
+                      Add Skill
                     </button>
                   )}
                 </div>
-                
+
                 {skills.length === 0 ? (
-                  <div style={{ ...styles.muted, fontSize: "14px", textAlign: "center", padding: "12px" }}>
+                  <div
+                    style={{
+                      ...styles.muted,
+                      fontSize: "14px",
+                      textAlign: "center",
+                      padding: "12px",
+                    }}
+                  >
                     No skills available in the system yet.
                   </div>
                 ) : selectedSkills.length === 0 ? (
-                  <div style={{ ...styles.muted, fontSize: "14px", textAlign: "center", padding: "12px" }}>
-                    Click "Add Skill" to define required competencies
+                  <div
+                    style={{
+                      ...styles.muted,
+                      fontSize: "14px",
+                      textAlign: "center",
+                      padding: "12px",
+                    }}
+                  >
+                    Click "Add Skill" to define required competencies.
                   </div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -983,19 +1389,35 @@ export default function ActivitiesManagement() {
                           value={skillSel.skillId}
                           onChange={(e) => updateSelectedSkill(index, { skillId: e.target.value })}
                         >
-                          <option value="">-- Select skill --</option>
-                          {skills.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}
+                          <option value="">Select skill...</option>
+                          {skills.map((s) => (
+                            <option key={s._id} value={s._id}>
+                              {s.name}
+                            </option>
+                          ))}
                         </select>
+
                         <select
                           style={{ ...styles.input, flex: 1 }}
                           value={skillSel.requiredLevel}
-                          onChange={(e) => updateSelectedSkill(index, { requiredLevel: e.target.value as any })}
+                          onChange={(e) =>
+                            updateSelectedSkill(index, {
+                              requiredLevel: e.target.value as any,
+                            })
+                          }
                         >
-                          {skillLevelOptions.map((x) => <option key={x} value={x}>{formatLabel(x)}</option>)}
+                          {skillLevelOptions.map((x) => (
+                            <option key={x} value={x}>
+                              {formatLabel(x)}
+                            </option>
+                          ))}
                         </select>
+
                         <input
                           style={{ ...styles.input, flex: 1, textAlign: "center" }}
-                          type="number" min="0" max="100"
+                          type="number"
+                          min="0"
+                          max="100"
                           placeholder="Weight %"
                           value={Math.round(skillSel.weight * 100)}
                           onChange={(e) => {
@@ -1003,9 +1425,10 @@ export default function ActivitiesManagement() {
                             updateSelectedSkill(index, { weight: pct / 100 });
                           }}
                         />
-                        <button 
-                          type="button" 
-                          style={{ ...styles.btn, ...styles.btnDanger, padding: "10px 12px" }}
+
+                        <button
+                          type="button"
+                          style={{ ...styles.btn, ...styles.btnDangerSoft, width: "42px", padding: 0 }}
                           onClick={() => removeSelectedSkill(index)}
                         >
                           <FiX size={14} />
@@ -1016,30 +1439,50 @@ export default function ActivitiesManagement() {
                 )}
               </div>
 
-              {/* Logistics Grid */}
               <div style={{ marginBottom: "24px" }}>
-                <div style={{ fontWeight: 800, fontSize: "16px", marginBottom: "16px", color: "var(--text)" }}>📅 Logistics</div>
+                <div
+                  style={{
+                    fontWeight: 800,
+                    fontSize: "16px",
+                    marginBottom: "16px",
+                    color: "var(--text)",
+                  }}
+                >
+                  Logistics
+                </div>
+
                 <div style={styles.grid4}>
                   <div>
                     <label style={styles.label}>Seats</label>
                     <input
-                      style={styles.input} type="number" min="1"
+                      style={styles.input}
+                      type="number"
+                      min="1"
                       value={form.availableSlots}
-                      onChange={(e) => setForm((prev) => ({ ...prev, availableSlots: Number(e.target.value || 0) }))}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          availableSlots: Number(e.target.value || 0),
+                        }))
+                      }
                     />
                   </div>
+
                   <div>
                     <label style={styles.label}>Location</label>
                     <input
-                      style={styles.input} placeholder="e.g., Remote, Paris HQ"
+                      style={styles.input}
+                      placeholder="e.g., Remote, Paris HQ"
                       value={form.location}
                       onChange={(e) => setForm((prev) => ({ ...prev, location: e.target.value }))}
                     />
                   </div>
+
                   <div>
                     <label style={styles.label}>Start Date *</label>
                     <input
-                      style={styles.input} type="date"
+                      style={styles.input}
+                      type="date"
                       value={form.startDate}
                       onChange={(e) => {
                         const newStartDate = e.target.value;
@@ -1053,10 +1496,12 @@ export default function ActivitiesManagement() {
                       }}
                     />
                   </div>
+
                   <div>
                     <label style={styles.label}>End Date *</label>
                     <input
-                      style={styles.input} type="date"
+                      style={styles.input}
+                      type="date"
                       value={form.endDate}
                       onChange={(e) => {
                         const newEndDate = e.target.value;
@@ -1071,206 +1516,404 @@ export default function ActivitiesManagement() {
                     />
                   </div>
                 </div>
+
                 <div style={{ ...styles.grid3, marginTop: "14px" }}>
                   <div>
                     <label style={styles.label}>
                       Duration
                       {calculatedDuration > 0 && (
-                        <span style={{ fontSize: "11px", fontWeight: 500, color: "var(--muted)", marginLeft: "6px" }}>
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            color: "var(--muted)",
+                            marginLeft: "6px",
+                          }}
+                        >
                           (max: {calculatedDuration} days)
                         </span>
                       )}
                     </label>
                     <input
-                      style={styles.input} placeholder="e.g., 4 weeks"
+                      style={styles.input}
+                      placeholder="e.g., 4 weeks"
                       value={form.duration}
                       onChange={(e) => setForm((prev) => ({ ...prev, duration: e.target.value }))}
                     />
                   </div>
+
                   <div>
                     <label style={styles.label}>Department *</label>
                     <select
                       style={styles.input}
                       value={form.departmentId}
-                      onChange={(e) => setForm((prev) => ({ ...prev, departmentId: e.target.value, responsibleManagerId: "" }))}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          departmentId: e.target.value,
+                          responsibleManagerId: "",
+                        }))
+                      }
                     >
                       <option value="">Select department...</option>
-                      {departments.map((d) => <option key={d._id} value={d._id}>{d.name}</option>)}
+                      {departments.map((d) => (
+                        <option key={d._id} value={d._id}>
+                          {d.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
+
                   <div>
                     <label style={styles.label}>Responsible Manager *</label>
                     <select
                       style={styles.input}
                       value={form.responsibleManagerId}
-                      onChange={(e) => setForm((prev) => ({ ...prev, responsibleManagerId: e.target.value }))}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          responsibleManagerId: e.target.value,
+                        }))
+                      }
                       disabled={!form.departmentId}
                     >
                       <option value="">
                         {form.departmentId ? "Select manager..." : "Select department first"}
                       </option>
-                      {formFilteredManagers.map((m) => <option key={m._id} value={m._id}>{m.name}</option>)}
+                      {formFilteredManagers.map((m) => (
+                        <option key={m._id} value={m._id}>
+                          {m.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
               </div>
 
-              {/* Prioritization */}
               <div style={{ marginBottom: "24px" }}>
-                <div style={{ fontWeight: 800, fontSize: "16px", marginBottom: "16px", color: "var(--text)" }}>🎯 Prioritization</div>
+                <div
+                  style={{
+                    fontWeight: 800,
+                    fontSize: "16px",
+                    marginBottom: "16px",
+                    color: "var(--text)",
+                  }}
+                >
+                  Prioritization
+                </div>
+
                 <div style={styles.grid2}>
                   <div>
                     <label style={styles.label}>Context</label>
                     <select
                       style={styles.input}
                       value={form.priorityContext}
-                      onChange={(e) => setForm((prev) => ({ ...prev, priorityContext: e.target.value as PriorityContext }))}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          priorityContext: e.target.value as PriorityContext,
+                        }))
+                      }
                     >
-                      {contextOptions.map((x) => <option key={x} value={x}>{formatLabel(x)}</option>)}
+                      {contextOptions.map((x) => (
+                        <option key={x} value={x}>
+                          {formatLabel(x)}
+                        </option>
+                      ))}
                     </select>
                   </div>
+
                   <div>
                     <label style={styles.label}>Target Level</label>
                     <select
                       style={styles.input}
                       value={form.targetLevel}
-                      onChange={(e) => setForm((prev) => ({ ...prev, targetLevel: e.target.value as DesiredLevel }))}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          targetLevel: e.target.value as DesiredLevel,
+                        }))
+                      }
                     >
-                      {levelOptions.map((x) => <option key={x} value={x}>{formatLabel(x)}</option>)}
+                      {levelOptions.map((x) => (
+                        <option key={x} value={x}>
+                          {formatLabel(x)}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
               </div>
 
-              {/* Footer */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "20px", borderTop: "1px solid var(--border)" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "16px",
+                  flexWrap: "wrap",
+                  paddingTop: "20px",
+                  borderTop: "1px solid var(--border)",
+                }}
+              >
                 <div style={{ ...styles.muted, fontSize: "14px" }}>
-                  💡 Prioritization uses context + target level for smart recommendations
+                  Prioritization uses context and target level for smarter recommendations.
                 </div>
-                <button 
-                  type="submit" 
-                  style={{ ...styles.btn, ...styles.btnPrimary, fontSize: "15px", padding: "12px 28px" }}
+
+                <button
+                  type="submit"
+                  style={{ ...styles.btn, ...styles.btnPrimary, minWidth: "170px" }}
                   disabled={saving}
                 >
-                  {saving ? (selectedActivity ? "Updating..." : "Creating...") : (selectedActivity ? "✓ Update Activity" : "✨ Create Activity")}
+                  {saving
+                    ? selectedActivity
+                      ? "Updating..."
+                      : "Creating..."
+                    : selectedActivity
+                    ? "Update Activity"
+                    : "Create Activity"}
                 </button>
               </div>
             </form>
           </div>
         )}
 
-        {/* ─────────────────────────────────────────────
-            👥 Assign Modal
-            ───────────────────────────────────────────── */}
         {assignOpen && selectedActivity && (
           <div onClick={() => !assignSaving && setAssignOpen(false)} style={styles.modalOverlay}>
-            <div onClick={(e) => e.stopPropagation()} style={{ width: "min(520px, 96vw)", ...styles.card, padding: "24px" }}>
-              <div style={{ fontWeight: 800, fontSize: "20px", color: "var(--text)", marginBottom: "4px" }}>👥 Assign Activity</div>
-              <div style={{ ...styles.muted, fontSize: "14px", marginBottom: "20px" }}>{selectedActivity.title}</div>
-              
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{ width: "min(520px, 96vw)", ...styles.card, padding: "24px" }}
+            >
+              <div style={{ fontWeight: 800, fontSize: "20px", color: "var(--text)", marginBottom: "4px" }}>
+                Assign Activity
+              </div>
+              <div style={{ ...styles.muted, fontSize: "14px", marginBottom: "20px" }}>
+                {selectedActivity.title}
+              </div>
+
               <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                 <div>
                   <label style={styles.label}>Department *</label>
                   <select
                     style={styles.input}
                     value={assignForm.departmentId}
-                    onChange={(e) => setAssignForm((prev) => ({ ...prev, departmentId: e.target.value, responsibleManagerId: "" }))}
+                    onChange={(e) =>
+                      setAssignForm((prev) => ({
+                        ...prev,
+                        departmentId: e.target.value,
+                        responsibleManagerId: "",
+                      }))
+                    }
                   >
                     <option value="">Select department...</option>
-                    {departments.map((d) => <option key={d._id} value={d._id}>{d.name}</option>)}
+                    {departments.map((d) => (
+                      <option key={d._id} value={d._id}>
+                        {d.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
+
                 <div>
                   <label style={styles.label}>Responsible Manager *</label>
                   <select
                     style={styles.input}
                     value={assignForm.responsibleManagerId}
-                    onChange={(e) => setAssignForm((prev) => ({ ...prev, responsibleManagerId: e.target.value }))}
+                    onChange={(e) =>
+                      setAssignForm((prev) => ({
+                        ...prev,
+                        responsibleManagerId: e.target.value,
+                      }))
+                    }
                     disabled={!assignForm.departmentId}
                   >
                     <option value="">
                       {assignForm.departmentId ? "Select manager..." : "Select department first"}
                     </option>
-                    {assignFilteredManagers.map((m) => <option key={m._id} value={m._id}>{m.name}</option>)}
+                    {assignFilteredManagers.map((m) => (
+                      <option key={m._id} value={m._id}>
+                        {m.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
 
               <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", gap: "12px" }}>
-                <button type="button" style={styles.btn} onClick={() => !assignSaving && setAssignOpen(false)}>Cancel</button>
-                <button type="button" style={{ ...styles.btn, ...styles.btnPrimary }} disabled={assignSaving} onClick={saveAssign}>
-                  {assignSaving ? "Saving..." : "✓ Save Assignment"}
+                <button
+                  type="button"
+                  style={styles.btn}
+                  onClick={() => !assignSaving && setAssignOpen(false)}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  style={{ ...styles.btn, ...styles.btnPrimary }}
+                  disabled={assignSaving}
+                  onClick={saveAssign}
+                >
+                  {assignSaving ? "Saving..." : "Save Assignment"}
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* ─────────────────────────────────────────────
-            👁️ View More Modal
-            ───────────────────────────────────────────── */}
         {viewMoreOpen && selectedActivity && (
           <div onClick={() => setViewMoreOpen(false)} style={styles.modalOverlay}>
-            <div onClick={(e) => e.stopPropagation()} style={{ width: "min(680px, 96vw)", maxHeight: "88vh", overflowY: "auto", ...styles.card, padding: "24px" }}>
-              {/* Header */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: "12px", marginBottom: "20px", paddingBottom: "16px", borderBottom: "1px solid var(--border)" }}>
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: "min(720px, 96vw)",
+                maxHeight: "88vh",
+                overflowY: "auto",
+                ...styles.card,
+                padding: "24px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "start",
+                  gap: "12px",
+                  marginBottom: "20px",
+                  paddingBottom: "16px",
+                  borderBottom: "1px solid var(--border)",
+                }}
+              >
                 <div>
-                  <div style={{ fontWeight: 800, fontSize: "22px", color: "var(--text)" }}>{selectedActivity.title}</div>
-                  <div style={{ ...styles.muted, fontSize: "14px", marginTop: "4px" }}>
-                    {formatLabel(selectedActivity.type)} • <span style={styles.badge(statusPalette[selectedActivity.status].bg, statusPalette[selectedActivity.status].color)}>{formatLabel(selectedActivity.status)}</span>
+                  <div style={{ fontWeight: 800, fontSize: "22px", color: "var(--text)" }}>
+                    {selectedActivity.title}
+                  </div>
+
+                  <div
+                    style={{
+                      ...styles.muted,
+                      fontSize: "14px",
+                      marginTop: "8px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <span>{formatLabel(selectedActivity.type)}</span>
+                    <span>•</span>
+                    <span
+                      style={{
+                        ...styles.badge(
+                          statusPalette[selectedActivity.status].bg,
+                          statusPalette[selectedActivity.status].color
+                        ),
+                        border: `1px solid ${statusPalette[selectedActivity.status].border}`,
+                      }}
+                    >
+                      {formatLabel(selectedActivity.status)}
+                    </span>
                   </div>
                 </div>
-                <button type="button" style={styles.btn} onClick={() => setViewMoreOpen(false)}><FiX size={16} /> Close</button>
+
+                <button type="button" style={styles.btn} onClick={() => setViewMoreOpen(false)}>
+                  <FiX size={16} />
+                  Close
+                </button>
               </div>
 
-              {/* Details Grid */}
               <div style={{ display: "grid", gap: "18px" }}>
                 <div>
                   <div style={styles.label}>Description</div>
-                  <div style={{ color: "var(--text)", lineHeight: 1.6 }}>{selectedActivity.description || "—"}</div>
+                  <div style={{ color: "var(--text)", lineHeight: 1.7 }}>
+                    {selectedActivity.description || "—"}
+                  </div>
                 </div>
 
                 <div style={styles.grid2}>
-                  <div><div style={styles.label}>Location</div><div>{selectedActivity.location || "—"}</div></div>
-                  <div><div style={styles.label}>Duration</div><div>{selectedActivity.duration || "—"}</div></div>
-                  <div><div style={styles.label}>Start Date</div><div>{selectedActivity.startDate || "—"}</div></div>
-                  <div><div style={styles.label}>End Date</div><div>{selectedActivity.endDate || "—"}</div></div>
-                  <div><div style={styles.label}>Available Seats</div><div>{selectedActivity.availableSlots}</div></div>
-                  <div><div style={styles.label}>Target Level</div><div>{formatLabel(selectedActivity.targetLevel)}</div></div>
+                  <div>
+                    <div style={styles.label}>Location</div>
+                    <div>{selectedActivity.location || "—"}</div>
+                  </div>
+                  <div>
+                    <div style={styles.label}>Duration</div>
+                    <div>{selectedActivity.duration || "—"}</div>
+                  </div>
+                  <div>
+                    <div style={styles.label}>Start Date</div>
+                    <div>{selectedActivity.startDate || "—"}</div>
+                  </div>
+                  <div>
+                    <div style={styles.label}>End Date</div>
+                    <div>{selectedActivity.endDate || "—"}</div>
+                  </div>
+                  <div>
+                    <div style={styles.label}>Available Seats</div>
+                    <div>{selectedActivity.availableSlots}</div>
+                  </div>
+                  <div>
+                    <div style={styles.label}>Target Level</div>
+                    <div>{formatLabel(selectedActivity.targetLevel)}</div>
+                  </div>
                 </div>
 
                 <div style={styles.grid2}>
                   <div>
                     <div style={styles.label}>Context</div>
-                    <span style={styles.badge("#e0f2fe", "#0369a1")}>{formatLabel(selectedActivity.priorityContext)}</span>
+                    <span
+                      style={{
+                        ...styles.badge("#f8fafc", "#475467"),
+                        border: "1px solid #e6edf5",
+                      }}
+                    >
+                      {formatLabel(selectedActivity.priorityContext)}
+                    </span>
                   </div>
+
                   <div>
                     <div style={styles.label}>Manager</div>
-                    <div>{managerNameById.get(selectedActivity.responsibleManagerId || "") || "Unassigned"}</div>
+                    <div>
+                      {managerNameById.get(selectedActivity.responsibleManagerId || "") ||
+                        "Unassigned"}
+                    </div>
                   </div>
                 </div>
 
                 <div>
                   <div style={styles.label}>Department</div>
-                  <div>{departmentNameById.get(selectedActivity.departmentId || "") || "Unassigned"}</div>
+                  <div>
+                    {departmentNameById.get(selectedActivity.departmentId || "") || "Unassigned"}
+                  </div>
                 </div>
 
                 {activitySkills.length > 0 && (
                   <div>
                     <div style={styles.label}>Required Skills</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "8px" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "10px",
+                        marginTop: "8px",
+                      }}
+                    >
                       {activitySkills.map((as, idx) => (
-                        <div key={idx} style={{ 
-                          padding: "12px 16px", background: "var(--surface)", 
-                          borderRadius: "12px", borderLeft: "3px solid #3b82f6" 
-                        }}>
+                        <div
+                          key={idx}
+                          style={{
+                            padding: "14px 16px",
+                            background: "var(--surface)",
+                            borderRadius: "14px",
+                            border: "1px solid var(--border)",
+                          }}
+                        >
                           <div style={{ fontWeight: 700 }}>{as.skill_id.name}</div>
                           <div style={{ ...styles.muted, fontSize: "13px", marginTop: "4px" }}>
-                            Level: <strong>{formatLabel(as.required_level)}</strong> • 
-                            Weight: <strong>{Math.round(as.weight * 100)}%</strong>
+                            Level: <strong>{formatLabel(as.required_level)}</strong> • Weight:{" "}
+                            <strong>{Math.round(as.weight * 100)}%</strong>
                           </div>
                           {as.skill_id.description && (
-                            <div style={{ ...styles.muted, fontSize: "13px", marginTop: "6px", fontStyle: "italic" }}>
+                            <div style={{ ...styles.muted, fontSize: "13px", marginTop: "6px" }}>
                               {as.skill_id.description}
                             </div>
                           )}
@@ -1284,25 +1927,49 @@ export default function ActivitiesManagement() {
           </div>
         )}
 
-        {/* ─────────────────────────────────────────────
-            🗑️ Delete Confirmation
-            ───────────────────────────────────────────── */}
         {deleteConfirm && (
           <div onClick={() => !deleting && setDeleteConfirm(null)} style={styles.modalOverlay}>
-            <div onClick={(e) => e.stopPropagation()} style={{ width: "min(440px, 96vw)", ...styles.card, padding: "24px", borderLeft: "4px solid #dc2626" }}>
-              <div style={{ fontWeight: 800, fontSize: "18px", color: "#dc2626", marginBottom: "12px" }}>⚠️ Delete Activity?</div>
-              <div style={{ ...styles.muted, marginBottom: "20px" }}>
-                Only unused planned activities can be deleted. This cannot be undone.
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: "min(440px, 96vw)",
+                ...styles.card,
+                padding: "24px",
+                borderLeft: "4px solid #d92d20",
+              }}
+            >
+              <div
+                style={{
+                  fontWeight: 800,
+                  fontSize: "18px",
+                  color: "#d92d20",
+                  marginBottom: "12px",
+                }}
+              >
+                Delete Activity?
               </div>
+
+              <div style={{ ...styles.muted, marginBottom: "20px", lineHeight: 1.6 }}>
+                Only unused planned activities can be deleted. This action cannot be undone.
+              </div>
+
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
-                <button type="button" style={styles.btn} disabled={deleting} onClick={() => setDeleteConfirm(null)}>Cancel</button>
                 <button
                   type="button"
-                  style={{ ...styles.btn, background: "#dc2626", color: "white", border: "none" }}
+                  style={styles.btn}
+                  disabled={deleting}
+                  onClick={() => setDeleteConfirm(null)}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  style={{ ...styles.btn, background: "#d92d20", color: "#fff", border: "none" }}
                   disabled={deleting}
                   onClick={() => onDelete(deleteConfirm)}
                 >
-                  {deleting ? "Deleting..." : "🗑️ Delete"}
+                  {deleting ? "Deleting..." : "Delete"}
                 </button>
               </div>
             </div>
