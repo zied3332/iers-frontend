@@ -28,7 +28,11 @@ function formatLabel(v: string) {
   return v.charAt(0) + v.slice(1).toLowerCase().replace(/_/g, " ");
 }
 
-function HrFilteredActivitiesInner({ mode }: { mode: NonNullable<ListActivitiesQuery["hrView"]> }) {
+function HrFilteredActivitiesInner({
+  mode,
+}: {
+  mode: NonNullable<ListActivitiesQuery["hrView"]>;
+}) {
   const navigate = useNavigate();
   const [items, setItems] = useState<ActivityRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,12 +62,14 @@ function HrFilteredActivitiesInner({ mode }: { mode: NonNullable<ListActivitiesQ
         const data = await listActivities({ hrView: mode });
         if (!cancelled) setItems(data || []);
       } catch (e: unknown) {
-        if (!cancelled)
+        if (!cancelled) {
           setError(e instanceof Error ? e.message : "Failed to load activities.");
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
+
     return () => {
       cancelled = true;
     };
@@ -76,11 +82,13 @@ function HrFilteredActivitiesInner({ mode }: { mode: NonNullable<ListActivitiesQ
   }, [items]);
 
   const page = META[mode];
+  const showCancelOnRow = mode === "pipeline";
 
   const onConfirmCancel = async () => {
     if (!cancelConfirmId) return;
     setCancelling(true);
     setError("");
+
     try {
       await cancelActivityById(cancelConfirmId);
       setCancelConfirmId(null);
@@ -92,16 +100,43 @@ function HrFilteredActivitiesInner({ mode }: { mode: NonNullable<ListActivitiesQ
     }
   };
 
-  const showCancelOnRow = mode === "pipeline";
-
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", padding: "24px" }}>
-      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-        <div className="page-header" style={{ marginBottom: "20px" }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "var(--bg)",
+        color: "var(--text)",
+        padding: "clamp(16px, 2vw, 28px)",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "min(1600px, 100%)",
+          margin: "0 auto",
+        }}
+      >
+        <div
+          className="page-header"
+          style={{
+            marginBottom: "24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+          }}
+        >
           <h1 className="page-title" style={{ margin: 0 }}>
             {page.title}
           </h1>
-          <p className="page-subtitle" style={{ maxWidth: "720px", marginTop: "8px" }}>
+          <p
+            className="page-subtitle"
+            style={{
+              maxWidth: "900px",
+              margin: 0,
+              marginTop: "4px",
+              lineHeight: 1.6,
+            }}
+          >
             {page.subtitle}
           </p>
         </div>
@@ -115,7 +150,7 @@ function HrFilteredActivitiesInner({ mode }: { mode: NonNullable<ListActivitiesQ
               background: "rgba(239,68,68,0.08)",
               color: "#b91c1c",
               fontWeight: 600,
-              marginBottom: "16px",
+              marginBottom: "18px",
             }}
           >
             {error}
@@ -127,38 +162,40 @@ function HrFilteredActivitiesInner({ mode }: { mode: NonNullable<ListActivitiesQ
         ) : sorted.length === 0 ? (
           <div
             style={{
-              padding: "48px 24px",
+              padding: "56px 24px",
               textAlign: "center",
               color: "var(--muted)",
               border: "1px dashed var(--border)",
-              borderRadius: "16px",
+              borderRadius: "18px",
               background: "var(--surface-2)",
             }}
           >
             No activities in this list yet.
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
             {sorted.map((a) => (
               <div
                 key={a._id}
                 style={{
                   display: "flex",
-                  gap: "12px",
+                  flexWrap: "wrap",
+                  gap: "16px",
                   alignItems: "stretch",
-                  padding: "18px 20px",
-                  borderRadius: "16px",
+                  justifyContent: "space-between",
+                  padding: "clamp(16px, 1.4vw, 22px)",
+                  borderRadius: "18px",
                   border: "1px solid var(--border)",
                   background: "var(--card)",
-                  boxShadow: "var(--shadow)",
+                  boxShadow: "0 6px 18px rgba(15, 23, 42, 0.04)",
                 }}
               >
                 <button
                   type="button"
                   onClick={() => navigate(`/hr/activities/${a._id}/staffing`)}
                   style={{
-                    flex: 1,
-                    minWidth: 0,
+                    flex: "1 1 620px",
+                    minWidth: "min(100%, 320px)",
                     textAlign: "left",
                     border: "none",
                     background: "transparent",
@@ -167,25 +204,58 @@ function HrFilteredActivitiesInner({ mode }: { mode: NonNullable<ListActivitiesQ
                     padding: 0,
                   }}
                 >
-                  <div style={{ fontWeight: 800, fontSize: "17px", marginBottom: "6px" }}>{a.title}</div>
-                  <div style={{ fontSize: "13px", color: "var(--muted)", fontWeight: 600 }}>
+                  <div
+                    style={{
+                      fontWeight: 800,
+                      fontSize: "clamp(16px, 1.2vw, 19px)",
+                      marginBottom: "6px",
+                      lineHeight: 1.35,
+                    }}
+                  >
+                    {a.title}
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: "13px",
+                      color: "var(--muted)",
+                      fontWeight: 600,
+                      lineHeight: 1.5,
+                    }}
+                  >
                     {formatLabel(a.type)} · {formatLabel(a.status)}
                     {a.workflowStatus ? ` · ${formatLabel(a.workflowStatus)}` : ""}
                   </div>
+
                   <div
                     style={{
-                      marginTop: "10px",
+                      marginTop: "12px",
                       display: "flex",
                       flexWrap: "wrap",
-                      gap: "14px",
+                      gap: "12px 18px",
                       fontSize: "13px",
                       color: "var(--muted)",
                     }}
                   >
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
                       <FiCalendar size={14} /> {a.startDate} → {a.endDate}
                     </span>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
                       <FiUsers size={14} /> {a.availableSlots} seats
                     </span>
                   </div>
@@ -194,11 +264,14 @@ function HrFilteredActivitiesInner({ mode }: { mode: NonNullable<ListActivitiesQ
                 <div
                   style={{
                     display: "flex",
-                    flexDirection: "column",
-                    alignItems: "flex-end",
-                    justifyContent: "center",
+                    flex: "0 1 auto",
+                    flexDirection: "row",
+                    flexWrap: "wrap",
+                    alignItems: "center",
+                    justifyContent: "flex-end",
                     gap: "10px",
-                    flexShrink: 0,
+                    minWidth: "fit-content",
+                    marginLeft: "auto",
                   }}
                 >
                   {showCancelOnRow && a.status === "IN_PROGRESS" ? (
@@ -212,7 +285,7 @@ function HrFilteredActivitiesInner({ mode }: { mode: NonNullable<ListActivitiesQ
                         display: "inline-flex",
                         alignItems: "center",
                         gap: "6px",
-                        padding: "8px 12px",
+                        padding: "10px 14px",
                         borderRadius: "12px",
                         border: "1px solid #fcd34d",
                         background: "#fef3c7",
@@ -220,24 +293,32 @@ function HrFilteredActivitiesInner({ mode }: { mode: NonNullable<ListActivitiesQ
                         fontWeight: 800,
                         fontSize: "13px",
                         cursor: "pointer",
+                        whiteSpace: "nowrap",
                       }}
                     >
                       <FiSlash size={14} /> Cancel
                     </button>
                   ) : null}
+
                   <button
                     type="button"
                     aria-label="Open staffing"
                     onClick={() => navigate(`/hr/activities/${a._id}/staffing`)}
                     style={{
-                      border: "none",
-                      background: "transparent",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: "42px",
+                      height: "42px",
+                      borderRadius: "12px",
+                      border: "1px solid var(--border)",
+                      background: "var(--surface-2)",
                       cursor: "pointer",
-                      padding: "4px",
                       color: "var(--primary, #10b981)",
+                      flexShrink: 0,
                     }}
                   >
-                    <FiArrowRight size={22} />
+                    <FiArrowRight size={20} />
                   </button>
                 </div>
               </div>
@@ -269,14 +350,31 @@ function HrFilteredActivitiesInner({ mode }: { mode: NonNullable<ListActivitiesQ
               borderRadius: "16px",
               padding: "24px",
               borderLeft: "4px solid #d97706",
+              boxShadow: "0 18px 40px rgba(15, 23, 42, 0.12)",
             }}
           >
-            <div style={{ fontWeight: 800, fontSize: "18px", color: "#92400e", marginBottom: "12px" }}>
+            <div
+              style={{
+                fontWeight: 800,
+                fontSize: "18px",
+                color: "#92400e",
+                marginBottom: "12px",
+              }}
+            >
               Cancel activity?
             </div>
-            <div style={{ color: "var(--muted)", marginBottom: "20px", lineHeight: 1.5 }}>
-              This marks the activity as cancelled. Use for in-progress activities that should not continue.
+
+            <div
+              style={{
+                color: "var(--muted)",
+                marginBottom: "20px",
+                lineHeight: 1.5,
+              }}
+            >
+              This marks the activity as cancelled. Use for in-progress activities
+              that should not continue.
             </div>
+
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
               <button
                 type="button"
@@ -293,6 +391,7 @@ function HrFilteredActivitiesInner({ mode }: { mode: NonNullable<ListActivitiesQ
               >
                 Back
               </button>
+
               <button
                 type="button"
                 onClick={() => void onConfirmCancel()}
