@@ -90,6 +90,12 @@ export default function SuperManagerLayout() {
         group: "System",
         icon: "notifications",
       },
+      {
+        to: "/super-manager/settings",
+        label: "Settings",
+        group: "System",
+        icon: "settings",
+      },
     ],
     []
   );
@@ -101,7 +107,6 @@ export default function SuperManagerLayout() {
       subtitle="Governance, users, employees, departments, and operations"
       profilePath="/super-manager/profile"
       nav={nav}
-      topbarRight={<input className="input" placeholder="Search users, employees, skills..." />}
       userCard={userCard}
     />
   );

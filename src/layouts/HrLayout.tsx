@@ -108,6 +108,12 @@ export default function HrLayout() {
         group: "System",
         icon: "notifications",
       },
+      {
+        to: "/hr/settings",
+        label: "Settings",
+        group: "System",
+        icon: "settings",
+      },
     ],
     []
   );
@@ -119,9 +125,6 @@ export default function HrLayout() {
       subtitle="Employees, skills, and recommendations"
       profilePath="/hr/profile"
       nav={nav}
-      topbarRight={
-        <input className="input" placeholder="Search employees, skills…" />
-      }
       userCard={userCard}
     />
   );

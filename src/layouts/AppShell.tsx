@@ -4,6 +4,11 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { signOut } from "../utils/auth";
 import "../index.css";
 import NotificationBell from "../components/notifications/NotificationBell";
+import {
+  applyThemePreferences,
+  readStoredThemeMode,
+  type ThemeMode,
+} from "../utils/themePreferences";
 
 const logoSrc = "/images/logo.png";
 
@@ -20,28 +25,10 @@ type NavGroup = {
   items: NavItem[];
 };
 
-type ThemeMode = "light" | "dark";
-
-const THEME_STORAGE_KEY = "themeMode";
 const FALLBACK_AVATAR = "https://randomuser.me/api/portraits/men/35.jpg";
 
 function linkClass({ isActive }: { isActive: boolean }) {
   return `side-link nav-item ${isActive ? "active" : ""}`;
-}
-
-function getStoredThemeMode(): ThemeMode {
-  try {
-    const saved = localStorage.getItem(THEME_STORAGE_KEY);
-    return saved === "dark" ? "dark" : "light";
-  } catch {
-    return "light";
-  }
-}
-
-function applyThemeMode(theme: ThemeMode) {
-  document.documentElement.setAttribute("data-theme", theme);
-  document.body.setAttribute("data-theme", theme);
-  document.body.style.colorScheme = theme;
 }
 
 function inferNavGroup(label: string) {
@@ -135,17 +122,14 @@ export default function AppShell({
   title,
   subtitle,
   nav,
-  topbarRight,
   sidebarFooter,
   profilePath,
   userCard,
-  hideTopbarSearch = false,
 }: {
   badge: string;
   title: string;
   subtitle?: string;
   nav: NavItem[];
-  topbarRight?: ReactNode;
   sidebarFooter?: ReactNode;
   profilePath: string;
   userCard?: {
@@ -153,7 +137,6 @@ export default function AppShell({
     sub?: string;
     avatarUrl?: string;
   };
-  hideTopbarSearch?: boolean;
 }) {
   const navigate = useNavigate();
 
@@ -162,19 +145,25 @@ export default function AppShell({
     if (current === "dark" || current === "light") {
       return current;
     }
-    return getStoredThemeMode();
+    return readStoredThemeMode();
   });
 
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
 
   React.useEffect(() => {
-    applyThemeMode(themeMode);
-    try {
-      localStorage.setItem(THEME_STORAGE_KEY, themeMode);
-    } catch {
-      // ignore storage failures
-    }
+    applyThemePreferences({ mode: themeMode });
   }, [themeMode]);
+
+  React.useEffect(() => {
+    const onThemeUpdated = (event: Event) => {
+      const nextMode = (event as CustomEvent<{ mode?: ThemeMode }>).detail?.mode;
+      if (nextMode === "light" || nextMode === "dark") {
+        setThemeMode(nextMode);
+      }
+    };
+    window.addEventListener("app-theme-updated", onThemeUpdated);
+    return () => window.removeEventListener("app-theme-updated", onThemeUpdated);
+  }, []);
 
   const SIDE_W = 350;
   const workspaceCode =
@@ -269,11 +258,6 @@ export default function AppShell({
             </div>
           </div>
 
-          <div className="sidebar-search" aria-hidden="true">
-            <span className="search-icon"></span>
-            <input type="text" placeholder="Search" />
-            <span className="search-shortcut">/</span>
-          </div>
         </div>
 
         <div className="sidebar-menu">
@@ -432,16 +416,7 @@ export default function AppShell({
           </div>
 
           <div className="topbar-right topbar-actions">
-            {!hideTopbarSearch ? (
-              <div className="topbar-search" aria-hidden="true">
-                <span className="search-icon"></span>
-                <input type="text" placeholder="Search workspace..." />
-              </div>
-            ) : null}
-
             <NotificationBell />
-
-            {topbarRight}
 
             <NavLink to={profilePath} className="profile-btn">
               <ProfileIcon />
@@ -627,6 +602,21 @@ function NavItemIcon({
           stroke="currentColor"
           strokeWidth="2"
           strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+
+  if (key.includes("setting")) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+        <path
+          d="M19.4 15A1.7 1.7 0 0 0 19.74 16.87L19.8 16.93A2 2 0 1 1 16.97 19.76L16.91 19.7A1.7 1.7 0 0 0 15.03 19.36A1.7 1.7 0 0 0 14 21V21.2A2 2 0 1 1 10 21.2V21A1.7 1.7 0 0 0 8.97 19.36A1.7 1.7 0 0 0 7.09 19.7L7.03 19.76A2 2 0 1 1 4.2 16.93L4.26 16.87A1.7 1.7 0 0 0 4.6 15A1.7 1.7 0 0 0 3 14H2.8A2 2 0 1 1 2.8 10H3A1.7 1.7 0 0 0 4.6 9A1.7 1.7 0 0 0 4.26 7.13L4.2 7.07A2 2 0 1 1 7.03 4.24L7.09 4.3A1.7 1.7 0 0 0 8.97 4.64A1.7 1.7 0 0 0 10 3V2.8A2 2 0 1 1 14 2.8V3A1.7 1.7 0 0 0 15.03 4.64A1.7 1.7 0 0 0 16.91 4.3L16.97 4.24A2 2 0 1 1 19.8 7.07L19.74 7.13A1.7 1.7 0 0 0 19.4 9A1.7 1.7 0 0 0 21 10H21.2A2 2 0 1 1 21.2 14H21A1.7 1.7 0 0 0 19.4 15Z"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         />
       </svg>
     );

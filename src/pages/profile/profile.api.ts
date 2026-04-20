@@ -24,7 +24,16 @@ async function handle(res: Response) {
 
 const PROFILE_UPDATE_PATH = import.meta.env.VITE_PROFILE_UPDATE_PATH as string | undefined;
 
-export async function patchMe(payload: { telephone?: string; avatarUrl?: string; department?: string }) {
+export async function patchMe(payload: {
+  name?: string;
+  email?: string;
+  matricule?: string;
+  telephone?: string;
+  date_embauche?: string;
+  department?: string;
+  departement_id?: string;
+  avatarUrl?: string;
+}) {
   const pathsToTry = PROFILE_UPDATE_PATH
     ? [PROFILE_UPDATE_PATH]
     : ["/users/me", "/auth/profile", "/auth/me", "/profile"];

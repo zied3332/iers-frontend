@@ -61,6 +61,12 @@ export default function EmployeeLayout() {
         group: "System",
         icon: "notifications",
       },
+      {
+        to: "/me/settings",
+        label: "Settings",
+        group: "System",
+        icon: "settings",
+      },
     ],
     []
   );
@@ -72,18 +78,6 @@ export default function EmployeeLayout() {
       subtitle="Profile, progress, and skills"
       profilePath="/me/profile"
       nav={nav}
-      topbarRight={
-        <div className="topbar-actions">
-          <input className="input" placeholder="Search…" />
-          <button className="btn btn-ghost">Help</button>
-          <button
-            className="btn btn-primary"
-            onClick={() => window.location.assign("/me/skills")}
-          >
-            My Skills
-          </button>
-        </div>
-      }
       userCard={userCard}
     />
   );

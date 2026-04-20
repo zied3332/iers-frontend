@@ -84,6 +84,12 @@ export default function ManagerLayout() {
         group: "System",
         icon: "notifications",
       },
+      {
+        to: "/manager/settings",
+        label: "Settings",
+        group: "System",
+        icon: "settings",
+      },
     ],
     []
   );
@@ -95,7 +101,6 @@ export default function ManagerLayout() {
       subtitle="Review activities, validate participants, and monitor team decisions"
       profilePath="/manager/profile"
       nav={nav}
-      hideTopbarSearch
       userCard={userCard}
     />
   );
