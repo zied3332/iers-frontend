@@ -3,6 +3,8 @@ export type ExperienceSegmentInput = {
   toYear: number;
   domainIds: string[];
   skillIds: string[];
+  /** Optional employer / organization for this period */
+  company?: string;
 };
 
 export function segmentYears(segment: ExperienceSegmentInput): number {
@@ -32,10 +34,13 @@ export function hasSegmentOverlap(segments: ExperienceSegmentInput[]): boolean {
 }
 
 export function normalizeSegment(segment?: Partial<ExperienceSegmentInput>): ExperienceSegmentInput {
-  return {
+  const companyRaw =
+    typeof segment?.company === 'string' ? segment.company.trim().slice(0, 120) : '';
+  const base: ExperienceSegmentInput = {
     fromYear: Number(segment?.fromYear || new Date().getFullYear()),
     toYear: Number(segment?.toYear || new Date().getFullYear()),
     domainIds: Array.isArray(segment?.domainIds) ? segment!.domainIds.filter(Boolean) : [],
     skillIds: Array.isArray(segment?.skillIds) ? segment!.skillIds.filter(Boolean) : [],
   };
+  return companyRaw ? { ...base, company: companyRaw } : base;
 }

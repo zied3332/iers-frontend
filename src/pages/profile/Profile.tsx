@@ -724,7 +724,13 @@ export default function Profile() {
 
             {tab === "feedback" && <FeedbackTab />}
 
-            {tab === "history" && <HistoryTab />}
+            {tab === "history" && (
+              <HistoryTab
+                jobTitle={editJobTitle}
+                segments={experienceSegments}
+                skills={skillOptions}
+              />
+            )}
 
             {showPhotoLightbox && ((user as any)?.avatarUrl ?? avatarUrl) && (
               <div

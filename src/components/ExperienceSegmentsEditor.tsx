@@ -53,6 +53,7 @@ export function mapApiSegmentsToInput(raw: unknown): ExperienceSegmentInput[] {
       toYear: Number(item?.toYear),
       domainIds: extractIdList(item?.domainIds),
       skillIds: extractIdList(item?.skillIds),
+      company: typeof item?.company === 'string' ? item.company : undefined,
     }),
   );
 }
@@ -159,6 +160,21 @@ export function ExperienceSegmentsEditor({
                 />
               </label>
             </div>
+
+            <label style={{ display: "grid", gap: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: "var(--muted)" }}>
+                Company <span style={{ fontWeight: 600, opacity: 0.85 }}>(optional)</span>
+              </span>
+              <input
+                className="input"
+                type="text"
+                disabled={disabled}
+                placeholder="e.g. employer or client name"
+                value={segment.company ?? ""}
+                onChange={(e) => updateSegment(index, { company: e.target.value })}
+                maxLength={120}
+              />
+            </label>
 
             <div>
               <div style={{ fontSize: 12, fontWeight: 800, color: "var(--muted)", marginBottom: 8 }}>

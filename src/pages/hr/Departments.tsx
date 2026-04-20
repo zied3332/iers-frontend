@@ -88,35 +88,45 @@ const tdGray: React.CSSProperties = {
   fontSize: 15,
 };
 
-const paginationRow: React.CSSProperties = {
+const listFooter: React.CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
-  gap: 12,
+  gap: 16,
+  flexWrap: "wrap",
   marginTop: 12,
+  padding: "12px 16px 16px",
+  borderTop: "1px solid var(--border)",
+};
+
+const listFooterText: React.CSSProperties = {
+  color: "var(--muted)",
+  fontSize: 14,
+  fontWeight: 600,
+};
+
+const listPagination: React.CSSProperties = {
+  display: "flex",
+  gap: 8,
   flexWrap: "wrap",
 };
 
-const paginationInfo: React.CSSProperties = {
-  color: "var(--muted)",
-  fontSize: 15,
-  fontWeight: 700,
-};
-
-const paginationControls: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
-};
-
-const pageBadge: React.CSSProperties = {
-  padding: "6px 10px",
+const listPageBtn: React.CSSProperties = {
+  minWidth: 40,
+  height: 40,
+  padding: "0 12px",
   borderRadius: 10,
   border: "1px solid var(--border)",
   background: "var(--surface)",
   color: "var(--text)",
-  fontWeight: 800,
-  fontSize: 15,
+  fontWeight: 700,
+  cursor: "pointer",
+};
+
+const listPageBtnActive: React.CSSProperties = {
+  background: "#167c5a",
+  color: "#fff",
+  border: "1px solid #167c5a",
 };
 
 const actionsGroup: React.CSSProperties = {
@@ -221,6 +231,10 @@ export default function HrDepartments() {
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
+
+  const deptListStartItem =
+    filteredDepartments.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const deptListEndItem = Math.min(page * pageSize, filteredDepartments.length);
 
   const managerNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -414,29 +428,41 @@ export default function HrDepartments() {
                 </tbody>
               </table>
 
-              <div style={paginationRow}>
-                <div style={paginationInfo}>
-                  Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, filteredDepartments.length)} of {filteredDepartments.length} departments
-                </div>
-                <div style={paginationControls}>
+              <div style={listFooter}>
+                <span style={listFooterText}>
+                  Showing {deptListStartItem} to {deptListEndItem} of{" "}
+                  {filteredDepartments.length} departments
+                </span>
+                <div style={listPagination}>
                   <button
-                    style={btn}
+                    type="button"
+                    style={listPageBtn}
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
-                    aria-label="Previous page"
-                    title="Previous page"
                   >
-                    &lt;
+                    Previous
                   </button>
-                  <span style={pageBadge}>Page {page} / {totalPages}</span>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      style={
+                        page === p
+                          ? { ...listPageBtn, ...listPageBtnActive }
+                          : listPageBtn
+                      }
+                      onClick={() => setPage(p)}
+                    >
+                      {p}
+                    </button>
+                  ))}
                   <button
-                    style={btn}
+                    type="button"
+                    style={listPageBtn}
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
-                    aria-label="Next page"
-                    title="Next page"
                   >
-                    &gt;
+                    Next
                   </button>
                 </div>
               </div>

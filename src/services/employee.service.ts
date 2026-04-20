@@ -42,6 +42,7 @@ export type ExperienceSegment = {
 	toYear: number;
 	domainIds: string[];
 	skillIds: string[];
+	company?: string;
 };
 
 export async function getAllEmployees(): Promise<EmployeeRecord[]> {

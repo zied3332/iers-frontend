@@ -576,6 +576,10 @@ export default function UsersManagement() {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
+  const userListStartItem =
+    filtered.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const userListEndItem = Math.min(page * pageSize, filtered.length);
+
   const onChangeRole = useCallback(
     async (userId: string, role: User["role"]) => {
       setErr("");
@@ -1041,37 +1045,44 @@ export default function UsersManagement() {
         </table>
 
         {!loading && filtered.length > 0 && (
-          <div style={S.paginationRow}>
-            <div style={S.paginationInfo}>
-              Showing {(page - 1) * pageSize + 1} to{" "}
-              {Math.min(page * pageSize, filtered.length)} of {filtered.length} users
-            </div>
+          <div style={S.listFooter}>
+            <span style={S.listFooterText}>
+              Showing {userListStartItem} to {userListEndItem} of {filtered.length}{" "}
+              users
+            </span>
 
-            <div style={S.paginationControls}>
+            <div style={S.listPagination}>
               <button
-                className="btn"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                type="button"
+                style={S.listPageBtn}
                 disabled={page === 1}
-                style={S.simpleBtn}
-                aria-label="Previous page"
-                title="Previous page"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
-                &lt;
+                Previous
               </button>
 
-              <span style={S.pageBadge}>
-                Page {page} / {totalPages}
-              </span>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  style={
+                    page === p
+                      ? { ...S.listPageBtn, ...S.listPageBtnActive }
+                      : S.listPageBtn
+                  }
+                  onClick={() => setPage(p)}
+                >
+                  {p}
+                </button>
+              ))}
 
               <button
-                className="btn"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                type="button"
+                style={S.listPageBtn}
                 disabled={page === totalPages}
-                style={S.simpleBtn}
-                aria-label="Next page"
-                title="Next page"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               >
-                &gt;
+                Next
               </button>
             </div>
           </div>
@@ -1805,37 +1816,44 @@ const S: Record<string, React.CSSProperties> = {
     fontSize: 18,
   },
 
-  paginationRow: {
+  listFooter: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    gap: 12,
+    gap: 16,
+    flexWrap: "wrap",
     padding: "12px 14px",
     borderTop: "1px solid rgba(15,23,42,0.08)",
-    flexWrap: "wrap",
   },
 
-  paginationInfo: {
+  listFooterText: {
     color: "var(--muted)",
-    fontSize: 15,
-    fontWeight: 700,
+    fontSize: 14,
+    fontWeight: 600,
   },
 
-  paginationControls: {
+  listPagination: {
     display: "flex",
-    alignItems: "center",
-    gap: 10,
+    gap: 8,
     flexWrap: "wrap",
   },
 
-  pageBadge: {
-    padding: "8px 12px",
+  listPageBtn: {
+    minWidth: 40,
+    height: 40,
+    padding: "0 12px",
     borderRadius: 10,
     border: "1px solid var(--border)",
     background: "var(--surface)",
     color: "var(--text)",
-    fontWeight: 800,
-    fontSize: 15,
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+
+  listPageBtnActive: {
+    background: "#167c5a",
+    color: "#fff",
+    border: "1px solid #167c5a",
   },
 
   modalBackdrop: {

@@ -172,6 +172,47 @@ const actionBtnDanger: React.CSSProperties = {
   borderRight: "none",
 };
 
+const listFooter: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 16,
+  flexWrap: "wrap",
+  padding: 16,
+  borderTop: "1px solid var(--border)",
+  background: "var(--surface)",
+};
+
+const listFooterText: React.CSSProperties = {
+  color: "var(--muted)",
+  fontSize: 14,
+  fontWeight: 600,
+};
+
+const listPagination: React.CSSProperties = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+};
+
+const listPageBtn: React.CSSProperties = {
+  minWidth: 40,
+  height: 40,
+  padding: "0 12px",
+  borderRadius: 10,
+  border: "1px solid var(--border)",
+  background: "var(--surface)",
+  color: "var(--text)",
+  fontWeight: 700,
+  cursor: "pointer",
+};
+
+const listPageBtnActive: React.CSSProperties = {
+  background: "#167c5a",
+  color: "#fff",
+  border: "1px solid #167c5a",
+};
+
 type Emp = {
   id: string;
   name: string;
@@ -510,6 +551,10 @@ export default function HrEmployees() {
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
+
+  const employeeListStartItem =
+    employees.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const employeeListEndItem = Math.min(page * pageSize, employees.length);
 
   const departmentOptions = useMemo(() => {
     return departments
@@ -1068,61 +1113,44 @@ export default function HrEmployees() {
           </div>
 
           {!loading && employees.length > 0 && (
-            <div
-              style={{
-                padding: 16,
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 12,
-                color: "var(--muted)",
-                fontWeight: 700,
-                flexWrap: "wrap",
-                borderTop: "1px solid var(--border)",
-                background: "var(--surface)",
-              }}
-            >
-              <div>
-                Showing {(page - 1) * pageSize + 1} to{" "}
-                {Math.min(page * pageSize, employees.length)} of {employees.length} users
-              </div>
+            <div style={listFooter}>
+              <span style={listFooterText}>
+                Showing {employeeListStartItem} to {employeeListEndItem} of{" "}
+                {employees.length} employees
+              </span>
 
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 10,
-                  flexWrap: "wrap",
-                }}
-              >
+              <div style={listPagination}>
                 <button
                   type="button"
-                  style={baseButton}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  style={listPageBtn}
                   disabled={page === 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
-                  &lt;
+                  Previous
                 </button>
 
-                <span
-                  style={{
-                    padding: "10px 14px",
-                    border: "1px solid var(--border)",
-                    borderRadius: 12,
-                    color: "var(--text)",
-                    background: "var(--surface)",
-                  }}
-                >
-                  Page {page} / {totalPages}
-                </span>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    style={
+                      page === p
+                        ? { ...listPageBtn, ...listPageBtnActive }
+                        : listPageBtn
+                    }
+                    onClick={() => setPage(p)}
+                  >
+                    {p}
+                  </button>
+                ))}
 
                 <button
                   type="button"
-                  style={baseButton}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  style={listPageBtn}
                   disabled={page === totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 >
-                  &gt;
+                  Next
                 </button>
               </div>
             </div>
@@ -1285,6 +1313,18 @@ export default function HrEmployees() {
                         >
                           {seg.fromYear}–{seg.toYear}
                         </div>
+                        {seg.company?.trim() ? (
+                          <div
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 800,
+                              color: "#475569",
+                              marginBottom: 8,
+                            }}
+                          >
+                            {seg.company.trim()}
+                          </div>
+                        ) : null}
                         <div
                           style={{
                             fontSize: 13,

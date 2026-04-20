@@ -435,6 +435,7 @@ export default function SkillsManagementPage() {
   const [loadingDomains, setLoadingDomains] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<'' | SkillCategory>('');
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [editingSkillId, setEditingSkillId] = useState<string | null>(null);
@@ -504,10 +505,14 @@ export default function SkillsManagementPage() {
     getSkillDomainEntries(skill, domains).map((e) => e.name).filter(Boolean);
 
   const filteredSkills = useMemo(() => {
+    let list = skills;
+    if (categoryFilter) {
+      list = list.filter((s) => s.category === categoryFilter);
+    }
     const q = search.trim().toLowerCase();
-    if (!q) return skills;
+    if (!q) return list;
 
-    return skills.filter((skill) => {
+    return list.filter((skill) => {
       return (
         skill.name.toLowerCase().includes(q) ||
         skill.category.toLowerCase().includes(q) ||
@@ -515,11 +520,11 @@ export default function SkillsManagementPage() {
         getSkillDomainNames(skill).join(' ').toLowerCase().includes(q)
       );
     });
-  }, [skills, search, domains]);
+  }, [skills, search, categoryFilter, domains]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search]);
+  }, [search, categoryFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredSkills.length / ITEMS_PER_PAGE));
 
@@ -892,15 +897,43 @@ export default function SkillsManagementPage() {
         <div style={styles.card}>
           <div style={styles.cardBody}>
             <div style={styles.toolbar}>
-              <div style={styles.searchWrap}>
-                <FiSearch size={16} style={styles.searchIcon} />
-                <input
-                  type="text"
-                  placeholder="Search by name, category, or description..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  style={styles.searchInput}
-                />
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  gap: '12px',
+                  flex: '1 1 320px',
+                }}
+              >
+                <div style={{ ...styles.searchWrap, flex: '1 1 260px' }}>
+                  <FiSearch size={16} style={styles.searchIcon} />
+                  <input
+                    type="text"
+                    placeholder="Search by name, category, description, domains..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    style={styles.searchInput}
+                  />
+                </div>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) =>
+                    setCategoryFilter((e.target.value || '') as '' | SkillCategory)
+                  }
+                  style={{
+                    ...styles.input,
+                    height: '46px',
+                    minWidth: 'min(200px, 100%)',
+                    flex: '0 1 200px',
+                  }}
+                  aria-label="Filter by category"
+                >
+                  <option value="">All categories</option>
+                  <option value="KNOWLEDGE">Knowledge</option>
+                  <option value="KNOW_HOW">Know-how</option>
+                  <option value="SOFT">Soft skill</option>
+                </select>
               </div>
 
               <div style={styles.countBadge}>Total skills: {filteredSkills.length}</div>

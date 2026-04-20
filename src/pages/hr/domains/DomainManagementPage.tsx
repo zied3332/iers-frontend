@@ -217,6 +217,19 @@ const styles = {
     fontWeight: 500,
   } as React.CSSProperties,
 
+  countBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '8px 12px',
+    borderRadius: '999px',
+    background: '#ecfdf3',
+    color: '#067647',
+    border: '1px solid #abefc6',
+    fontWeight: 800,
+    fontSize: '13px',
+    whiteSpace: 'nowrap',
+  } as React.CSSProperties,
+
   alertError: {
     padding: '14px 16px',
     borderRadius: '14px',
@@ -308,7 +321,47 @@ const styles = {
     color: 'var(--muted)',
     fontWeight: 600,
   } as React.CSSProperties,
+  footer: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '16px',
+    flexWrap: 'wrap',
+    marginTop: '16px',
+  } as React.CSSProperties,
+
+  footerText: {
+    color: 'var(--muted)',
+    fontSize: '14px',
+    fontWeight: 600,
+  } as React.CSSProperties,
+
+  pagination: {
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap',
+  } as React.CSSProperties,
+
+  pageBtn: {
+    minWidth: '40px',
+    height: '40px',
+    padding: '0 12px',
+    borderRadius: '10px',
+    border: '1px solid var(--border)',
+    background: 'var(--surface)',
+    color: 'var(--text)',
+    fontWeight: 700,
+    cursor: 'pointer',
+  } as React.CSSProperties,
+
+  pageBtnActive: {
+    background: '#167c5a',
+    color: '#fff',
+    border: '1px solid #167c5a',
+  } as React.CSSProperties,
 } as const;
+
+const DOMAINS_PAGE_SIZE = 10;
 
 export default function DomainManagementPage() {
   const { pathname } = useLocation();
@@ -324,6 +377,7 @@ export default function DomainManagementPage() {
     name: '',
     description: '',
   });
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadDomains = async () => {
     try {
@@ -352,6 +406,25 @@ export default function DomainManagementPage() {
         String(domain.description || '').toLowerCase().includes(q),
     );
   }, [domains, domainSearch]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredDomains.length / DOMAINS_PAGE_SIZE));
+
+  const paginatedDomains = useMemo(() => {
+    const start = (currentPage - 1) * DOMAINS_PAGE_SIZE;
+    return filteredDomains.slice(start, start + DOMAINS_PAGE_SIZE);
+  }, [filteredDomains, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [domainSearch]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  const startItem =
+    filteredDomains.length === 0 ? 0 : (currentPage - 1) * DOMAINS_PAGE_SIZE + 1;
+  const endItem = Math.min(currentPage * DOMAINS_PAGE_SIZE, filteredDomains.length);
 
   const handleSubmitDomain = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -511,7 +584,7 @@ export default function DomainManagementPage() {
             </div>
 
             <div style={{ ...styles.toolbar, marginTop: '14px' }}>
-              <div style={styles.searchWrap}>
+              <div style={{ ...styles.searchWrap, flex: '1 1 280px' }}>
                 <FiSearch size={16} style={styles.searchIcon} />
                 <input
                   type="text"
@@ -521,6 +594,7 @@ export default function DomainManagementPage() {
                   style={styles.searchInput}
                 />
               </div>
+              <div style={styles.countBadge}>Total domains: {filteredDomains.length}</div>
             </div>
 
             <div style={{ ...styles.tableOuter, marginTop: '12px' }}>
@@ -546,7 +620,7 @@ export default function DomainManagementPage() {
                       </td>
                     </tr>
                   ) : (
-                    filteredDomains.map((domain, index) => (
+                    paginatedDomains.map((domain, index) => (
                       <tr
                         key={domain._id}
                         style={{ background: index % 2 === 1 ? '#fcfdff' : 'transparent' }}
@@ -578,6 +652,49 @@ export default function DomainManagementPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            <div style={styles.footer}>
+              <span style={styles.footerText}>
+                Showing {startItem} to {endItem} of {filteredDomains.length} domains
+              </span>
+
+              {filteredDomains.length > 0 && (
+                <div style={styles.pagination}>
+                  <button
+                    type="button"
+                    style={styles.pageBtn}
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((p) => p - 1)}
+                  >
+                    Previous
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      style={
+                        currentPage === p
+                          ? { ...styles.pageBtn, ...styles.pageBtnActive }
+                          : styles.pageBtn
+                      }
+                      onClick={() => setCurrentPage(p)}
+                    >
+                      {p}
+                    </button>
+                  ))}
+
+                  <button
+                    type="button"
+                    style={styles.pageBtn}
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((p) => p + 1)}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
