@@ -578,6 +578,7 @@ function NotificationDetailModal({
 }
 
 export default function NotificationsPage() {
+  const ITEMS_PER_PAGE = 10;
   const navigate = useNavigate();
   const location = useLocation();
   const { side: routeSide } = useParams<{ side?: string }>();
@@ -602,6 +603,7 @@ export default function NotificationsPage() {
   const [accountRequestStatusByUserId, setAccountRequestStatusByUserId] = useState<Record<string, AccountApprovalDecision>>({});
   const [accountRequestStatusLoading, setAccountRequestStatusLoading] = useState(false);
   const openedFromStateRef = useRef<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const notificationsBasePath = useMemo(() => getNotificationsBasePath(location.pathname), [location.pathname]);
   const notificationsRole = useMemo(() => getNotificationsRoleFromPath(location.pathname), [location.pathname]);
@@ -843,6 +845,19 @@ export default function NotificationsPage() {
     if (activeSideView === 'read') return readNotifications;
     return filteredNotifications;
   }, [activeSideView, unreadNotifications, readNotifications, filteredNotifications]);
+  const totalPages = Math.max(1, Math.ceil(feedNotifications.length / ITEMS_PER_PAGE));
+  const paginatedFeedNotifications = useMemo(() => {
+    const safePage = Math.min(currentPage, totalPages);
+    const start = (safePage - 1) * ITEMS_PER_PAGE;
+    return feedNotifications.slice(start, start + ITEMS_PER_PAGE);
+  }, [feedNotifications, currentPage, totalPages]);
+  const startItem =
+    feedNotifications.length === 0 ? 0 : (Math.min(currentPage, totalPages) - 1) * ITEMS_PER_PAGE + 1;
+  const endItem = Math.min(Math.min(currentPage, totalPages) * ITEMS_PER_PAGE, feedNotifications.length);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeSideView, filter, debouncedSearch, roleFilter, departmentFilter, notifications.length]);
 
   const selectedInFeedCount = useMemo(() => {
     let count = 0;
@@ -1242,9 +1257,44 @@ export default function NotificationsPage() {
               ) : (
                 <div className="notifications-page-list">
                   <div id="notifications-feed" className="sr-only" />
-                  {feedNotifications.map(renderNotificationCard)}
+                  {paginatedFeedNotifications.map(renderNotificationCard)}
                 </div>
               )}
+              {!loading && feedNotifications.length > 0 ? (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
+                  <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 600 }}>
+                    Showing {startItem} to {endItem} of {feedNotifications.length}
+                  </span>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-small"
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    >
+                      Previous
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <button
+                        key={page}
+                        type="button"
+                        className={page === currentPage ? "btn btn-primary btn-small" : "btn btn-ghost btn-small"}
+                        onClick={() => setCurrentPage(page)}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-small"
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
 

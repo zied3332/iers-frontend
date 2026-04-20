@@ -114,7 +114,16 @@ const SearchCombobox = ({
   icon: React.ReactNode;
 }) => {
   const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(1);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const ITEMS_PER_PAGE = 8;
+  const totalPages = Math.max(1, Math.ceil(options.length / ITEMS_PER_PAGE));
+  const safePage = Math.min(page, totalPages);
+  const visibleOptions = options.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [value, options.length]);
 
   return (
     <div style={{ position: 'relative', width: '100%' }}>
@@ -155,28 +164,75 @@ const SearchCombobox = ({
           ) : options.length === 0 ? (
             <div style={{ padding: '16px', textAlign: 'center', color: theme.colors.muted, fontSize: '16px' }}>No matches found</div>
           ) : (
-            options.slice(0, 8).map((opt) => (
-              <button
-                key={opt.id}
-                type="button"
-                onMouseDown={(e) => { e.preventDefault(); onSelect(opt.id); setOpen(false); }}
-                style={{
-                  width: '100%', padding: '12px 14px', textAlign: 'left',
-                  borderRadius: '8px', border: 'none', background: 'transparent',
-                  color: theme.colors.text, cursor: 'pointer', fontSize: '16px',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  transition: theme.transition,
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = theme.colors.primaryBg)}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-              >
-                <span>
-                  <span style={{ fontWeight: 700 }}>{opt.label}</span>
-                  {opt.subtitle && <span style={{ color: theme.colors.muted, marginLeft: '8px', fontSize: '13px' }}>{opt.subtitle}</span>}
-                </span>
-                {opt.badge}
-              </button>
-            ))
+            <>
+              {visibleOptions.map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onMouseDown={(e) => { e.preventDefault(); onSelect(opt.id); setOpen(false); }}
+                  style={{
+                    width: '100%', padding: '12px 14px', textAlign: 'left',
+                    borderRadius: '8px', border: 'none', background: 'transparent',
+                    color: theme.colors.text, cursor: 'pointer', fontSize: '16px',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    transition: theme.transition,
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = theme.colors.primaryBg)}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <span>
+                    <span style={{ fontWeight: 700 }}>{opt.label}</span>
+                    {opt.subtitle && <span style={{ color: theme.colors.muted, marginLeft: '8px', fontSize: '13px' }}>{opt.subtitle}</span>}
+                  </span>
+                  {opt.badge}
+                </button>
+              ))}
+              {options.length > ITEMS_PER_PAGE && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginTop: '8px', padding: '8px 6px 4px' }}>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={safePage === 1}
+                    style={{
+                      border: '1px solid ' + theme.colors.border,
+                      background: theme.colors.surface,
+                      borderRadius: '8px',
+                      padding: '6px 10px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      color: theme.colors.text,
+                      cursor: safePage === 1 ? 'not-allowed' : 'pointer',
+                      opacity: safePage === 1 ? 0.5 : 1,
+                    }}
+                  >
+                    Previous
+                  </button>
+                  <span style={{ fontSize: '12px', color: theme.colors.muted, fontWeight: 700 }}>
+                    Page {safePage} / {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={safePage === totalPages}
+                    style={{
+                      border: '1px solid ' + theme.colors.border,
+                      background: theme.colors.surface,
+                      borderRadius: '8px',
+                      padding: '6px 10px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      color: theme.colors.text,
+                      cursor: safePage === totalPages ? 'not-allowed' : 'pointer',
+                      opacity: safePage === totalPages ? 0.5 : 1,
+                    }}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

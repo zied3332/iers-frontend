@@ -95,13 +95,7 @@ export default function ManagerLayout() {
       subtitle="Review activities, validate participants, and monitor team decisions"
       profilePath="/manager/profile"
       nav={nav}
-      topbarRight={
-        <>
-          <input className="input" placeholder="Search reviews, team, activities…" />
-          <button className="btn btn-ghost">Review Queue</button>
-          <button className="btn btn-primary">New Validation</button>
-        </>
-      }
+      hideTopbarSearch
       userCard={userCard}
     />
   );

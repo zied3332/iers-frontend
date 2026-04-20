@@ -53,6 +53,7 @@ function getDepartmentId(value: any): string {
 }
 
 export default function ManagerTeam() {
+  const ITEMS_PER_PAGE = 8;
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -71,6 +72,7 @@ export default function ManagerTeam() {
   const [assignSkillError, setAssignSkillError] = useState("");
   const [removingSkillId, setRemovingSkillId] = useState("");
   const [pendingSkillDelete, setPendingSkillDelete] = useState<PendingSkillDelete | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const formatDate = (value: string) => {
     if (!value || value === "-") return "-";
@@ -307,6 +309,19 @@ export default function ManagerTeam() {
     return result;
   }, [members, search, statusFilter]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredMembers.length / ITEMS_PER_PAGE));
+  const paginatedMembers = useMemo(() => {
+    const safePage = Math.min(currentPage, totalPages);
+    const start = (safePage - 1) * ITEMS_PER_PAGE;
+    return filteredMembers.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredMembers, currentPage, totalPages]);
+  const startItem = filteredMembers.length === 0 ? 0 : (Math.min(currentPage, totalPages) - 1) * ITEMS_PER_PAGE + 1;
+  const endItem = Math.min(Math.min(currentPage, totalPages) * ITEMS_PER_PAGE, filteredMembers.length);
+
   return (
     <div className="container">
       <div className="page-header" style={{ marginBottom: 12 }}>
@@ -381,7 +396,7 @@ export default function ManagerTeam() {
               </tr>
             )}
 
-            {filteredMembers.map((m) => (
+            {paginatedMembers.map((m) => (
               <tr key={m.id}>
                 <td style={{ fontWeight: 900 }}>{m.name}</td>
 
@@ -408,6 +423,41 @@ export default function ManagerTeam() {
             ))}
           </tbody>
         </table>
+        {!loading && filteredMembers.length > 0 && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
+            <span style={{ color: "var(--muted)", fontSize: 14, fontWeight: 600 }}>
+              Showing {startItem} to {endItem} of {filteredMembers.length}
+            </span>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-small"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              >
+                Previous
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  type="button"
+                  className={page === currentPage ? "btn btn-primary btn-small" : "btn btn-ghost btn-small"}
+                  onClick={() => setCurrentPage(page)}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="btn btn-ghost btn-small"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {selectedMember && (

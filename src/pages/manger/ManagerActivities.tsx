@@ -66,9 +66,15 @@ function resolveManagerActivityPhase(activity: ActivityRecord): ManagerActivityP
 }
 
 export default function ManagerActivities() {
+  const ITEMS_PER_PAGE = 6;
   const navigate = useNavigate();
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [phasePages, setPhasePages] = useState<Record<ManagerActivityPhase, number>>({
+    RECEIVED_FROM_HR: 1,
+    INVITATIONS_ONGOING: 1,
+    SENT_TO_HR: 1,
+  });
 
   useEffect(() => {
     const load = async () => {
@@ -106,6 +112,14 @@ export default function ManagerActivities() {
     }
     return groups;
   }, [activities]);
+
+  useEffect(() => {
+    setPhasePages({
+      RECEIVED_FROM_HR: 1,
+      INVITATIONS_ONGOING: 1,
+      SENT_TO_HR: 1,
+    });
+  }, [activities.length]);
   const activePageCount =
     groupedByPhase.RECEIVED_FROM_HR.length +
     groupedByPhase.INVITATIONS_ONGOING.length +
@@ -177,12 +191,22 @@ export default function ManagerActivities() {
   );
 
   const renderPhaseSection = (
+    phase: ManagerActivityPhase,
     title: string,
     subtitle: string,
     rows: ActivityRecord[],
     accent: string
-  ) => (
-    <section
+  ) => {
+    const currentPage = phasePages[phase] || 1;
+    const totalPages = Math.max(1, Math.ceil(rows.length / ITEMS_PER_PAGE));
+    const safePage = Math.min(currentPage, totalPages);
+    const start = (safePage - 1) * ITEMS_PER_PAGE;
+    const pageRows = rows.slice(start, start + ITEMS_PER_PAGE);
+    const startItem = rows.length === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1;
+    const endItem = Math.min(safePage * ITEMS_PER_PAGE, rows.length);
+
+    return (
+      <section
       style={{
         border: "1px solid var(--border)",
         borderRadius: 16,
@@ -219,12 +243,52 @@ export default function ManagerActivities() {
           No activities in this phase.
         </div>
       ) : (
-        <div style={{ display: "grid", gap: 16 }}>
-          {rows.map((activity) => renderActivityCard(activity))}
-        </div>
+        <>
+          <div style={{ display: "grid", gap: 16 }}>
+            {pageRows.map((activity) => renderActivityCard(activity))}
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
+            <span style={{ color: "var(--muted)", fontSize: 13, fontWeight: 600 }}>
+              Showing {startItem} to {endItem} of {rows.length}
+            </span>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-small"
+                disabled={safePage === 1}
+                onClick={() =>
+                  setPhasePages((prev) => ({ ...prev, [phase]: Math.max(1, safePage - 1) }))
+                }
+              >
+                Previous
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={`${phase}-${page}`}
+                  type="button"
+                  className={page === safePage ? "btn btn-primary btn-small" : "btn btn-ghost btn-small"}
+                  onClick={() => setPhasePages((prev) => ({ ...prev, [phase]: page }))}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="btn btn-ghost btn-small"
+                disabled={safePage === totalPages}
+                onClick={() =>
+                  setPhasePages((prev) => ({ ...prev, [phase]: Math.min(totalPages, safePage + 1) }))
+                }
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </section>
-  );
+    );
+  };
 
   if (loading) {
     return (
@@ -259,18 +323,21 @@ export default function ManagerActivities() {
         ) : (
           <div style={{ display: "grid", gap: 16 }}>
             {renderPhaseSection(
+              "RECEIVED_FROM_HR",
               "Primary list received from HR",
               "Review and decide on the HR shortlist.",
               groupedByPhase.RECEIVED_FROM_HR,
               "#f59e0b"
             )}
             {renderPhaseSection(
+              "INVITATIONS_ONGOING",
               "Invitations in progress",
               "Employees are being invited/replaced based on your selected roster.",
               groupedByPhase.INVITATIONS_ONGOING,
               "#2563eb"
             )}
             {renderPhaseSection(
+              "SENT_TO_HR",
               "List sent to HR",
               "You sent the roster to HR and final validation is pending.",
               groupedByPhase.SENT_TO_HR,

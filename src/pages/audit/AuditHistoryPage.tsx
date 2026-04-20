@@ -117,6 +117,7 @@ function MetadataBlock({ meta }: { meta?: Record<string, unknown> }) {
 }
 
 export default function AuditHistoryPage() {
+  const ITEMS_PER_PAGE = 12;
   const [rows, setRows] = useState<AuditHistoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -124,6 +125,7 @@ export default function AuditHistoryPage() {
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [period, setPeriod] = useState<HistoryPeriod>("all");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const subtitle = useMemo(
     () =>
@@ -151,6 +153,10 @@ export default function AuditHistoryPage() {
     const t = window.setTimeout(() => setDebouncedSearch(searchInput.trim()), 320);
     return () => window.clearTimeout(t);
   }, [searchInput]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, period, rows.length]);
 
   useEffect(() => {
     let cancelled = false;
@@ -187,6 +193,14 @@ export default function AuditHistoryPage() {
 
   const detailPublicMeta = detail ? filterPublicMetadata(detail.metadata) : {};
   const hasPublicMeta = Object.keys(detailPublicMeta).length > 0;
+  const totalPages = Math.max(1, Math.ceil(rows.length / ITEMS_PER_PAGE));
+  const paginatedRows = useMemo(() => {
+    const safePage = Math.min(currentPage, totalPages);
+    const start = (safePage - 1) * ITEMS_PER_PAGE;
+    return rows.slice(start, start + ITEMS_PER_PAGE);
+  }, [rows, currentPage, totalPages]);
+  const startItem = rows.length === 0 ? 0 : (Math.min(currentPage, totalPages) - 1) * ITEMS_PER_PAGE + 1;
+  const endItem = Math.min(Math.min(currentPage, totalPages) * ITEMS_PER_PAGE, rows.length);
 
   return (
     <div className="audit-history-page">
@@ -256,7 +270,7 @@ export default function AuditHistoryPage() {
           </div>
         ) : (
           <ul className="audit-history-page__grid" aria-label="Audit timeline">
-            {rows.map((r) => {
+            {paginatedRows.map((r) => {
               const when = formatWhen(r.createdAt);
               const label = ACTION_LABELS[r.action] || r.action.replace(/_/g, " ");
               return (
@@ -286,6 +300,41 @@ export default function AuditHistoryPage() {
             })}
           </ul>
         )}
+        {!loading && rows.length > 0 ? (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
+            <span style={{ color: "var(--muted)", fontSize: 14, fontWeight: 600 }}>
+              Showing {startItem} to {endItem} of {rows.length}
+            </span>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-small"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              >
+                Previous
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  type="button"
+                  className={page === currentPage ? "btn btn-primary btn-small" : "btn btn-ghost btn-small"}
+                  onClick={() => setCurrentPage(page)}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="btn btn-ghost btn-small"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {detail ? (

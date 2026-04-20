@@ -139,6 +139,7 @@ export default function AppShell({
   sidebarFooter,
   profilePath,
   userCard,
+  hideTopbarSearch = false,
 }: {
   badge: string;
   title: string;
@@ -152,6 +153,7 @@ export default function AppShell({
     sub?: string;
     avatarUrl?: string;
   };
+  hideTopbarSearch?: boolean;
 }) {
   const navigate = useNavigate();
 
@@ -430,10 +432,12 @@ export default function AppShell({
           </div>
 
           <div className="topbar-right topbar-actions">
-            <div className="topbar-search" aria-hidden="true">
-              <span className="search-icon"></span>
-              <input type="text" placeholder="Search workspace..." />
-            </div>
+            {!hideTopbarSearch ? (
+              <div className="topbar-search" aria-hidden="true">
+                <span className="search-icon"></span>
+                <input type="text" placeholder="Search workspace..." />
+              </div>
+            ) : null}
 
             <NotificationBell />
 

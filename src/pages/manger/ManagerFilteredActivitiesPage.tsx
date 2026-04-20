@@ -35,6 +35,8 @@ function ManagerFilteredActivitiesInner({
   const [items, setItems] = useState<ActivityRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 8;
 
   useEffect(() => {
     let cancelled = false;
@@ -61,6 +63,19 @@ function ManagerFilteredActivitiesInner({
     copy.sort((a, b) => String(b.startDate).localeCompare(String(a.startDate)));
     return copy;
   }, [items]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [mode, items.length]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / ITEMS_PER_PAGE));
+  const paginated = useMemo(() => {
+    const safePage = Math.min(currentPage, totalPages);
+    const start = (safePage - 1) * ITEMS_PER_PAGE;
+    return sorted.slice(start, start + ITEMS_PER_PAGE);
+  }, [sorted, currentPage, totalPages]);
+  const startItem = sorted.length === 0 ? 0 : (Math.min(currentPage, totalPages) - 1) * ITEMS_PER_PAGE + 1;
+  const endItem = Math.min(Math.min(currentPage, totalPages) * ITEMS_PER_PAGE, sorted.length);
 
   const page = META[mode];
 
@@ -109,7 +124,7 @@ function ManagerFilteredActivitiesInner({
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            {sorted.map((a) => (
+            {paginated.map((a) => (
               <button
                 key={a._id}
                 type="button"
@@ -156,6 +171,39 @@ function ManagerFilteredActivitiesInner({
                 <FiArrowRight size={22} style={{ color: "var(--sidebar-link-active-pill)", flexShrink: 0 }} />
               </button>
             ))}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", marginTop: "8px" }}>
+              <span style={{ color: "var(--muted)", fontSize: "13px", fontWeight: 600 }}>
+                Showing {startItem} to {endItem} of {sorted.length}
+              </span>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-small"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                >
+                  Previous
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    type="button"
+                    className={page === currentPage ? "btn btn-primary btn-small" : "btn btn-ghost btn-small"}
+                    onClick={() => setCurrentPage(page)}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-small"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
