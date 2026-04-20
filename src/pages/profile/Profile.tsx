@@ -3,7 +3,17 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { getCurrentUser, type CurrentUser, type Role } from "../../services/auth.service";
 import { getAllDepartments, type Department } from "../../services/departments.service";
 import { patchMe } from "./profile.api";
-import { getEmployeeByUserId, patchEmployeeById } from "../../services/employee.service";
+import { getMyEmployeeRecord, patchMyEmployeeRecord } from "../../services/employee.service";
+import { getAllSkills } from "../../services/skills.service";
+import { getAllDomains, type Domain } from "../../services/domains.service";
+import type { ExperienceSegmentInput } from "../../utils/experienceSegments";
+import {
+  ExperienceSegmentsEditor,
+  mapApiSegmentsToInput,
+  mapApiSkillsToOptions,
+  validateExperienceSegmentsForSave,
+  type SkillOption,
+} from "../../components/ExperienceSegmentsEditor";
 import { PILL_TONES, S, type Tone } from "./profile.styles";
 
 import ProfileHero from "./components/ProfileHero";
@@ -188,6 +198,9 @@ export default function Profile() {
   const [editJobTitle, setEditJobTitle] = useState("");
   const [editExperienceYears, setEditExperienceYears] = useState(0);
   const [editSeniorityLevel, setEditSeniorityLevel] = useState<"JUNIOR" | "MID" | "SENIOR">("JUNIOR");
+  const [experienceSegments, setExperienceSegments] = useState<ExperienceSegmentInput[]>([]);
+  const [domains, setDomains] = useState<Domain[]>([]);
+  const [skillOptions, setSkillOptions] = useState<SkillOption[]>([]);
 
   const [viewportWidth, setViewportWidth] = useState<number>(() =>
     typeof window !== "undefined" ? window.innerWidth : 1400
@@ -232,7 +245,11 @@ export default function Profile() {
 
         if (safeUpper(me.role as any) === "EMPLOYEE") {
           try {
-            const employeeRecord = await getEmployeeByUserId(me._id);
+            const [employeeRecord, skillsList, domainList] = await Promise.all([
+              getMyEmployeeRecord(),
+              getAllSkills().catch(() => []),
+              getAllDomains().catch(() => []),
+            ]);
             if (!cancelled && employeeRecord) {
               setEmployeeRecordId(employeeRecord._id);
               setEditJobTitle(String(employeeRecord.jobTitle || ""));
@@ -240,6 +257,9 @@ export default function Profile() {
               setEditSeniorityLevel(
                 (employeeRecord.seniorityLevel || "JUNIOR") as "JUNIOR" | "MID" | "SENIOR"
               );
+              setSkillOptions(mapApiSkillsToOptions(skillsList));
+              setDomains(Array.isArray(domainList) ? domainList : []);
+              setExperienceSegments(mapApiSegmentsToInput(employeeRecord.experienceSegments));
             }
           } catch {
             // keep page usable
@@ -355,10 +375,16 @@ export default function Profile() {
       });
 
       if (isEmployee && employeeRecordId) {
-        await patchEmployeeById(employeeRecordId, {
+        const years = Math.max(0, Number(editExperienceYears || 0));
+        const segErr = validateExperienceSegmentsForSave(years, experienceSegments);
+        if (segErr) {
+          throw new Error(segErr);
+        }
+        await patchMyEmployeeRecord({
           jobTitle: editJobTitle.trim() || "Not Assigned",
-          experienceYears: Number(editExperienceYears || 0),
+          experienceYears: years,
           seniorityLevel: editSeniorityLevel,
+          experienceSegments: years > 0 ? experienceSegments : [],
         });
       }
 
@@ -390,6 +416,7 @@ export default function Profile() {
     editJobTitle,
     editExperienceYears,
     editSeniorityLevel,
+    experienceSegments,
   ]);
 
   const onAvatarFileSelect = useCallback(
@@ -581,6 +608,17 @@ export default function Profile() {
                           <option value="MID">MID</option>
                           <option value="SENIOR">SENIOR</option>
                         </select>
+                      </div>
+
+                      <div style={{ ...fieldWrapStyle, gridColumn: isMobile ? "1 / -1" : "1 / -1" }}>
+                        <ExperienceSegmentsEditor
+                          experienceYears={Math.max(0, Number(editExperienceYears || 0))}
+                          segments={experienceSegments}
+                          onChange={setExperienceSegments}
+                          domains={domains}
+                          skills={skillOptions}
+                          disabled={savingBasics}
+                        />
                       </div>
                     </>
                   )}

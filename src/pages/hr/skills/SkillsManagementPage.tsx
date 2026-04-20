@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiPlus, FiSearch, FiX } from 'react-icons/fi';
 import {
   createSkill,
@@ -6,6 +7,7 @@ import {
   getAllSkills,
   updateSkill,
 } from '../../../services/skills.service';
+import { getAllDomains, type Domain } from '../../../services/domains.service';
 
 type SkillCategory = 'KNOWLEDGE' | 'KNOW_HOW' | 'SOFT';
 
@@ -14,7 +16,50 @@ type Skill = {
   name: string;
   category: SkillCategory;
   description?: string;
+  domainIds?: (string | Domain | Record<string, unknown>)[];
+  /** Some APIs may expose domains under a different key */
+  domains?: (string | Domain | Record<string, unknown>)[];
 };
+
+function sameMongoId(a: unknown, b: unknown): boolean {
+  return String(a ?? '').trim() === String(b ?? '').trim();
+}
+
+function rawSkillDomainList(skill: Skill): unknown[] {
+  const s = skill as Skill & { domains?: unknown[] };
+  const fromIds = s.domainIds;
+  if (Array.isArray(fromIds) && fromIds.length) return fromIds;
+  if (Array.isArray(s.domains) && s.domains.length) return s.domains;
+  return Array.isArray(fromIds) ? fromIds : [];
+}
+
+/** One entry per linked domain, stable order from the API */
+function getSkillDomainEntries(skill: Skill, domainsList: Domain[]): { id: string; name: string }[] {
+  const out: { id: string; name: string }[] = [];
+  for (const entry of rawSkillDomainList(skill)) {
+    if (entry == null) continue;
+    if (typeof entry === 'string') {
+      const id = String(entry).trim();
+      if (!id) continue;
+      const name =
+        domainsList.find((d) => sameMongoId(d._id, id))?.name?.trim() || id;
+      out.push({ id, name });
+      continue;
+    }
+    if (typeof entry === 'object') {
+      const o = entry as Record<string, unknown>;
+      const idRaw = o._id ?? o.id;
+      const id = idRaw != null ? String(idRaw).trim() : '';
+      let name = typeof o.name === 'string' ? o.name.trim() : '';
+      if (!name && id) {
+        name = domainsList.find((d) => sameMongoId(d._id, id))?.name?.trim() || '';
+      }
+      if (!name && !id) continue;
+      out.push({ id: id || name, name: name || id || '—' });
+    }
+  }
+  return out;
+}
 
 const ITEMS_PER_PAGE = 8;
 
@@ -132,6 +177,21 @@ const styles = {
     fontWeight: 500,
     resize: 'vertical',
     fontFamily: 'inherit',
+  } as React.CSSProperties,
+
+  selectTableDomains: {
+    width: '100%',
+    maxWidth: '100%',
+    height: '44px',
+    padding: '0 12px',
+    borderRadius: '12px',
+    border: '1px solid var(--input-border)',
+    background: 'var(--surface)',
+    color: 'var(--text)',
+    outline: 'none',
+    fontSize: '13px',
+    fontWeight: 600,
+    cursor: 'pointer',
   } as React.CSSProperties,
 
   formActions: {
@@ -367,23 +427,34 @@ const styles = {
 } as const;
 
 export default function SkillsManagementPage() {
+  const { pathname } = useLocation();
+  const domainsAdminPath = pathname.replace(/\/skills$/, '/domains');
+
   const [skills, setSkills] = useState<Skill[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingDomains, setLoadingDomains] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [editingSkillId, setEditingSkillId] = useState<string | null>(null);
+  const [domains, setDomains] = useState<Domain[]>([]);
 
   const [form, setForm] = useState<{
     name: string;
     category: SkillCategory;
     description: string;
+    domainIds: string[];
   }>({
     name: '',
     category: 'KNOWLEDGE',
     description: '',
+    domainIds: [],
   });
+  const [domainPicker, setDomainPicker] = useState('');
+  /** Per-skill "Add domain…" select value in the skills table (key = skill._id) */
+  const [tableDomainPicker, setTableDomainPicker] = useState<Record<string, string>>({});
+  const [tableDomainSavingId, setTableDomainSavingId] = useState<string | null>(null);
 
   const loadSkills = async () => {
     try {
@@ -399,9 +470,38 @@ export default function SkillsManagementPage() {
     }
   };
 
+  const refreshSkillsList = async () => {
+    try {
+      setError('');
+      const data = await getAllSkills();
+      setSkills(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to load skills.');
+    }
+  };
+
+  const loadDomains = async () => {
+    try {
+      setLoadingDomains(true);
+      const data = await getAllDomains();
+      setDomains(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingDomains(false);
+    }
+  };
+
   useEffect(() => {
-    loadSkills();
+    void Promise.all([loadSkills(), loadDomains()]);
   }, []);
+
+  const getSkillDomainIds = (skill: Skill): string[] =>
+    getSkillDomainEntries(skill, domains).map((e) => e.id);
+
+  const getSkillDomainNames = (skill: Skill): string[] =>
+    getSkillDomainEntries(skill, domains).map((e) => e.name).filter(Boolean);
 
   const filteredSkills = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -411,10 +511,11 @@ export default function SkillsManagementPage() {
       return (
         skill.name.toLowerCase().includes(q) ||
         skill.category.toLowerCase().includes(q) ||
-        (skill.description || '').toLowerCase().includes(q)
+        (skill.description || '').toLowerCase().includes(q) ||
+        getSkillDomainNames(skill).join(' ').toLowerCase().includes(q)
       );
     });
-  }, [skills, search]);
+  }, [skills, search, domains]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -462,12 +563,14 @@ export default function SkillsManagementPage() {
           name: form.name.trim(),
           category: form.category,
           description: form.description.trim(),
+          domainIds: form.domainIds,
         });
       } else {
         await createSkill({
           name: form.name.trim(),
           category: form.category,
           description: form.description.trim(),
+          domainIds: form.domainIds,
         });
       }
 
@@ -475,7 +578,9 @@ export default function SkillsManagementPage() {
         name: '',
         category: 'KNOWLEDGE',
         description: '',
+        domainIds: [],
       });
+      setDomainPicker('');
       setEditingSkillId(null);
 
       await loadSkills();
@@ -494,7 +599,9 @@ export default function SkillsManagementPage() {
       name: skill.name || '',
       category: skill.category,
       description: skill.description || '',
+      domainIds: getSkillDomainIds(skill),
     });
+    setDomainPicker('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -505,7 +612,9 @@ export default function SkillsManagementPage() {
       name: '',
       category: 'KNOWLEDGE',
       description: '',
+      domainIds: [],
     });
+    setDomainPicker('');
   };
 
   const handleDelete = async (id: string) => {
@@ -522,6 +631,23 @@ export default function SkillsManagementPage() {
     }
   };
 
+  const handleUpdateSkillDomains = async (skill: Skill, domainIds: string[]) => {
+    try {
+      setError('');
+      setTableDomainSavingId(skill._id);
+      await updateSkill(skill._id, { domainIds });
+      await refreshSkillsList();
+      if (editingSkillId === skill._id) {
+        setForm((prev) => ({ ...prev, domainIds }));
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Failed to update domains for this skill.');
+    } finally {
+      setTableDomainSavingId(null);
+    }
+  };
+
   return (
     <div style={styles.page}>
       <div style={styles.container}>
@@ -529,8 +655,15 @@ export default function SkillsManagementPage() {
           <div>
             <h1 style={styles.title}>Skills Management</h1>
             <p style={styles.subtitle}>
-              Create, organize, and update skills by category in a cleaner and more
-              scalable workspace.
+              Create, organize, and update skills by category. Domain categories are
+              maintained on the{' '}
+              <Link
+                to={domainsAdminPath}
+                style={{ color: '#167c5a', fontWeight: 700, textDecoration: 'none' }}
+              >
+                Domain management
+              </Link>{' '}
+              page.
             </p>
           </div>
         </div>
@@ -548,7 +681,7 @@ export default function SkillsManagementPage() {
             </div>
 
             <form onSubmit={handleSubmit}>
-              <div style={styles.formGrid}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '18px' }}>
                 <div>
                   <label style={styles.label}>Skill name</label>
                   <input
@@ -560,22 +693,160 @@ export default function SkillsManagementPage() {
                   />
                 </div>
 
-                <div>
-                  <label style={styles.label}>Category</label>
-                  <select
-                    value={form.category}
-                    onChange={(e) =>
-                      setForm({ ...form, category: e.target.value as SkillCategory })
-                    }
-                    style={styles.input}
-                  >
-                    <option value="KNOWLEDGE">Knowledge</option>
-                    <option value="KNOW_HOW">Know-how</option>
-                    <option value="SOFT">Soft skill</option>
-                  </select>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                    gap: '16px',
+                    alignItems: 'start',
+                  }}
+                >
+                  <div>
+                    <label style={styles.label}>Category</label>
+                    <select
+                      value={form.category}
+                      onChange={(e) =>
+                        setForm({ ...form, category: e.target.value as SkillCategory })
+                      }
+                      style={styles.input}
+                    >
+                      <option value="KNOWLEDGE">Knowledge</option>
+                      <option value="KNOW_HOW">Know-how</option>
+                      <option value="SOFT">Soft skill</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={styles.label}>Domains</label>
+                    {loadingDomains && domains.length === 0 ? (
+                      <select disabled style={styles.input} aria-label="Loading domains">
+                        <option value="">Loading domains…</option>
+                      </select>
+                    ) : domains.length === 0 ? (
+                      <div>
+                        <select disabled style={styles.input} aria-label="No domains">
+                          <option value="">No domains in catalog yet</option>
+                        </select>
+                        <p
+                          style={{
+                            margin: '8px 0 0',
+                            fontSize: '13px',
+                            color: 'var(--muted)',
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          Create domains on the{' '}
+                          <Link
+                            to={domainsAdminPath}
+                            style={{ color: '#167c5a', fontWeight: 700, textDecoration: 'none' }}
+                          >
+                            Domain management
+                          </Link>{' '}
+                          page.
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                          <select
+                            value={domainPicker}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              if (!v) return;
+                              setForm((prev) =>
+                                prev.domainIds.includes(v)
+                                  ? prev
+                                  : { ...prev, domainIds: [...prev.domainIds, v] },
+                              );
+                              setDomainPicker('');
+                              e.target.blur();
+                            }}
+                            style={{ ...styles.input, flex: 1, minWidth: 0 }}
+                            aria-label="Add a domain"
+                            title={
+                              form.domainIds.length
+                                ? form.domainIds
+                                    .map(
+                                      (id) => domains.find((d) => d._id === id)?.name || id,
+                                    )
+                                    .join(', ')
+                                : undefined
+                            }
+                          >
+                            <option value="">
+                              {domains.filter((d) => !form.domainIds.includes(d._id)).length
+                                ? 'Add domain…'
+                                : form.domainIds.length
+                                  ? 'All domains added'
+                                  : '—'}
+                            </option>
+                            {domains
+                              .filter((d) => !form.domainIds.includes(d._id))
+                              .map((domain) => (
+                                <option key={domain._id} value={domain._id}>
+                                  {domain.name}
+                                </option>
+                              ))}
+                          </select>
+                          {form.domainIds.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => setForm((prev) => ({ ...prev, domainIds: [] }))}
+                              style={{ ...styles.btn, ...styles.btnGhost, height: '48px', flexShrink: 0 }}
+                            >
+                              Clear
+                            </button>
+                          ) : null}
+                        </div>
+                        {form.domainIds.length > 0 ? (
+                          <div
+                            style={{
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              gap: '6px',
+                              marginTop: '8px',
+                            }}
+                          >
+                            {form.domainIds.map((id) => {
+                              const name = domains.find((d) => d._id === id)?.name || id;
+                              return (
+                                <button
+                                  key={id}
+                                  type="button"
+                                  onClick={() =>
+                                    setForm((prev) => ({
+                                      ...prev,
+                                      domainIds: prev.domainIds.filter((x) => x !== id),
+                                    }))
+                                  }
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    padding: '4px 10px',
+                                    borderRadius: '999px',
+                                    border: '1px solid var(--border)',
+                                    background: 'var(--surface-2, #f8fafc)',
+                                    fontSize: '12px',
+                                    fontWeight: 700,
+                                    color: 'var(--text)',
+                                    cursor: 'pointer',
+                                  }}
+                                  title={`Remove ${name}`}
+                                >
+                                  {name}
+                                  <FiX size={14} aria-hidden />
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+                      </>
+                    )}
+                  </div>
                 </div>
 
-                <div style={styles.fullWidth}>
+                <div>
                   <label style={styles.label}>Description</label>
                   <textarea
                     placeholder="Enter skill description"
@@ -645,7 +916,8 @@ export default function SkillsManagementPage() {
                   <tr>
                     <th style={{ ...styles.th, width: '26%' }}>Skill name</th>
                     <th style={{ ...styles.th, width: '18%' }}>Category</th>
-                    <th style={{ ...styles.th, width: '40%' }}>Description</th>
+                    <th style={{ ...styles.th, width: '24%' }}>Domains</th>
+                    <th style={{ ...styles.th, width: '30%' }}>Description</th>
                     <th style={{ ...styles.th, width: '16%', textAlign: 'center' }}>
                       Actions
                     </th>
@@ -655,59 +927,196 @@ export default function SkillsManagementPage() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={4} style={styles.empty}>
+                      <td colSpan={5} style={styles.empty}>
                         Loading skills...
                       </td>
                     </tr>
                   ) : filteredSkills.length === 0 ? (
                     <tr>
-                      <td colSpan={4} style={styles.empty}>
+                      <td colSpan={5} style={styles.empty}>
                         No skills found.
                       </td>
                     </tr>
                   ) : (
-                    paginatedSkills.map((skill, index) => (
-                      <tr
-                        key={skill._id}
-                        style={{
-                          background: index % 2 === 1 ? '#fcfdff' : 'transparent',
-                        }}
-                      >
-                        <td style={{ ...styles.td, ...styles.nameCell }}>{skill.name}</td>
+                    paginatedSkills.map((skill, index) => {
+                      const skillDomainIds = getSkillDomainIds(skill);
+                      const domainEntries = getSkillDomainEntries(skill, domains);
+                      const domainLabel =
+                        domainEntries.map((e) => e.name).join(', ') || '—';
+                      const rowSaving = tableDomainSavingId === skill._id;
+                      const availableCount = domains.filter(
+                        (d) => !skillDomainIds.some((id) => sameMongoId(id, d._id)),
+                      ).length;
+                      return (
+                        <tr
+                          key={skill._id}
+                          style={{
+                            background: index % 2 === 1 ? '#fcfdff' : 'transparent',
+                          }}
+                        >
+                          <td style={{ ...styles.td, ...styles.nameCell }}>{skill.name}</td>
 
-                        <td style={styles.td}>
-                          <span style={styles.categoryPill}>
-                            {getCategoryLabel(skill.category)}
-                          </span>
-                        </td>
+                          <td style={styles.td}>
+                            <span style={styles.categoryPill}>
+                              {getCategoryLabel(skill.category)}
+                            </span>
+                          </td>
 
-                        <td style={styles.td}>{skill.description || '—'}</td>
-
-                        <td style={{ ...styles.td, textAlign: 'center' }}>
-                          <div style={styles.actions}>
-                            <button
-                              type="button"
-                              style={{ ...styles.iconBtn, ...styles.editBtn }}
-                              onClick={() => handleStartEdit(skill)}
-                              title="Edit skill"
-                              aria-label={`Edit ${skill.name}`}
+                          <td style={styles.td}>
+                            <div
+                              style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '8px',
+                                minWidth: 0,
+                              }}
                             >
-                              <FiEdit2 size={16} />
-                            </button>
+                              {loadingDomains && domains.length === 0 ? (
+                                <select
+                                  disabled
+                                  style={styles.selectTableDomains}
+                                  aria-label="Loading domains"
+                                >
+                                  <option value="">Loading domains…</option>
+                                </select>
+                              ) : domains.length === 0 ? (
+                                <div>
+                                  <select
+                                    disabled
+                                    style={styles.selectTableDomains}
+                                    aria-label="No domains"
+                                  >
+                                    <option value="">No domains in catalog</option>
+                                  </select>
+                                  <p
+                                    style={{
+                                      margin: '6px 0 0',
+                                      fontSize: '12px',
+                                      color: 'var(--muted)',
+                                      lineHeight: 1.45,
+                                    }}
+                                  >
+                                    <Link
+                                      to={domainsAdminPath}
+                                      style={{
+                                        color: '#167c5a',
+                                        fontWeight: 700,
+                                        textDecoration: 'none',
+                                      }}
+                                    >
+                                      Domain management
+                                    </Link>
+                                  </p>
+                                </div>
+                              ) : (
+                                <select
+                                  value={tableDomainPicker[skill._id] ?? ''}
+                                  disabled={rowSaving}
+                                  aria-label={`Assign domain to ${skill.name}. Current: ${domainLabel}`}
+                                  title={domainLabel}
+                                  style={styles.selectTableDomains}
+                                  onChange={(e) => {
+                                    const v = e.target.value.trim();
+                                    if (!v) return;
+                                    if (skillDomainIds.some((id) => sameMongoId(id, v))) {
+                                      setTableDomainPicker((p) => ({ ...p, [skill._id]: '' }));
+                                      return;
+                                    }
+                                    const next = [...skillDomainIds, v];
+                                    setTableDomainPicker((p) => ({ ...p, [skill._id]: '' }));
+                                    void handleUpdateSkillDomains(skill, next);
+                                  }}
+                                >
+                                  <option value="">
+                                    {availableCount
+                                      ? 'Add domain…'
+                                      : skillDomainIds.length
+                                        ? 'All domains added'
+                                        : '—'}
+                                  </option>
+                                  {domains
+                                    .filter(
+                                      (d) =>
+                                        !skillDomainIds.some((id) => sameMongoId(id, d._id)),
+                                    )
+                                    .map((d) => (
+                                      <option key={d._id} value={d._id}>
+                                        {d.name}
+                                      </option>
+                                    ))}
+                                </select>
+                              )}
+                              {domainEntries.length > 0 ? (
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    flexWrap: 'wrap',
+                                    gap: '6px',
+                                  }}
+                                >
+                                  {domainEntries.map((e) => (
+                                    <button
+                                      key={`${skill._id}_${e.id}`}
+                                      type="button"
+                                      disabled={rowSaving}
+                                      onClick={() => {
+                                        const next = skillDomainIds.filter(
+                                          (id) => !sameMongoId(id, e.id),
+                                        );
+                                        void handleUpdateSkillDomains(skill, next);
+                                      }}
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        padding: '4px 8px',
+                                        borderRadius: '999px',
+                                        border: '1px solid var(--border)',
+                                        background: 'var(--surface-2, #f8fafc)',
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                        color: 'var(--text)',
+                                        cursor: rowSaving ? 'wait' : 'pointer',
+                                      }}
+                                      title={`Remove ${e.name}`}
+                                    >
+                                      {e.name}
+                                      <FiX size={12} aria-hidden />
+                                    </button>
+                                  ))}
+                                </div>
+                              ) : null}
+                            </div>
+                          </td>
 
-                            <button
-                              type="button"
-                              style={{ ...styles.iconBtn, ...styles.deleteBtn }}
-                              onClick={() => handleDelete(skill._id)}
-                              title="Delete skill"
-                              aria-label={`Delete ${skill.name}`}
-                            >
-                              <FiTrash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                          <td style={styles.td}>{skill.description || '—'}</td>
+
+                          <td style={{ ...styles.td, textAlign: 'center' }}>
+                            <div style={styles.actions}>
+                              <button
+                                type="button"
+                                style={{ ...styles.iconBtn, ...styles.editBtn }}
+                                onClick={() => handleStartEdit(skill)}
+                                title="Edit skill"
+                                aria-label={`Edit ${skill.name}`}
+                              >
+                                <FiEdit2 size={16} />
+                              </button>
+
+                              <button
+                                type="button"
+                                style={{ ...styles.iconBtn, ...styles.deleteBtn }}
+                                onClick={() => handleDelete(skill._id)}
+                                title="Delete skill"
+                                aria-label={`Delete ${skill.name}`}
+                              >
+                                <FiTrash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>

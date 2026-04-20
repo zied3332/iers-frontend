@@ -9,6 +9,16 @@ import {
   getAllDepartments,
   type Department,
 } from "../../services/departments.service";
+import { getAllDomains, type Domain } from "../../services/domains.service";
+import { getAllSkills } from "../../services/skills.service";
+import type { ExperienceSegmentInput } from "../../utils/experienceSegments";
+import {
+  ExperienceSegmentsEditor,
+  mapApiSegmentsToInput,
+  mapApiSkillsToOptions,
+  validateExperienceSegmentsForSave,
+  type SkillOption,
+} from "../../components/ExperienceSegmentsEditor";
 
 const pageCard: React.CSSProperties = {
   background: "var(--card)",
@@ -113,6 +123,20 @@ const modalCard: React.CSSProperties = {
   padding: 20,
 };
 
+/** Edit employee: wide layout + capped height with internal scroll */
+const editEmployeeModalCard: React.CSSProperties = {
+  width: "min(1080px, 97vw)",
+  maxHeight: "min(88vh, 920px)",
+  background: "var(--surface)",
+  borderRadius: 20,
+  border: "1px solid var(--border)",
+  boxShadow: "0 26px 60px rgba(2,6,23,0.22)",
+  padding: 0,
+  display: "flex",
+  flexDirection: "column",
+  overflow: "hidden",
+};
+
 const actionsGroup: React.CSSProperties = {
   display: "inline-flex",
   flexWrap: "nowrap",
@@ -158,6 +182,7 @@ type Emp = {
   matricule: string;
   seniority: "JUNIOR" | "MID" | "SENIOR";
   experienceYears: number;
+  experienceSegments: ExperienceSegmentInput[];
   avatarUrl?: string;
   isOnline: boolean;
 };
@@ -353,6 +378,8 @@ const IconSearch = () => (
 export default function HrEmployees() {
   const [records, setRecords] = useState<EmployeeRecord[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [domains, setDomains] = useState<Domain[]>([]);
+  const [skillOptions, setSkillOptions] = useState<SkillOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -372,17 +399,22 @@ export default function HrEmployees() {
   });
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editExperienceSegments, setEditExperienceSegments] = useState<ExperienceSegmentInput[]>([]);
 
   const loadData = async () => {
     setLoading(true);
     setError("");
     try {
-      const [employeesData, departmentsData] = await Promise.all([
+      const [employeesData, departmentsData, domainsData, skillsData] = await Promise.all([
         getAllEmployees(),
         getAllDepartments(),
+        getAllDomains().catch(() => []),
+        getAllSkills().catch(() => []),
       ]);
       setRecords(employeesData || []);
       setDepartments(departmentsData || []);
+      setDomains(Array.isArray(domainsData) ? domainsData : []);
+      setSkillOptions(mapApiSkillsToOptions(skillsData));
     } catch (e: any) {
       setError(e?.message || "Failed to load employees");
     } finally {
@@ -404,6 +436,18 @@ export default function HrEmployees() {
     return map;
   }, [departments]);
 
+  const domainLabelById = useMemo(() => {
+    const m = new Map<string, string>();
+    domains.forEach((d) => m.set(String(d._id), String(d.name || "")));
+    return m;
+  }, [domains]);
+
+  const skillLabelById = useMemo(() => {
+    const m = new Map<string, string>();
+    skillOptions.forEach((s) => m.set(String(s._id), String(s.name || "")));
+    return m;
+  }, [skillOptions]);
+
   const employees = useMemo(() => {
     const mapped = (records || []).map((r) => {
       const user = typeof r.user_id === "object" ? r.user_id : null;
@@ -419,6 +463,7 @@ export default function HrEmployees() {
         matricule: String(user?.matricule || "-"),
         seniority: normalizeSeniority(r.seniorityLevel),
         experienceYears: Number(r.experienceYears || 0),
+        experienceSegments: mapApiSegmentsToInput(r.experienceSegments),
         avatarUrl: String(user?.avatar || user?.profilePicture || user?.image || ""),
         isOnline: inferOnlineStatus(user),
       } as Emp;
@@ -494,6 +539,8 @@ export default function HrEmployees() {
   useEffect(() => {
     if (!editing?.id) return;
     setEditForm(getEditFormFromRecord(records, editing.id));
+    const match = (records || []).find((r) => String(r._id || "") === String(editing.id));
+    setEditExperienceSegments(mapApiSegmentsToInput(match?.experienceSegments));
   }, [editing?.id, records]);
 
   const closeEdit = () => {
@@ -510,6 +557,12 @@ export default function HrEmployees() {
       return;
     }
 
+    const segErr = validateExperienceSegmentsForSave(years, editExperienceSegments);
+    if (segErr) {
+      setError(segErr);
+      return;
+    }
+
     setSaving(true);
     setError("");
 
@@ -518,6 +571,7 @@ export default function HrEmployees() {
         jobTitle: editForm.jobTitle.trim() || "Not Assigned",
         experienceYears: years,
         seniorityLevel: editForm.seniorityLevel,
+        experienceSegments: years > 0 ? editExperienceSegments : [],
       });
 
       setRecords((prev) =>
@@ -1145,7 +1199,7 @@ export default function HrEmployees() {
                 </div>
 
                 <div>
-                  <div style={fieldLabel}>Role</div>
+                  <div style={fieldLabel}>Job title</div>
                   <div style={fieldValue}>{viewing.role}</div>
                 </div>
 
@@ -1164,7 +1218,7 @@ export default function HrEmployees() {
                 </div>
 
                 <div>
-                  <div style={fieldLabel}>Experience</div>
+                  <div style={fieldLabel}>Total experience</div>
                   <div style={fieldValue}>{formatYears(viewing.experienceYears)}</div>
                 </div>
 
@@ -1177,6 +1231,92 @@ export default function HrEmployees() {
                   </div>
                 </div>
               </div>
+
+              <div
+                style={{
+                  marginTop: 20,
+                  paddingTop: 18,
+                  borderTop: "1px solid var(--border)",
+                }}
+              >
+                <div style={{ ...fieldLabel, marginBottom: 10 }}>Experience details</div>
+                {viewing.experienceYears <= 0 &&
+                viewing.experienceSegments.length === 0 ? (
+                  <div
+                    style={{
+                      color: "var(--muted)",
+                      fontWeight: 700,
+                      fontSize: 14,
+                    }}
+                  >
+                    None recorded.
+                  </div>
+                ) : viewing.experienceSegments.length === 0 ? (
+                  <div style={{ ...fieldValue, fontSize: 14 }}>
+                    {formatYears(viewing.experienceYears)} — no segments recorded.
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      display: "grid",
+                      gap: 10,
+                      maxHeight: "min(320px, 45vh)",
+                      overflowY: "auto",
+                      paddingRight: 4,
+                    }}
+                  >
+                    {viewing.experienceSegments.map((seg, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          border: "1px solid var(--border)",
+                          borderRadius: 14,
+                          padding: "12px 14px",
+                          background: "var(--surface-2, var(--surface))",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontWeight: 900,
+                            fontSize: 14,
+                            color: "var(--text)",
+                            marginBottom: 8,
+                          }}
+                        >
+                          {seg.fromYear}–{seg.toYear}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 13,
+                            color: "var(--text)",
+                            lineHeight: 1.45,
+                            marginBottom: 4,
+                          }}
+                        >
+                          <span style={{ color: "var(--muted)", fontWeight: 800 }}>
+                            Domains:{" "}
+                          </span>
+                          {seg.domainIds.length
+                            ? seg.domainIds
+                                .map((id) => domainLabelById.get(id) || id)
+                                .join(", ")
+                            : "—"}
+                        </div>
+                        <div style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.45 }}>
+                          <span style={{ color: "var(--muted)", fontWeight: 800 }}>
+                            Skills:{" "}
+                          </span>
+                          {seg.skillIds.length
+                            ? seg.skillIds
+                                .map((id) => skillLabelById.get(id) || id)
+                                .join(", ")
+                            : "—"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -1185,36 +1325,51 @@ export default function HrEmployees() {
           <div onClick={closeEdit} style={modalOverlay}>
             <div
               onClick={(ev) => ev.stopPropagation()}
-              style={{ ...modalCard, width: "min(620px, 96vw)" }}
+              style={editEmployeeModalCard}
             >
               <div
                 style={{
-                  fontWeight: 900,
-                  fontSize: 22,
-                  color: "var(--text)",
+                  flexShrink: 0,
+                  padding: "18px 20px 0",
                 }}
               >
-                Edit Employee
+                <div
+                  style={{
+                    fontWeight: 900,
+                    fontSize: 22,
+                    color: "var(--text)",
+                  }}
+                >
+                  Edit Employee
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 4,
+                    color: "var(--muted)",
+                    fontWeight: 700,
+                  }}
+                >
+                  {editing.name}
+                </div>
               </div>
 
               <div
                 style={{
-                  marginTop: 4,
-                  color: "var(--muted)",
-                  fontWeight: 700,
+                  flex: 1,
+                  minHeight: 0,
+                  overflowY: "auto",
+                  padding: "16px 20px 8px",
                 }}
               >
-                {editing.name}
-              </div>
-
-              <div
-                style={{
-                  marginTop: 16,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                  gap: 12,
-                }}
-              >
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                    gap: 12,
+                    alignContent: "start",
+                  }}
+                >
                 <div>
                   <div style={fieldLabel}>Name</div>
                   <input
@@ -1347,15 +1502,30 @@ export default function HrEmployees() {
                     placeholder="Experience years"
                   />
                 </div>
+
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <ExperienceSegmentsEditor
+                    experienceYears={Math.max(0, Number(editForm.experienceYears || 0))}
+                    segments={editExperienceSegments}
+                    onChange={setEditExperienceSegments}
+                    domains={domains}
+                    skills={skillOptions}
+                    disabled={saving}
+                  />
+                </div>
+                </div>
               </div>
 
               <div
                 style={{
-                  marginTop: 18,
+                  flexShrink: 0,
+                  padding: "14px 20px 18px",
+                  borderTop: "1px solid var(--border)",
                   display: "flex",
                   justifyContent: "flex-end",
                   gap: 10,
                   flexWrap: "wrap",
+                  background: "var(--surface)",
                 }}
               >
                 <button

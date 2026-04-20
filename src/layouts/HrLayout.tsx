@@ -77,6 +77,12 @@ export default function HrLayout() {
         icon: "archive",
       },
       {
+        to: "/hr/domains",
+        label: "Domain management",
+        group: "Skills",
+        icon: "domain",
+      },
+      {
         to: "/hr/skills",
         label: "Skills Management",
         end: true,

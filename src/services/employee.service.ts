@@ -34,6 +34,14 @@ export type EmployeeRecord = {
 	jobTitle?: string;
 	experienceYears?: number;
 	seniorityLevel?: "JUNIOR" | "MID" | "SENIOR";
+	experienceSegments?: ExperienceSegment[];
+};
+
+export type ExperienceSegment = {
+	fromYear: number;
+	toYear: number;
+	domainIds: string[];
+	skillIds: string[];
 };
 
 export async function getAllEmployees(): Promise<EmployeeRecord[]> {
@@ -60,9 +68,34 @@ export async function getEmployeeByUserId(userId: string): Promise<EmployeeRecor
 	);
 }
 
+/** Current user's employee profile (EMPLOYEE role). */
+export async function getMyEmployeeRecord(): Promise<EmployeeRecord> {
+	const res = await fetch(`${BASE}/employee/me`, {
+		method: "GET",
+		headers: authHeaders(),
+	});
+	return handle(res);
+}
+
+/** Update current user's employee profile (EMPLOYEE role). */
+export async function patchMyEmployeeRecord(
+	payload: Partial<
+		Pick<EmployeeRecord, "jobTitle" | "experienceYears" | "seniorityLevel" | "experienceSegments">
+	>,
+): Promise<EmployeeRecord> {
+	const res = await fetch(`${BASE}/employee/me`, {
+		method: "PATCH",
+		headers: authHeaders(),
+		body: JSON.stringify(payload),
+	});
+	return handle(res);
+}
+
 export async function patchEmployeeById(
 	employeeId: string,
-	payload: Partial<Pick<EmployeeRecord, "jobTitle" | "experienceYears" | "seniorityLevel">>
+	payload: Partial<
+		Pick<EmployeeRecord, "jobTitle" | "experienceYears" | "seniorityLevel" | "experienceSegments">
+	>
 ): Promise<EmployeeRecord> {
 	const res = await fetch(`${BASE}/employee/${employeeId}`, {
 		method: "PATCH",

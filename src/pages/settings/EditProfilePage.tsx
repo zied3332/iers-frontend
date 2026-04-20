@@ -1,8 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getCurrentUser, type CurrentUser } from "../../services/auth.service";
-import { getEmployeeByUserId, patchEmployeeById } from "../../services/employee.service";
+import { getMyEmployeeRecord, patchMyEmployeeRecord } from "../../services/employee.service";
+import { getAllSkills } from "../../services/skills.service";
+import { getAllDomains, type Domain } from "../../services/domains.service";
 import { patchMe } from "../profile/profile.api";
+import type { ExperienceSegmentInput } from "../../utils/experienceSegments";
+import {
+  ExperienceSegmentsEditor,
+  mapApiSegmentsToInput,
+  mapApiSkillsToOptions,
+  validateExperienceSegmentsForSave,
+  type SkillOption,
+} from "../../components/ExperienceSegmentsEditor";
 
 type SeniorityLevel = "JUNIOR" | "MID" | "SENIOR";
 
@@ -16,6 +26,8 @@ type EditFormState = {
   experienceYears: number;
   seniorityLevel: SeniorityLevel;
 };
+
+const emptySegments: ExperienceSegmentInput[] = [];
 
 function roleBaseFromPath(pathname: string): "hr" | "super-manager" | "manager" | "me" {
   const first = String(pathname.split("/")[1] || "").toLowerCase();
@@ -45,6 +57,10 @@ export default function EditProfilePage() {
 
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [employeeRecordId, setEmployeeRecordId] = useState("");
+  const [experienceSegments, setExperienceSegments] =
+    useState<ExperienceSegmentInput[]>(emptySegments);
+  const [domains, setDomains] = useState<Domain[]>([]);
+  const [skillOptions, setSkillOptions] = useState<SkillOption[]>([]);
 
   const [form, setForm] = useState<EditFormState>({
     name: "",
@@ -83,9 +99,16 @@ export default function EditProfilePage() {
 
         if (String(me.role || "").toUpperCase() === "EMPLOYEE") {
           try {
-            const employee = await getEmployeeByUserId(me._id);
+            const [employee, skillsList, domainList] = await Promise.all([
+              getMyEmployeeRecord(),
+              getAllSkills().catch(() => []),
+              getAllDomains().catch(() => []),
+            ]);
             if (!active || !employee) return;
             setEmployeeRecordId(String(employee._id || ""));
+            setSkillOptions(mapApiSkillsToOptions(skillsList));
+            setDomains(Array.isArray(domainList) ? domainList : []);
+            setExperienceSegments(mapApiSegmentsToInput(employee.experienceSegments));
             setForm((prev) => ({
               ...prev,
               jobTitle: String(employee.jobTitle || ""),
@@ -128,10 +151,16 @@ export default function EditProfilePage() {
       await patchMe(payload);
 
       if (isEmployee && employeeRecordId) {
-        await patchEmployeeById(employeeRecordId, {
+        const years = Math.max(0, Number(form.experienceYears || 0));
+        const segErr = validateExperienceSegmentsForSave(years, experienceSegments);
+        if (segErr) {
+          throw new Error(segErr);
+        }
+        await patchMyEmployeeRecord({
           jobTitle: form.jobTitle.trim() || "Not Assigned",
-          experienceYears: Math.max(0, Number(form.experienceYears || 0)),
+          experienceYears: years,
           seniorityLevel: form.seniorityLevel,
+          experienceSegments: years > 0 ? experienceSegments : [],
         });
       }
 
@@ -281,6 +310,17 @@ export default function EditProfilePage() {
                         <option value="SENIOR">SENIOR</option>
                       </select>
                     </label>
+
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <ExperienceSegmentsEditor
+                        experienceYears={Math.max(0, Number(form.experienceYears || 0))}
+                        segments={experienceSegments}
+                        onChange={setExperienceSegments}
+                        domains={domains}
+                        skills={skillOptions}
+                        disabled={saving}
+                      />
+                    </div>
                   </>
                 ) : null}
               </div>

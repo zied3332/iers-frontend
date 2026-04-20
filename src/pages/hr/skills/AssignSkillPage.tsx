@@ -7,12 +7,14 @@ import {
   HiOutlineBolt,
   HiOutlineBuildingOffice2,
   HiOutlineChartBar,
+  HiOutlineSquares2X2,
   HiOutlineSparkles,
   HiOutlineUserCircle,
 } from 'react-icons/hi2';
 import { assignSkill, getAllSkills } from '../../../services/skills.service';
 import { getUsers } from '../../../services/users.service';
 import { getAllDepartments, type Department } from '../../../services/departments.service';
+import { getAllDomains, type Domain } from '../../../services/domains.service';
 
 // ─────────────────────────────────────────────────────────────
 // 🎨 Theme & Design Tokens
@@ -56,6 +58,7 @@ type Skill = {
   name: string;
   category: 'KNOWLEDGE' | 'KNOW_HOW' | 'SOFT';
   description?: string;
+  domainIds?: (string | Domain)[];
 };
 
 type Employee = {
@@ -287,9 +290,11 @@ const LevelSelector = ({ value, onChange }: { value: SkillLevel; onChange: (l: S
 // ─────────────────────────────────────────────────────────────
 export default function AssignSkillPage() {
   const [skills, setSkills] = useState<Skill[]>([]);
+  const [domains, setDomains] = useState<Domain[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [skillCategoryFilter, setSkillCategoryFilter] = useState<'' | Skill['category']>('');
+  const [skillDomainFilter, setSkillDomainFilter] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [searchEmployee, setSearchEmployee] = useState('');
@@ -317,8 +322,14 @@ export default function AssignSkillPage() {
     const load = async () => {
       try {
         setLoading(true); setError('');
-        const [sk, emp, dept] = await Promise.all([getAllSkills(), getUsers(), getAllDepartments()]);
+        const [sk, emp, dept, allDomains] = await Promise.all([
+          getAllSkills(),
+          getUsers(),
+          getAllDepartments(),
+          getAllDomains(),
+        ]);
         setSkills(Array.isArray(sk) ? sk : []);
+        setDomains(Array.isArray(allDomains) ? allDomains : []);
         const deptMap = new Map(Array.isArray(dept) ? dept.filter((d: Department) => d?._id && d?.name).map((d: Department) => [String(d._id), String(d.name)]) : []);
         setEmployees((Array.isArray(emp) ? emp : []).filter((u: any) => u?.role === 'EMPLOYEE').map((u: any) => ({
           ...u, department: resolveDepartment(u, deptMap)
@@ -351,14 +362,24 @@ export default function AssignSkillPage() {
     const q = searchSkill.trim().toLowerCase();
     return skills.filter((s) => {
       const matchesCategory = !skillCategoryFilter || s.category === skillCategoryFilter;
-      if (!matchesCategory) return false;
+      const skillDomainIds = (s.domainIds || []).map((entry) =>
+        typeof entry === 'string' ? entry : String(entry?._id || ''),
+      );
+      const matchesDomain = !skillDomainFilter || skillDomainIds.includes(skillDomainFilter);
+      if (!matchesCategory || !matchesDomain) return false;
       if (!q) return true;
+      const domainLabel = String(
+        (s.domainIds || [])
+          .map((entry) => (typeof entry === 'string' ? entry : entry?.name || ''))
+          .join(' '),
+      ).toLowerCase();
       return (
         (s.name || '').toLowerCase().includes(q) ||
-        (s.category || '').toLowerCase().includes(q)
+        (s.category || '').toLowerCase().includes(q) ||
+        domainLabel.includes(q)
       );
     });
-  }, [skills, searchSkill, skillCategoryFilter]);
+  }, [skills, searchSkill, skillCategoryFilter, skillDomainFilter]);
 
   const departmentOptions = useMemo(() => {
     const unique = new Set<string>();
@@ -488,7 +509,7 @@ export default function AssignSkillPage() {
                 </span>
                 Select Skill
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '0.7fr 1.3fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '0.7fr 0.7fr 1.3fr', gap: '12px' }}>
                 <select
                   value={skillCategoryFilter}
                   onChange={(e) => setSkillCategoryFilter(e.target.value as '' | Skill['category'])}
@@ -509,6 +530,30 @@ export default function AssignSkillPage() {
                   <option value="KNOWLEDGE">Knowledge</option>
                   <option value="KNOW_HOW">Know-how</option>
                   <option value="SOFT">Soft skill</option>
+                </select>
+
+                <select
+                  value={skillDomainFilter}
+                  onChange={(e) => setSkillDomainFilter(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px',
+                    borderRadius: theme.radius.sm,
+                    border: '1px solid ' + theme.colors.border,
+                    background: theme.colors.surface,
+                    color: theme.colors.text,
+                    fontSize: '16px',
+                    fontWeight: 600,
+                    outline: 'none',
+                    transition: theme.transition,
+                  }}
+                >
+                  <option value="">All Domains</option>
+                  {domains.map((domain) => (
+                    <option key={domain._id} value={domain._id}>
+                      {domain.name}
+                    </option>
+                  ))}
                 </select>
 
                 <SearchCombobox
@@ -554,7 +599,7 @@ export default function AssignSkillPage() {
                   onBlur={(e) => e.target.style.borderColor = theme.colors.border}
                 />
                 <div style={{ fontSize: '15px', color: theme.colors.muted, marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <FiInfo size={14} /> Used for recommendation weighting and priority routing
+                  <FiInfo size={14} /> Optional numeric weight for this assignment (0–100).
                 </div>
               </div>
             </div>
@@ -634,6 +679,36 @@ export default function AssignSkillPage() {
                         <CategoryPill category={selectedSkill.category} />
                       </div>
                       {selectedSkill.description && <div style={{ fontSize: '15px', color: theme.colors.textSecondary, lineHeight: 1.4 }}>{selectedSkill.description}</div>}
+                      {!!selectedSkill.domainIds?.length && (
+                        <div
+                          style={{
+                            marginTop: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            flexWrap: 'wrap',
+                          }}
+                        >
+                          <HiOutlineSquares2X2 size={14} color={theme.colors.muted} />
+                          {(selectedSkill.domainIds || []).map((entry) => (
+                            <span
+                              key={typeof entry === 'string' ? entry : entry._id}
+                              style={{
+                                padding: '4px 8px',
+                                borderRadius: '999px',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                background: '#f3f4f6',
+                                border: '1px solid #e5e7eb',
+                              }}
+                            >
+                              {typeof entry === 'string'
+                                ? domains.find((domain) => domain._id === entry)?.name || entry
+                                : entry.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div style={{ fontSize: '16px', color: theme.colors.muted, fontStyle: 'italic' }}>Select a skill</div>

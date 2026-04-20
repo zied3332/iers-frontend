@@ -17,6 +17,7 @@ export const createSkill = async (data: {
   name: string;
   category: 'KNOWLEDGE' | 'KNOW_HOW' | 'SOFT';
   description?: string;
+  domainIds?: string[];
 }) => {
   const res = await axios.post(`${API}/skills`, data, { headers: authHeaders() });
   return res.data;
