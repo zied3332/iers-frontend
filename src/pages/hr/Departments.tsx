@@ -168,6 +168,7 @@ export default function HrDepartments() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [editingDepartmentId, setEditingDepartmentId] = useState<string | null>(null);
+  const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     code: "",
@@ -269,6 +270,8 @@ export default function HrDepartments() {
     }
   };
 
+  const closeDetailsModal = () => setSelectedDepartment(null);
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -360,7 +363,23 @@ export default function HrDepartments() {
                   {paginatedDepartments.map((dept, i) => (
                     <tr key={dept._id} style={{ background: i % 2 === 1 ? "var(--surface-2)" : "var(--surface)" }}>
                       <td style={td}>
-                        <span style={{ fontWeight: 900, color: "#1f7a5a" }}>{dept.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDepartment(dept)}
+                          style={{
+                            border: "none",
+                            background: "transparent",
+                            padding: 0,
+                            margin: 0,
+                            fontWeight: 900,
+                            color: "#1f7a5a",
+                            cursor: "pointer",
+                            fontSize: 16,
+                          }}
+                          title={`Open ${dept.name} details`}
+                        >
+                          {dept.name}
+                        </button>
                       </td>
                       <td style={td}>
                         <span style={badge("#e0f2fe", "#0369a1")}>{dept.code}</span>
@@ -536,6 +555,78 @@ export default function HrDepartments() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {selectedDepartment && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.4)",
+            display: "grid",
+            placeItems: "center",
+            zIndex: 1000,
+          }}
+          onClick={closeDetailsModal}
+        >
+          <div
+            style={{
+              background: "var(--surface)",
+              borderRadius: 18,
+              padding: 32,
+              maxWidth: 980,
+              width: "97%",
+              minHeight: 350,
+              boxShadow: "0 20px 50px rgba(15, 23, 42, 0.15)",
+              border: "1px solid var(--border)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
+              <div>
+                <h2 style={{ fontSize: 24, fontWeight: 900, margin: 0, color: "var(--text)" }}>
+                  {selectedDepartment.name}
+                </h2>
+                <p style={{ margin: "8px 0 0", color: "var(--muted)", fontWeight: 700 }}>
+                  Department details
+                </p>
+              </div>
+              <button type="button" style={btn} onClick={closeDetailsModal}>
+                Close
+              </button>
+            </div>
+
+            <div
+              style={{
+                marginTop: 18,
+                display: "grid",
+                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                gap: 16,
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "var(--muted)", marginBottom: 4 }}>Name</div>
+                <div style={{ fontWeight: 800, color: "var(--text)" }}>{selectedDepartment.name || "—"}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "var(--muted)", marginBottom: 4 }}>Code</div>
+                <div style={{ fontWeight: 800, color: "var(--text)" }}>{selectedDepartment.code || "—"}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "var(--muted)", marginBottom: 4 }}>Manager</div>
+                <div style={{ fontWeight: 800, color: "var(--text)" }}>
+                  {selectedDepartment.manager_id
+                    ? managerNameById.get(selectedDepartment.manager_id) || "—"
+                    : "—"}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "var(--muted)", marginBottom: 4 }}>Description</div>
+                <div style={{ fontWeight: 800, color: "var(--text)" }}>{selectedDepartment.description || "—"}</div>
+              </div>
+            </div>
           </div>
         </div>
       )}
