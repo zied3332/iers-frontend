@@ -22,7 +22,6 @@ import HrGenerateRecommendations from "../pages/hr/GenerateRecommendations";
 import AccountManagementPage from "../pages/hr/AccountManagementPage";
 import SkillsManagementPage from "../pages/hr/skills/SkillsManagementPage";
 import AssignSkillPage from "../pages/hr/skills/AssignSkillPage";
-import DomainManagementPage from "../pages/hr/domains/DomainManagementPage";
 import HrCopilotPage from "../pages/hr/HrCopilotPage";
 import HrStatsDashboard from "../pages/hr/HrStatsDashboard";
 import HrCalendarPage from "../pages/hr/HrCalendarPage.tsx";
@@ -61,9 +60,6 @@ import HrDashboard from "../pages/hr/Dashboard.tsx";
 import CompleteProfile from "../pages/auth/CompleteProfile";
 import AccountPending from "../pages/auth/AccountPending";
 import SettingsPage from "../pages/settings/SettingsPage";
-import AppearanceSettingsPage from "../pages/settings/AppearanceSettingsPage";
-import EditProfilePage from "../pages/settings/EditProfilePage";
-import ChangePasswordPage from "../pages/settings/ChangePasswordPage";
 
 type Role = "HR" | "SUPER_MANAGER" | "MANAGER" | "EMPLOYEE";
 
@@ -166,7 +162,6 @@ export const router = createBrowserRouter([
           { path: "recommendations", element: <HrGenerateRecommendations /> },
           { path: "recommendations/generate", element: <HrGenerateRecommendations /> },
           { path: "copilot", element: <HrCopilotPage /> },
-          { path: "domains", element: <DomainManagementPage /> },
           { path: "skills", element: <SkillsManagementPage /> },
           { path: "skills/assign", element: <AssignSkillPage /> },
           { path: "ai/text-correction", element: <TextCorrectionPage /> },
@@ -175,9 +170,6 @@ export const router = createBrowserRouter([
           { path: "notifications", element: <NotificationsPage /> },
           { path: "notifications/:side", element: <NotificationsPage /> },
           { path: "settings", element: <SettingsPage /> },
-          { path: "settings/appearance", element: <AppearanceSettingsPage /> },
-          { path: "settings/edit-profile", element: <EditProfilePage /> },
-          { path: "settings/change-password", element: <ChangePasswordPage /> },
           { path: "employees/:id", element: <Profile /> },
           { path: "calendar", element: <HrCalendarPage /> },
         ],
@@ -203,7 +195,6 @@ export const router = createBrowserRouter([
           { path: "skills-dashboard", element: <HrSkillsDashboard /> },
           { path: "recommendations", element: <HrGenerateRecommendations /> },
           { path: "recommendations/generate", element: <HrGenerateRecommendations /> },
-          { path: "domains", element: <DomainManagementPage /> },
           { path: "skills", element: <SkillsManagementPage /> },
           { path: "skills/assign", element: <AssignSkillPage /> },
           { path: "profile", element: <Profile /> },
@@ -211,9 +202,6 @@ export const router = createBrowserRouter([
           { path: "notifications", element: <NotificationsPage /> },
           { path: "notifications/:side", element: <NotificationsPage /> },
           { path: "settings", element: <SettingsPage /> },
-          { path: "settings/appearance", element: <AppearanceSettingsPage /> },
-          { path: "settings/edit-profile", element: <EditProfilePage /> },
-          { path: "settings/change-password", element: <ChangePasswordPage /> },
           { path: "employees/:id", element: <Profile /> },
         ],
       },
@@ -237,7 +225,6 @@ export const router = createBrowserRouter([
           { path: "activities/archive", element: <ManagerPastActivitiesPage /> },
           { path: "activities/:activityId/review", element: <ManagerActivityReviewPage /> },
           { path: "activities/:activityId/staffing", element: <ManagerStaffingToReviewRedirect /> },
-          { path: "domains", element: <DomainManagementPage /> },
           { path: "skills", element: <SkillsManagementPage /> },
           { path: "skills/assign", element: <AssignSkillPage /> },
           { path: "profile", element: <Profile /> },
@@ -245,9 +232,6 @@ export const router = createBrowserRouter([
           { path: "notifications", element: <NotificationsPage /> },
           { path: "notifications/:side", element: <NotificationsPage /> },
           { path: "settings", element: <SettingsPage /> },
-          { path: "settings/appearance", element: <AppearanceSettingsPage /> },
-          { path: "settings/edit-profile", element: <EditProfilePage /> },
-          { path: "settings/change-password", element: <ChangePasswordPage /> },
           { path: "employees/:id", element: <Profile /> },
         ],
       },
@@ -277,9 +261,6 @@ export const router = createBrowserRouter([
           { path: "notifications", element: <NotificationsPage /> },
           { path: "notifications/:side", element: <NotificationsPage /> },
           { path: "settings", element: <SettingsPage /> },
-          { path: "settings/appearance", element: <AppearanceSettingsPage /> },
-          { path: "settings/edit-profile", element: <EditProfilePage /> },
-          { path: "settings/change-password", element: <ChangePasswordPage /> },
         ],
       },
     ],

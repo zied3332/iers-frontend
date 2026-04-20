@@ -20,10 +20,28 @@ type NavGroup = {
   items: NavItem[];
 };
 
+type ThemeMode = "light" | "dark";
+
+const THEME_STORAGE_KEY = "themeMode";
 const FALLBACK_AVATAR = "https://randomuser.me/api/portraits/men/35.jpg";
 
 function linkClass({ isActive }: { isActive: boolean }) {
   return `side-link nav-item ${isActive ? "active" : ""}`;
+}
+
+function getStoredThemeMode(): ThemeMode {
+  try {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    return saved === "dark" ? "dark" : "light";
+  } catch {
+    return "light";
+  }
+}
+
+function applyThemeMode(theme: ThemeMode) {
+  document.documentElement.setAttribute("data-theme", theme);
+  document.body.setAttribute("data-theme", theme);
+  document.body.style.colorScheme = theme;
 }
 
 function inferNavGroup(label: string) {
@@ -33,7 +51,7 @@ function inferNavGroup(label: string) {
     return "Intelligence";
   }
 
-  if (text.includes("notification")) {
+  if (text.includes("notification") || text.includes("setting")) {
     return "System";
   }
 
@@ -117,14 +135,17 @@ export default function AppShell({
   title,
   subtitle,
   nav,
+  topbarRight,
   sidebarFooter,
   profilePath,
   userCard,
+  hideTopbarSearch = false,
 }: {
   badge: string;
   title: string;
   subtitle?: string;
   nav: NavItem[];
+  topbarRight?: ReactNode;
   sidebarFooter?: ReactNode;
   profilePath: string;
   userCard?: {
@@ -132,10 +153,28 @@ export default function AppShell({
     sub?: string;
     avatarUrl?: string;
   };
+  hideTopbarSearch?: boolean;
 }) {
   const navigate = useNavigate();
 
+  const [themeMode, setThemeMode] = React.useState<ThemeMode>(() => {
+    const current = document.documentElement.getAttribute("data-theme");
+    if (current === "dark" || current === "light") {
+      return current as ThemeMode;
+    }
+    return getStoredThemeMode();
+  });
+
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
+
+  React.useEffect(() => {
+    applyThemeMode(themeMode);
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, themeMode);
+    } catch {
+      // ignore storage failures
+    }
+  }, [themeMode]);
 
   const SIDE_W = 350;
   const workspaceCode =
@@ -230,6 +269,11 @@ export default function AppShell({
             </div>
           </div>
 
+          <div className="sidebar-search" aria-hidden="true">
+            <span className="search-icon"></span>
+            <input type="text" placeholder="Search" />
+            <span className="search-shortcut">/</span>
+          </div>
         </div>
 
         <div className="sidebar-menu">
@@ -253,6 +297,36 @@ export default function AppShell({
                 ))}
               </nav>
 
+              {group.title === "System" ? (
+                <button
+                  type="button"
+                  className="theme-toggle-btn"
+                  onClick={() =>
+                    setThemeMode((prev) => (prev === "light" ? "dark" : "light"))
+                  }
+                  aria-label={`Switch to ${themeMode === "light" ? "dark" : "light"} mode`}
+                  title={`Switch to ${themeMode === "light" ? "dark" : "light"} mode`}
+                >
+                  <span className="theme-toggle-meta">
+                    <span className="theme-toggle-text">
+                      {themeMode === "light" ? "Switch to dark" : "Switch to light"}
+                    </span>
+                    <span className="theme-toggle-subtext"></span>
+                  </span>
+
+                  <span
+                    className={`theme-toggle-track ${themeMode === "dark" ? "is-dark" : ""}`}
+                  >
+                    <span className="theme-toggle-icon sun" aria-hidden="true">
+                      ☀
+                    </span>
+                    <span className="theme-toggle-icon moon" aria-hidden="true">
+                      ☾
+                    </span>
+                    <span className="theme-toggle-thumb" />
+                  </span>
+                </button>
+              ) : null}
             </div>
           ))}
         </div>
@@ -358,7 +432,16 @@ export default function AppShell({
           </div>
 
           <div className="topbar-right topbar-actions">
+            {!hideTopbarSearch ? (
+              <div className="topbar-search" aria-hidden="true">
+                <span className="search-icon"></span>
+                <input type="text" placeholder="Search workspace..." />
+              </div>
+            ) : null}
+
             <NotificationBell />
+
+            {topbarRight}
 
             <NavLink to={profilePath} className="profile-btn">
               <ProfileIcon />
@@ -475,20 +558,6 @@ function NavItemIcon({
     );
   }
 
-  if (key.includes("domain")) {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path
-          d="M4 6H20M4 12H14M4 18H20"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-        />
-        <circle cx="17" cy="12" r="2.5" stroke="currentColor" strokeWidth="2" />
-      </svg>
-    );
-  }
-
   if (key.includes("skills")) {
     return (
       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -566,11 +635,15 @@ function NavItemIcon({
   if (key.includes("setting")) {
     return (
       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
         <path
-          d="M19.4 15A1.7 1.7 0 0 0 19.74 16.87L19.8 16.93A2 2 0 1 1 16.97 19.76L16.91 19.7A1.7 1.7 0 0 0 15.03 19.36A1.7 1.7 0 0 0 14 21V21.2A2 2 0 1 1 10 21.2V21A1.7 1.7 0 0 0 8.97 19.36A1.7 1.7 0 0 0 7.09 19.7L7.03 19.76A2 2 0 1 1 4.2 16.93L4.26 16.87A1.7 1.7 0 0 0 4.6 15A1.7 1.7 0 0 0 3 14H2.8A2 2 0 1 1 2.8 10H3A1.7 1.7 0 0 0 4.6 9A1.7 1.7 0 0 0 4.26 7.13L4.2 7.07A2 2 0 1 1 7.03 4.24L7.09 4.3A1.7 1.7 0 0 0 8.97 4.64A1.7 1.7 0 0 0 10 3V2.8A2 2 0 1 1 14 2.8V3A1.7 1.7 0 0 0 15.03 4.64A1.7 1.7 0 0 0 16.91 4.3L16.97 4.24A2 2 0 1 1 19.8 7.07L19.74 7.13A1.7 1.7 0 0 0 19.4 9A1.7 1.7 0 0 0 21 10H21.2A2 2 0 1 1 21.2 14H21A1.7 1.7 0 0 0 19.4 15Z"
+          d="M12 8.5A3.5 3.5 0 1 0 12 15.5A3.5 3.5 0 1 0 12 8.5Z"
           stroke="currentColor"
-          strokeWidth="1.5"
+          strokeWidth="2"
+        />
+        <path
+          d="M19.4 15A1.7 1.7 0 0 0 19.74 16.87L19.8 16.94A2 2 0 1 1 16.97 19.77L16.9 19.71A1.7 1.7 0 0 0 15.03 19.37A1.7 1.7 0 0 0 14 20.93V21A2 2 0 1 1 10 21V20.9A1.7 1.7 0 0 0 8.97 19.34A1.7 1.7 0 0 0 7.1 19.68L7.03 19.74A2 2 0 1 1 4.2 16.91L4.26 16.84A1.7 1.7 0 0 0 4.6 14.97A1.7 1.7 0 0 0 3.07 14H3A2 2 0 1 1 3 10H3.1A1.7 1.7 0 0 0 4.63 8.97A1.7 1.7 0 0 0 4.29 7.1L4.23 7.03A2 2 0 1 1 7.06 4.2L7.13 4.26A1.7 1.7 0 0 0 9 4.6A1.7 1.7 0 0 0 10.03 3.07V3A2 2 0 1 1 14.03 3V3.1A1.7 1.7 0 0 0 15.06 4.63A1.7 1.7 0 0 0 16.93 4.29L17 4.23A2 2 0 1 1 19.83 7.06L19.77 7.13A1.7 1.7 0 0 0 19.43 9A1.7 1.7 0 0 0 20.96 10.03H21A2 2 0 1 1 21 14H20.9A1.7 1.7 0 0 0 19.4 15Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
