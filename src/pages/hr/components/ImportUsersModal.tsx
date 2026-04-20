@@ -229,6 +229,27 @@ function isIsoDate(s: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(s);
 }
 
+function buildImportFileFromRows(rows: PreviewRow[]): File {
+  const headers = ["name", "email", "matricule", "telephone", "date_embauche", "role"];
+  const data = rows.map((r) => ({
+    name: toStr(r.name),
+    email: toStr(r.email),
+    matricule: toStr(r.matricule),
+    telephone: toStr(r.telephone),
+    date_embauche: toStr(r.date_embauche),
+    role: normalizeRole(toStr(r.role || "EMPLOYEE")) || "EMPLOYEE",
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(data, { header: headers });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "users");
+
+  const out = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+  return new File([out], "users_import_corrected.xlsx", {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+}
+
 export function ImportUsersModal({ open, onClose, onImported }: Props) {
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -427,10 +448,8 @@ export function ImportUsersModal({ open, onClose, onImported }: Props) {
     setResult(null);
 
     try {
-      // NOTE: still sends original file to backend.
-      // Inline edits are for UX/validation now.
-      // Later: we can export corrected XLSX and upload that instead.
-      const data = await importUsersExcel(file);
+      const editedFile = buildImportFileFromRows(rows);
+      const data = await importUsersExcel(editedFile);
       setResult(data);
       onImported?.();
     } catch (e: any) {
