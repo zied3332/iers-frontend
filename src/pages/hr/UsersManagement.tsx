@@ -158,22 +158,6 @@ function Pill({
   );
 }
 
-const IconEye = () => (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-    <circle cx="12" cy="12" r="3" />
-  </svg>
-);
-
 const IconPencil = () => (
   <svg
     width="16"
@@ -354,7 +338,7 @@ function Modal({
           </div>
         </div>
 
-        <div style={{ marginTop: 14 }}>{children}</div>
+        <div style={S.modalBody}>{children}</div>
       </div>
     </div>
   );
@@ -864,12 +848,47 @@ export default function UsersManagement() {
               style={S.searchInput}
             />
           </div>
+        </div>
+
+        <div style={S.filtersRow}>
+          <div style={S.filtersGroup}>
+            <select
+              value={filterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
+              style={S.roleSelect}
+            >
+              <option value="">All Roles</option>
+              <option value="EMPLOYEE">Employee</option>
+              <option value="MANAGER">Manager</option>
+              <option value="HR">HR</option>
+              <option value="SUPER_MANAGER">SUPER MANGER</option>
+            </select>
+
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              style={S.roleSelect}
+            >
+              <option value="">All Status</option>
+              <option value="online">Online</option>
+              <option value="offline">Offline</option>
+            </select>
+
+            <select
+              value={filterDepartment}
+              onChange={(e) => setFilterDepartment(e.target.value)}
+              style={S.roleSelect}
+            >
+              <option value="">All Departments</option>
+              {departmentOptions.map((dept) => (
+                <option key={dept.value} value={dept.value}>
+                  {dept.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <div style={S.headerActions}>
-            <button className="btn" onClick={load} disabled={loading} style={S.simpleBtn}>
-              {loading ? "Loading…" : "Refresh"}
-            </button>
-
             <button
               className="btn"
               onClick={() => setImportOpen(true)}
@@ -887,51 +906,14 @@ export default function UsersManagement() {
             >
               + Add
             </button>
-
-            <ImportUsersModal
-              open={importOpen}
-              onClose={() => setImportOpen(false)}
-              onImported={load}
-            />
           </div>
         </div>
 
-        <div style={S.filtersRow}>
-          <select
-            value={filterRole}
-            onChange={(e) => setFilterRole(e.target.value)}
-            style={S.roleSelect}
-          >
-            <option value="">All Roles</option>
-            <option value="EMPLOYEE">Employee</option>
-            <option value="MANAGER">Manager</option>
-            <option value="HR">HR</option>
-            <option value="SUPER_MANAGER">SUPER MANGER</option>
-          </select>
-
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            style={S.roleSelect}
-          >
-            <option value="">All Status</option>
-            <option value="online">Online</option>
-            <option value="offline">Offline</option>
-          </select>
-
-          <select
-            value={filterDepartment}
-            onChange={(e) => setFilterDepartment(e.target.value)}
-            style={S.roleSelect}
-          >
-            <option value="">All Departments</option>
-            {departmentOptions.map((dept) => (
-              <option key={dept.value} value={dept.value}>
-                {dept.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        <ImportUsersModal
+          open={importOpen}
+          onClose={() => setImportOpen(false)}
+          onImported={load}
+        />
 
         {err && (
           <div style={S.errorBox}>
@@ -971,7 +953,16 @@ export default function UsersManagement() {
                   />
                 </td>
 
-                <td style={S.tdName}>{u.name}</td>
+                <td style={S.tdName}>
+                  <button
+                    type="button"
+                    onClick={() => openView(u)}
+                    style={S.nameLinkBtn}
+                    title="View details"
+                  >
+                    {u.name}
+                  </button>
+                </td>
 
                 <td style={S.td}>
                   <select
@@ -1015,15 +1006,6 @@ export default function UsersManagement() {
 
                 <td style={S.tdActions}>
                   <div style={S.actionsGroup}>
-                    <button
-                      type="button"
-                      onClick={() => openView(u)}
-                      style={S.actionBtn}
-                      title="View"
-                    >
-                      <IconEye />
-                    </button>
-
                     <button
                       type="button"
                       onClick={() => openEdit(u)}
@@ -1159,7 +1141,7 @@ export default function UsersManagement() {
           ) : null
         }
       >
-        {selected && <UserDetailsGrid user={selected as any} />}
+        {selected && <UserDetailsGrid user={selected as any} getDepartmentLabel={getDepartmentLabel} />}
       </Modal>
 
       <Modal
@@ -1221,7 +1203,14 @@ export default function UsersManagement() {
    Extracted components
    ======================= */
 
-function UserDetailsGrid({ user }: { user: any }) {
+function UserDetailsGrid({
+  user,
+  getDepartmentLabel,
+}: {
+  user: any;
+  getDepartmentLabel: (rawValue: string) => string;
+}) {
+  const resolvedDepartment = getDepartmentLabel(getUserDepartmentValue(user)) || "-";
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <div style={S.detailsHeader}>
@@ -1254,9 +1243,6 @@ function UserDetailsGrid({ user }: { user: any }) {
         <div className="card" style={S.infoCard}>
           <div style={S.blockTitle}>Identity</div>
 
-          <div className="muted">ID</div>
-          <div style={S.blockValue}>{user._id}</div>
-
           <div className="muted">Matricule</div>
           <div style={S.blockValue}>{user.matricule || "-"}</div>
 
@@ -1283,7 +1269,7 @@ function UserDetailsGrid({ user }: { user: any }) {
           <div style={S.blockTitle}>Work</div>
 
           <div className="muted">Department</div>
-          <div style={S.blockValue}>{user.department || user.departement_id || "-"}</div>
+          <div style={S.blockValue}>{resolvedDepartment}</div>
 
           <div className="muted">Manager ID</div>
           <div style={S.blockValue}>{user.manager_id || "-"}</div>
@@ -1310,7 +1296,6 @@ function UserDetailsGrid({ user }: { user: any }) {
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <Pill text={`Online: ${user.en_ligne ? "Yes" : "No"}`} tone={user.en_ligne ? "success" : "neutral"} />
             <Pill text={`Active: ${user.isActive ? "Yes" : "No"}`} />
-            <Pill text={`Email Verified: ${user.emailVerified ? "Yes" : "No"}`} />
           </div>
         </div>
       </div>
@@ -1645,9 +1630,19 @@ const S: Record<string, React.CSSProperties> = {
 
   filtersRow: {
     display: "flex",
-    gap: 10,
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
     marginTop: 12,
     flexWrap: "wrap",
+  },
+
+  filtersGroup: {
+    display: "flex",
+    gap: 10,
+    flexWrap: "wrap",
+    alignItems: "center",
+    flex: "1 1 520px",
   },
 
   roleSelect: {
@@ -1748,6 +1743,19 @@ const S: Record<string, React.CSSProperties> = {
     color: "var(--text)",
   },
 
+  nameLinkBtn: {
+    border: "none",
+    background: "transparent",
+    padding: 0,
+    margin: 0,
+    color: "var(--text)",
+    fontWeight: 800,
+    fontSize: 18,
+    cursor: "pointer",
+    textAlign: "left",
+    textDecoration: "none",
+  },
+
   tdActions: {
     padding: "14px 6px",
     fontSize: 18,
@@ -1843,9 +1851,19 @@ const S: Record<string, React.CSSProperties> = {
   modalCard: {
     width: "min(860px, 96vw)",
     borderRadius: 16,
-    padding: 20,
+    padding: 18,
     boxShadow: "0 24px 64px rgba(0,0,0,0.2)",
     background: "var(--surface)",
+    maxHeight: "88vh",
+    display: "flex",
+    flexDirection: "column",
+  },
+
+  modalBody: {
+    marginTop: 12,
+    overflowY: "auto",
+    overflowX: "hidden",
+    paddingRight: 4,
   },
 
   modalHead: {
@@ -1882,12 +1900,12 @@ const S: Record<string, React.CSSProperties> = {
 
   detailsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     gap: 12,
   },
 
   infoCard: {
-    padding: 12,
+    padding: 10,
   },
 
   formGrid: {

@@ -299,22 +299,6 @@ function inferOnlineStatus(user: any) {
   return false;
 }
 
-const IconEye = () => (
-  <svg
-    width="17"
-    height="17"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-    <circle cx="12" cy="12" r="3" />
-  </svg>
-);
-
 const IconPencil = () => (
   <svg
     width="17"
@@ -734,105 +718,87 @@ export default function HrEmployees() {
 
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: "minmax(0, 1fr) auto",
-              gap: 16,
-              alignItems: "start",
+              display: "flex",
+              gap: 12,
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
               width: "100%",
             }}
           >
-            <div style={{ display: "grid", gap: 14, minWidth: 0 }}>
+            <div
+              style={{
+                position: "relative",
+                width: "100%",
+                maxWidth: 420,
+                minWidth: 220,
+                flex: "1 1 280px",
+              }}
+            >
               <div
                 style={{
-                  position: "relative",
-                  width: "100%",
-                  maxWidth: 420,
-                  minWidth: 220,
+                  position: "absolute",
+                  left: 14,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  color: "var(--muted)",
+                  pointerEvents: "none",
                 }}
               >
-                <div
-                  style={{
-                    position: "absolute",
-                    left: 14,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    color: "var(--muted)",
-                    pointerEvents: "none",
-                  }}
-                >
-                  <IconSearch />
-                </div>
-                <input
-                  style={searchInput}
-                  placeholder="Name, email, matricule..."
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                />
+                <IconSearch />
               </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  gap: 10,
-                  flexWrap: "wrap",
-                  width: "100%",
-                }}
-              >
-                <select
-                  style={{ ...filterSelect, minWidth: 180 }}
-                  value={filterRole}
-                  onChange={(e) => setFilterRole(e.target.value)}
-                >
-                  <option value="">All Roles</option>
-                  {roleOptions.map((role) => (
-                    <option key={role} value={role}>
-                      {role}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  style={{ ...filterSelect, minWidth: 120 }}
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                >
-                  <option value="">All Status</option>
-                  <option value="online">Online</option>
-                  <option value="offline">Offline</option>
-                </select>
-
-                <select
-                  style={{ ...filterSelect, minWidth: 236 }}
-                  value={filterDepartment}
-                  onChange={(e) => setFilterDepartment(e.target.value)}
-                >
-                  <option value="">All Departments</option>
-                  {departmentOptions.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <input
+                style={searchInput}
+                placeholder="Name, email, matricule..."
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
             </div>
 
             <div
               style={{
                 display: "flex",
-                justifyContent: "flex-end",
                 gap: 10,
                 flexWrap: "wrap",
+                justifyContent: "flex-end",
+                flex: "1 1 420px",
               }}
             >
-              <button type="button" style={baseButton} onClick={loadData}>
-                Refresh
-              </button>
-              <button type="button" style={baseButton}>
-                Import Excel
-              </button>
-              <button type="button" style={primaryButton}>
-                + Add
-              </button>
+              <select
+                style={{ ...filterSelect, minWidth: 180 }}
+                value={filterRole}
+                onChange={(e) => setFilterRole(e.target.value)}
+              >
+                <option value="">All Roles</option>
+                {roleOptions.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                style={{ ...filterSelect, minWidth: 120 }}
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+              >
+                <option value="">All Status</option>
+                <option value="online">Online</option>
+                <option value="offline">Offline</option>
+              </select>
+
+              <select
+                style={{ ...filterSelect, minWidth: 236 }}
+                value={filterDepartment}
+                onChange={(e) => setFilterDepartment(e.target.value)}
+              >
+                <option value="">All Departments</option>
+                {departmentOptions.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </section>
@@ -1021,15 +987,6 @@ export default function HrEmployees() {
 
                     <td style={{ padding: 16 }}>
                       <div style={actionsGroup}>
-                        <button
-                          type="button"
-                          style={actionBtn}
-                          title="View details"
-                          onClick={() => setViewing(employee)}
-                        >
-                          <IconEye />
-                        </button>
-
                         <button
                           type="button"
                           style={actionBtnPrimary}

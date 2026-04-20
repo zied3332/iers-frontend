@@ -265,11 +265,6 @@ export default function EmployeeProfileView() {
           <Field label="Status" value={(user as any)?.en_ligne ? "🟢 Online" : "⚫ Offline"} />
         </div>
 
-        <div style={S.card}>
-          <div style={S.cardTitle}>System</div>
-          <Field label="User ID" value={<span style={{ fontFamily: "monospace", fontSize: 12 }}>{user?._id || "—"}</span>} />
-          <Field label="Employee Record ID" value={<span style={{ fontFamily: "monospace", fontSize: 12 }}>{employee?._id || "—"}</span>} />
-        </div>
       </div>
     </div>
   );

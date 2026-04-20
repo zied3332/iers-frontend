@@ -7,7 +7,6 @@ import { signOut } from "../../utils/auth";
 import {
   FiHome,
   FiLogOut,
-  FiCopy,
   FiGrid,
   FiLock,
   FiShield,
@@ -651,10 +650,6 @@ export default function Profile() {
     signOut(nav);
   }, [nav]);
 
-  const onCopyUserId = useCallback(() => {
-    if (user?._id) copy(user._id);
-  }, [copy, user?._id]);
-
   const profileCompletion = useMemo(() => {
     if (!user) return 0;
     const uAny = user as any;
@@ -1188,12 +1183,6 @@ export default function Profile() {
                         <div style={{ fontSize: 12, fontWeight: 850, color: "#64748b" }}>Dashboard & tools</div>
                       </div>
 
-                      <div style={L.quickItem} onClick={onCopyUserId} role="button" tabIndex={0}>
-                        <div style={L.quickIcon}><FiCopy size={24} color="#0284c7" /></div>
-                        <div style={{ fontWeight: 950, color: "#0f172a" }}>Copy User ID</div>
-                        <div style={{ fontSize: 12, fontWeight: 850, color: "#64748b" }}>For support/debug</div>
-                      </div>
-
                       <div style={L.quickItem} onClick={onLogout} role="button" tabIndex={0}>
                         <div style={L.quickIcon}><FiLogOut size={24} color="#dc2626" /></div>
                         <div style={{ fontWeight: 950, color: "#0f172a" }}>Logout</div>
@@ -1244,9 +1233,6 @@ export default function Profile() {
                     <Field label="Presence" value={user.en_ligne ? "Online (active session)" : "Offline"} />
                     <Field label="Role" value={safeUpper(user.role as any)} />
                     <Field label="Department" value={getDepartmentName(user, departmentNameById) || "—"} />
-                    {"emailVerified" in (user as any) ? (
-                      <Field label="Email verified" value={String((user as any).emailVerified)} />
-                    ) : null}
                     {createdAt && <Field label="Created at" value={createdAt} />}
                     {updatedAt && <Field label="Updated at" value={updatedAt} />}
                   </Card>
@@ -1290,7 +1276,6 @@ export default function Profile() {
                   <div style={{ height: 12 }} />
 
                   <Card title="Account & Security" subtitle="System flags and metadata">
-                    <Field label="User ID" value={<span style={S.mono}>{user._id}</span>} />
                     {"status" in (user as any) && <Field label="Status" value={(user as any).status} />}
                     {"isActive" in (user as any) && <Field label="isActive" value={String((user as any).isActive)} />}
                     {createdAt && <Field label="Created at" value={createdAt} />}
@@ -1702,10 +1687,6 @@ export default function Profile() {
 
                   <Button as="link" to={myProfilePath} variant="outline">
                     <FiUser size={16} style={{ marginRight: 8 }} /> Open profile route
-                  </Button>
-
-                  <Button variant="outline" onClick={onCopyUserId}>
-                    <FiCopy size={16} style={{ marginRight: 8 }} /> Copy User ID
                   </Button>
 
                   <Button variant="danger" onClick={onLogout}>

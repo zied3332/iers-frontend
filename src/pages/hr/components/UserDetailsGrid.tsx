@@ -22,9 +22,6 @@ export function UserDetailsGrid({ user }: { user: any }) {
         <div className="card" style={{ padding: 12 }}>
           <div style={S.blockTitle}>Identity</div>
 
-          <div className="muted">ID</div>
-          <div style={S.blockValue}>{user._id}</div>
-
           <div className="muted">Matricule</div>
           <div style={S.blockValue}>{user.matricule || "-"}</div>
 
@@ -76,7 +73,6 @@ export function UserDetailsGrid({ user }: { user: any }) {
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <Pill text={`Online: ${user.en_ligne ? "Yes" : "No"}`} tone={user.en_ligne ? "success" : "neutral"} />
             <Pill text={`Active: ${user.isActive ? "Yes" : "No"}`} />
-            <Pill text={`Email Verified: ${user.emailVerified ? "Yes" : "No"}`} />
           </div>
         </div>
       </div>
