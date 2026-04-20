@@ -785,6 +785,11 @@ export default function NotificationsPage() {
         return;
       }
 
+      if (notification.type === 'ACCOUNT_APPROVAL_REQUEST') {
+        navigate('/hr/pending-users');
+        return;
+      }
+
       setSelectedNotification(notification);
     },
     [markOneAsRead, navigate]

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   listActivities,
@@ -30,6 +30,41 @@ const contextColors: Record<string, [string, string]> = {
   DEVELOPMENT: ["color-mix(in srgb, var(--surface-2) 78%, #ddd6fe)", "color-mix(in srgb, var(--text) 84%, #6d28d9)"],
 };
 
+type ManagerActivityPhase =
+  | "RECEIVED_FROM_HR"
+  | "INVITATIONS_ONGOING"
+  | "SENT_TO_HR";
+
+function resolveManagerActivityPhase(activity: ActivityRecord): ManagerActivityPhase | null {
+  const workflow = String(activity.workflowStatus || "").toUpperCase();
+  const status = String(activity.status || "").toUpperCase();
+
+  // Running/past must move to dedicated pages.
+  if (
+    Boolean(activity.hrFinalLaunchAt) ||
+    status === "IN_PROGRESS" ||
+    status === "COMPLETED" ||
+    status === "CANCELLED" ||
+    workflow === "IN_PROGRESS" ||
+    workflow === "COMPLETED"
+  ) {
+    return null;
+  }
+
+  const sentToHr =
+    Boolean(activity.rosterReadyForHrAt) || workflow === "READY_FOR_HR_FINAL";
+  if (sentToHr) return "SENT_TO_HR";
+
+  if (
+    workflow === "MANAGER_APPROVED" ||
+    workflow === "EMPLOYEE_INVITATIONS_SENT"
+  ) {
+    return "INVITATIONS_ONGOING";
+  }
+
+  return "RECEIVED_FROM_HR";
+}
+
 export default function ManagerActivities() {
   const navigate = useNavigate();
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
@@ -56,6 +91,141 @@ export default function ManagerActivities() {
     navigate(`/manager/activities/${activity._id}/review`);
   };
 
+  const groupedByPhase = useMemo(() => {
+    const groups: Record<ManagerActivityPhase, ActivityRecord[]> = {
+      RECEIVED_FROM_HR: [],
+      INVITATIONS_ONGOING: [],
+      SENT_TO_HR: [],
+    };
+    const sorted = [...activities].sort((a, b) =>
+      String(b.startDate).localeCompare(String(a.startDate))
+    );
+    for (const activity of sorted) {
+      const phase = resolveManagerActivityPhase(activity);
+      if (phase) groups[phase].push(activity);
+    }
+    return groups;
+  }, [activities]);
+  const activePageCount =
+    groupedByPhase.RECEIVED_FROM_HR.length +
+    groupedByPhase.INVITATIONS_ONGOING.length +
+    groupedByPhase.SENT_TO_HR.length;
+
+  const renderActivityCard = (activity: ActivityRecord) => (
+    <div
+      key={activity._id}
+      onClick={() => openActivityReview(activity)}
+      style={{
+        ...card,
+        display: "grid",
+        gridTemplateColumns: "1fr",
+        gap: 16,
+        alignItems: "start",
+        cursor: "pointer",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = "#3b82f6";
+        e.currentTarget.style.boxShadow = "0 10px 30px rgba(59, 130, 246, 0.15)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "var(--border)";
+        e.currentTarget.style.boxShadow = "0 10px 24px rgba(15, 23, 42, 0.08)";
+      }}
+    >
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+          <div style={{ fontWeight: 900, fontSize: 20, color: "var(--text)", lineHeight: 1.25 }}>
+            {activity.title}
+          </div>
+          <span style={badge(...contextColors[activity.priorityContext])}>
+            {activity.priorityContext}
+          </span>
+        </div>
+
+        <div style={{ color: "var(--muted)", fontSize: 15, marginBottom: 14, lineHeight: 1.65 }}>
+          <div>
+            {(activity.description || "").length > 100
+              ? `${(activity.description || "").slice(0, 100)}…`
+              : activity.description || "—"}
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: "var(--muted)", marginBottom: 4 }}>TYPE</div>
+            <div style={{ color: "var(--text)", fontSize: 15, fontWeight: 700 }}>{activity.type}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: "var(--muted)", marginBottom: 4 }}>DURATION</div>
+            <div style={{ color: "var(--text)", fontSize: 15, fontWeight: 700 }}>{activity.duration}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: "var(--muted)", marginBottom: 4 }}>START DATE</div>
+            <div style={{ color: "var(--text)", fontSize: 15, fontWeight: 700 }}>
+              {new Date(activity.startDate).toLocaleDateString()}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: "var(--muted)", marginBottom: 4 }}>
+              SEATS LEFT
+            </div>
+            <div style={{ color: "var(--text)", fontSize: 15, fontWeight: 700 }}>{activity.availableSlots}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderPhaseSection = (
+    title: string,
+    subtitle: string,
+    rows: ActivityRecord[],
+    accent: string
+  ) => (
+    <section
+      style={{
+        border: "1px solid var(--border)",
+        borderRadius: 16,
+        padding: 16,
+        background: "var(--card)",
+      }}
+    >
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontWeight: 800 }}>
+          <span
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: 999,
+              background: accent,
+              display: "inline-block",
+            }}
+          />
+          {title} ({rows.length})
+        </div>
+        <p style={{ margin: "6px 0 0", color: "var(--muted)", fontSize: 13 }}>{subtitle}</p>
+      </div>
+      {rows.length === 0 ? (
+        <div
+          style={{
+            padding: "14px",
+            borderRadius: 12,
+            border: "1px dashed var(--border)",
+            color: "var(--muted)",
+            background: "var(--surface-2)",
+            fontSize: 13,
+          }}
+        >
+          No activities in this phase.
+        </div>
+      ) : (
+        <div style={{ display: "grid", gap: 16 }}>
+          {rows.map((activity) => renderActivityCard(activity))}
+        </div>
+      )}
+    </section>
+  );
+
   if (loading) {
     return (
       <div className="page">
@@ -73,82 +243,39 @@ export default function ManagerActivities() {
           <div>
             <h1 className="page-title">My activities</h1>
             <p className="page-subtitle" style={{ maxWidth: 720 }}>
-              Only activities where HR has already sent you the shortlist and details. For in-progress or past
-              activities, use the sidebar.
+              Activities move page-to-page by phase. This page shows only manager workflow phases
+              before HR final launch.
             </p>
           </div>
         </div>
 
-        {activities.length === 0 ? (
+        {activePageCount === 0 ? (
           <div style={{ ...card, textAlign: "center", color: "var(--muted)", padding: 40 }}>
-            <p>Nothing here yet. When HR sends a participant list to you, it will appear in this list.</p>
+            <p>
+              No activities in this workflow page. Check <strong>In progress</strong> for launched
+              activities and <strong>Past activities</strong> for finished ones.
+            </p>
           </div>
         ) : (
           <div style={{ display: "grid", gap: 16 }}>
-            {activities.map((activity) => (
-              <div
-                key={activity._id}
-                onClick={() => openActivityReview(activity)}
-                style={{
-                  ...card,
-                  display: "grid",
-                  gridTemplateColumns: "1fr",
-                  gap: 16,
-                  alignItems: "start",
-                  cursor: "pointer",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "#3b82f6";
-                  e.currentTarget.style.boxShadow = "0 10px 30px rgba(59, 130, 246, 0.15)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "var(--border)";
-                  e.currentTarget.style.boxShadow = "0 10px 24px rgba(15, 23, 42, 0.08)";
-                }}
-              >
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-                    <div style={{ fontWeight: 900, fontSize: 20, color: "var(--text)", lineHeight: 1.25 }}>
-                      {activity.title}
-                    </div>
-                    <span style={badge(...contextColors[activity.priorityContext])}>
-                      {activity.priorityContext}
-                    </span>
-                  </div>
-
-                  <div style={{ color: "var(--muted)", fontSize: 15, marginBottom: 14, lineHeight: 1.65 }}>
-                    <div>
-                      {(activity.description || "").length > 100
-                        ? `${(activity.description || "").slice(0, 100)}…`
-                        : activity.description || "—"}
-                    </div>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 800, color: "var(--muted)", marginBottom: 4 }}>TYPE</div>
-                      <div style={{ color: "var(--text)", fontSize: 15, fontWeight: 700 }}>{activity.type}</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 800, color: "var(--muted)", marginBottom: 4 }}>DURATION</div>
-                      <div style={{ color: "var(--text)", fontSize: 15, fontWeight: 700 }}>{activity.duration}</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 800, color: "var(--muted)", marginBottom: 4 }}>START DATE</div>
-                      <div style={{ color: "var(--text)", fontSize: 15, fontWeight: 700 }}>
-                        {new Date(activity.startDate).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 800, color: "var(--muted)", marginBottom: 4 }}>
-                        SEATS LEFT
-                      </div>
-                      <div style={{ color: "var(--text)", fontSize: 15, fontWeight: 700 }}>{activity.availableSlots}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+            {renderPhaseSection(
+              "Primary list received from HR",
+              "Review and decide on the HR shortlist.",
+              groupedByPhase.RECEIVED_FROM_HR,
+              "#f59e0b"
+            )}
+            {renderPhaseSection(
+              "Invitations in progress",
+              "Employees are being invited/replaced based on your selected roster.",
+              groupedByPhase.INVITATIONS_ONGOING,
+              "#2563eb"
+            )}
+            {renderPhaseSection(
+              "List sent to HR",
+              "You sent the roster to HR and final validation is pending.",
+              groupedByPhase.SENT_TO_HR,
+              "#7c3aed"
+            )}
           </div>
         )}
       </div>

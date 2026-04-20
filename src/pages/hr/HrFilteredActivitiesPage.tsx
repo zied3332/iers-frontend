@@ -28,6 +28,23 @@ function formatLabel(v: string) {
   return v.charAt(0) + v.slice(1).toLowerCase().replace(/_/g, " ");
 }
 
+type PipelinePhase = "PRIMARY_SENT_TO_MANAGER" | "MANAGER_SENT_TO_HR" | "FINAL_VALIDATED_STARTED";
+
+function resolvePipelinePhase(activity: ActivityRecord): PipelinePhase {
+  const workflow = String(activity.workflowStatus || "").toUpperCase();
+  const started =
+    Boolean(activity.hrFinalLaunchAt) ||
+    activity.status === "IN_PROGRESS" ||
+    workflow === "IN_PROGRESS";
+  if (started) return "FINAL_VALIDATED_STARTED";
+
+  const managerSent =
+    Boolean(activity.rosterReadyForHrAt) || workflow === "READY_FOR_HR_FINAL";
+  if (managerSent) return "MANAGER_SENT_TO_HR";
+
+  return "PRIMARY_SENT_TO_MANAGER";
+}
+
 function HrFilteredActivitiesInner({
   mode,
 }: {
@@ -80,9 +97,227 @@ function HrFilteredActivitiesInner({
     copy.sort((a, b) => String(b.startDate).localeCompare(String(a.startDate)));
     return copy;
   }, [items]);
+  const pipelineGroups = useMemo(() => {
+    const groups: Record<PipelinePhase, ActivityRecord[]> = {
+      PRIMARY_SENT_TO_MANAGER: [],
+      MANAGER_SENT_TO_HR: [],
+      FINAL_VALIDATED_STARTED: [],
+    };
+    for (const activity of sorted) {
+      groups[resolvePipelinePhase(activity)].push(activity);
+    }
+    return groups;
+  }, [sorted]);
 
   const page = META[mode];
   const showCancelOnRow = mode === "pipeline";
+
+  const cardStyles = {
+    display: "flex",
+    flexWrap: "wrap" as const,
+    gap: "16px",
+    alignItems: "stretch" as const,
+    justifyContent: "space-between" as const,
+    padding: "clamp(16px, 1.4vw, 22px)",
+    borderRadius: "18px",
+    border: "1px solid var(--border)",
+    background: "var(--card)",
+    boxShadow: "0 6px 18px rgba(15, 23, 42, 0.04)",
+  };
+
+  const renderActivityRow = (a: ActivityRecord) => (
+    <div key={a._id} style={cardStyles}>
+      <button
+        type="button"
+        onClick={() => navigate(`/hr/activities/${a._id}/staffing`)}
+        style={{
+          flex: "1 1 620px",
+          minWidth: "min(100%, 320px)",
+          textAlign: "left",
+          border: "none",
+          background: "transparent",
+          cursor: "pointer",
+          color: "var(--text)",
+          padding: 0,
+        }}
+      >
+        <div
+          style={{
+            fontWeight: 800,
+            fontSize: "clamp(16px, 1.2vw, 19px)",
+            marginBottom: "6px",
+            lineHeight: 1.35,
+          }}
+        >
+          {a.title}
+        </div>
+
+        <div
+          style={{
+            fontSize: "13px",
+            color: "var(--muted)",
+            fontWeight: 600,
+            lineHeight: 1.5,
+          }}
+        >
+          {formatLabel(a.type)} · {formatLabel(a.status)}
+          {a.workflowStatus ? ` · ${formatLabel(a.workflowStatus)}` : ""}
+        </div>
+
+        <div
+          style={{
+            marginTop: "12px",
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "12px 18px",
+            fontSize: "13px",
+            color: "var(--muted)",
+          }}
+        >
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <FiCalendar size={14} /> {a.startDate} → {a.endDate}
+          </span>
+
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <FiUsers size={14} /> {a.availableSlots} seats
+          </span>
+        </div>
+      </button>
+
+      <div
+        style={{
+          display: "flex",
+          flex: "0 1 auto",
+          flexDirection: "row",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "flex-end",
+          gap: "10px",
+          minWidth: "fit-content",
+          marginLeft: "auto",
+        }}
+      >
+        {showCancelOnRow && a.status === "IN_PROGRESS" ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setCancelConfirmId(a._id);
+            }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "10px 14px",
+              borderRadius: "12px",
+              border: "1px solid #fcd34d",
+              background: "#fef3c7",
+              color: "#92400e",
+              fontWeight: 800,
+              fontSize: "13px",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <FiSlash size={14} /> Cancel
+          </button>
+        ) : null}
+
+        <button
+          type="button"
+          aria-label="Open staffing"
+          onClick={() => navigate(`/hr/activities/${a._id}/staffing`)}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "42px",
+            height: "42px",
+            borderRadius: "12px",
+            border: "1px solid var(--border)",
+            background: "var(--surface-2)",
+            cursor: "pointer",
+            color: "var(--primary, #10b981)",
+            flexShrink: 0,
+          }}
+        >
+          <FiArrowRight size={20} />
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderSection = (
+    title: string,
+    subtitle: string,
+    rows: ActivityRecord[],
+    accent: string
+  ) => (
+    <section
+      style={{
+        border: "1px solid var(--border)",
+        borderRadius: "18px",
+        padding: "16px",
+        background: "var(--card)",
+      }}
+    >
+      <div style={{ marginBottom: "12px" }}>
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            fontWeight: 800,
+            color: "var(--text)",
+          }}
+        >
+          <span
+            style={{
+              width: "10px",
+              height: "10px",
+              borderRadius: "999px",
+              background: accent,
+              display: "inline-block",
+            }}
+          />
+          {title} ({rows.length})
+        </div>
+        <p style={{ margin: "6px 0 0", color: "var(--muted)", fontSize: "13px" }}>{subtitle}</p>
+      </div>
+      {rows.length === 0 ? (
+        <div
+          style={{
+            padding: "14px",
+            borderRadius: "12px",
+            border: "1px dashed var(--border)",
+            color: "var(--muted)",
+            background: "var(--surface-2)",
+            fontSize: "13px",
+          }}
+        >
+          No activities in this phase.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          {rows.map((a) => renderActivityRow(a))}
+        </div>
+      )}
+    </section>
+  );
 
   const onConfirmCancel = async () => {
     if (!cancelConfirmId) return;
@@ -172,157 +407,30 @@ function HrFilteredActivitiesInner({
           >
             No activities in this list yet.
           </div>
+        ) : mode === "pipeline" ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            {renderSection(
+              "Primary list sent to manager",
+              "HR shortlist is sent and waiting on manager-side review/replacements.",
+              pipelineGroups.PRIMARY_SENT_TO_MANAGER,
+              "#f59e0b"
+            )}
+            {renderSection(
+              "Manager sent list to HR",
+              "Manager confirmed the roster and sent it back. HR can run final validation.",
+              pipelineGroups.MANAGER_SENT_TO_HR,
+              "#2563eb"
+            )}
+            {renderSection(
+              "Final validation done (activity started)",
+              "HR final validation already launched the activity.",
+              pipelineGroups.FINAL_VALIDATED_STARTED,
+              "#16a34a"
+            )}
+          </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-            {sorted.map((a) => (
-              <div
-                key={a._id}
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: "16px",
-                  alignItems: "stretch",
-                  justifyContent: "space-between",
-                  padding: "clamp(16px, 1.4vw, 22px)",
-                  borderRadius: "18px",
-                  border: "1px solid var(--border)",
-                  background: "var(--card)",
-                  boxShadow: "0 6px 18px rgba(15, 23, 42, 0.04)",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => navigate(`/hr/activities/${a._id}/staffing`)}
-                  style={{
-                    flex: "1 1 620px",
-                    minWidth: "min(100%, 320px)",
-                    textAlign: "left",
-                    border: "none",
-                    background: "transparent",
-                    cursor: "pointer",
-                    color: "var(--text)",
-                    padding: 0,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontWeight: 800,
-                      fontSize: "clamp(16px, 1.2vw, 19px)",
-                      marginBottom: "6px",
-                      lineHeight: 1.35,
-                    }}
-                  >
-                    {a.title}
-                  </div>
-
-                  <div
-                    style={{
-                      fontSize: "13px",
-                      color: "var(--muted)",
-                      fontWeight: 600,
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    {formatLabel(a.type)} · {formatLabel(a.status)}
-                    {a.workflowStatus ? ` · ${formatLabel(a.workflowStatus)}` : ""}
-                  </div>
-
-                  <div
-                    style={{
-                      marginTop: "12px",
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: "12px 18px",
-                      fontSize: "13px",
-                      color: "var(--muted)",
-                    }}
-                  >
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      <FiCalendar size={14} /> {a.startDate} → {a.endDate}
-                    </span>
-
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      <FiUsers size={14} /> {a.availableSlots} seats
-                    </span>
-                  </div>
-                </button>
-
-                <div
-                  style={{
-                    display: "flex",
-                    flex: "0 1 auto",
-                    flexDirection: "row",
-                    flexWrap: "wrap",
-                    alignItems: "center",
-                    justifyContent: "flex-end",
-                    gap: "10px",
-                    minWidth: "fit-content",
-                    marginLeft: "auto",
-                  }}
-                >
-                  {showCancelOnRow && a.status === "IN_PROGRESS" ? (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCancelConfirmId(a._id);
-                      }}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        padding: "10px 14px",
-                        borderRadius: "12px",
-                        border: "1px solid #fcd34d",
-                        background: "#fef3c7",
-                        color: "#92400e",
-                        fontWeight: 800,
-                        fontSize: "13px",
-                        cursor: "pointer",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      <FiSlash size={14} /> Cancel
-                    </button>
-                  ) : null}
-
-                  <button
-                    type="button"
-                    aria-label="Open staffing"
-                    onClick={() => navigate(`/hr/activities/${a._id}/staffing`)}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: "42px",
-                      height: "42px",
-                      borderRadius: "12px",
-                      border: "1px solid var(--border)",
-                      background: "var(--surface-2)",
-                      cursor: "pointer",
-                      color: "var(--primary, #10b981)",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <FiArrowRight size={20} />
-                  </button>
-                </div>
-              </div>
-            ))}
+            {sorted.map((a) => renderActivityRow(a))}
           </div>
         )}
       </div>

@@ -47,12 +47,16 @@ export type User = {
   name: string;
   email: string;
   role: "HR" | "SUPER_MANAGER" | "MANAGER" | "EMPLOYEE";
+  approvalStatus?: "PENDING" | "APPROVED" | "REJECTED";
+  status?: "ACTIVE" | "DISABLED" | string;
   department?: string;
   matricule?: string;
   telephone?: string;
   date_embauche?: string;
   en_ligne?: boolean;
   lastLogin?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 /**
@@ -125,6 +129,22 @@ export async function updateUser(userId: string, payload: UpdateUserPayload) {
     method: "PUT", // you can change to PATCH later if backend supports it
     headers: authHeaders(),
     body: JSON.stringify(payload),
+  });
+  return handle(res);
+}
+
+export async function approveUserAccount(userId: string) {
+  const res = await fetch(`${BASE}/users/${userId}/approve`, {
+    method: "PATCH",
+    headers: authHeaders(),
+  });
+  return handle(res);
+}
+
+export async function rejectUserAccount(userId: string) {
+  const res = await fetch(`${BASE}/users/${userId}/reject`, {
+    method: "PATCH",
+    headers: authHeaders(),
   });
   return handle(res);
 }

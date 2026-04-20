@@ -19,6 +19,7 @@ import HrDepartments from "../pages/hr/Departments";
 import HrActivitiesManagement from "../pages/hr/ActivitiesManagement.tsx";
 import HrSkillsDashboard from "../pages/hr/HrSkillsDashboard";
 import HrGenerateRecommendations from "../pages/hr/GenerateRecommendations";
+import AccountManagementPage from "../pages/hr/AccountManagementPage";
 import SkillsManagementPage from "../pages/hr/skills/SkillsManagementPage";
 import AssignSkillPage from "../pages/hr/skills/AssignSkillPage";
 import HrCopilotPage from "../pages/hr/HrCopilotPage";
@@ -148,6 +149,8 @@ export const router = createBrowserRouter([
           { path: "dashboard", element: <HrStatsDashboard /> },
           { path: "employees", element: <HrEmployees /> },
           { path: "users", element: <UsersManagement /> },
+          { path: "pending-users", element: <AccountManagementPage /> },
+          { path: "account-management", element: <AccountManagementPage /> },
           { path: "departments", element: <HrDepartments /> },
           { path: "activities", element: <HrActivitiesManagement /> },
           { path: "activities/pipeline", element: <HrStaffingPipelinePage /> },

@@ -359,6 +359,51 @@ export default function AppShell({
         </div>
       </aside>
 
+      {!isSidebarOpen ? (
+        <button
+          type="button"
+          onClick={() => setIsSidebarOpen(true)}
+          aria-label="Open sidebar"
+          title="Open sidebar"
+          style={{
+            position: "fixed",
+            left: 0,
+            top: "28%",
+            transform: "translateY(-28%)",
+            zIndex: 1101,
+            width: 46,
+            height: 104,
+            borderRadius: "0 14px 14px 0",
+            border: "1px solid var(--border)",
+            borderLeft: "none",
+            background: "var(--surface)",
+            color: "var(--text)",
+            fontWeight: 900,
+            cursor: "ew-resize",
+            boxShadow: "0 10px 24px rgba(15,23,42,0.16)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 4,
+            transition: "all 0.2s ease",
+          }}
+        >
+          <span style={{ fontSize: 17, lineHeight: 1 }}>→</span>
+          <span
+            style={{
+              fontSize: 10,
+              letterSpacing: "0.04em",
+              writingMode: "vertical-rl",
+              textOrientation: "mixed",
+              opacity: 0.88,
+            }}
+          >
+            PULL
+          </span>
+        </button>
+      ) : null}
+
       <div
         className="main"
         style={{

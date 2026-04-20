@@ -40,6 +40,12 @@ export default function HrLayout() {
         icon: "users",
       },
       {
+        to: "/hr/pending-users",
+        label: "Account Management",
+        group: "Main menu",
+        icon: "validation",
+      },
+      {
         to: "/hr/employees",
         label: "Employee Management",
         group: "Main menu",
