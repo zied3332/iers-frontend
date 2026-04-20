@@ -3,14 +3,12 @@ import { getEmployeeSkills } from '../../../services/skills.service';
 
 type SkillCategory = 'KNOWLEDGE' | 'KNOW_HOW' | 'SOFT';
 type SkillLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'EXPERT';
-type SkillApprovalStatus = 'APPROVED' | 'PENDING';
 
 type EmployeeSkillItem = {
   _id: string;
   level: SkillLevel;
   dynamicScore: number;
   lastUpdated: string;
-  status?: SkillApprovalStatus;
   projectLink?: string;
   requestedByEmployee?: boolean;
   skill?: {
@@ -67,12 +65,7 @@ export default function MySkillsPage() {
         const data = await getEmployeeSkills(employeeId);
         console.log('Employee skills response:', data);
 
-        const normalizedData = Array.isArray(data)
-          ? data.map((item: any) => ({
-              ...item,
-              status: item.status || 'APPROVED',
-            }))
-          : [];
+        const normalizedData = Array.isArray(data) ? data : [];
 
         setSkills(normalizedData);
       } catch (err) {
@@ -96,7 +89,6 @@ export default function MySkillsPage() {
         (item.skill?.category || '').toLowerCase().includes(q) ||
         (item.skill?.description || '').toLowerCase().includes(q) ||
         (item.level || '').toLowerCase().includes(q) ||
-        (item.status || '').toLowerCase().includes(q) ||
         (item.projectLink || '').toLowerCase().includes(q) ||
         String(item.dynamicScore ?? 0).includes(q)
       );
@@ -142,17 +134,6 @@ export default function MySkillsPage() {
         return 'High';
       case 'EXPERT':
         return 'Expert';
-      default:
-        return '—';
-    }
-  };
-
-  const getStatusLabel = (status?: SkillApprovalStatus) => {
-    switch (status) {
-      case 'APPROVED':
-        return 'Approved';
-      case 'PENDING':
-        return 'Pending';
       default:
         return '—';
     }
@@ -211,7 +192,6 @@ export default function MySkillsPage() {
         level: newSkillLevel,
         dynamicScore: 0,
         lastUpdated: new Date().toISOString(),
-        status: 'PENDING',
         projectLink: newSkillLink.trim() || undefined,
         requestedByEmployee: true,
         skill: {
@@ -248,7 +228,7 @@ export default function MySkillsPage() {
             <span className="skills-search-icon">⌕</span>
             <input
               type="text"
-              placeholder="Search by skill, category, level, status, score..."
+              placeholder="Search by skill, category, level, score..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="skills-search-input"
@@ -267,13 +247,6 @@ export default function MySkillsPage() {
             <span className="skills-summary-label">Total skills</span>
             <strong className="skills-summary-value">{filteredSkills.length}</strong>
           </div>
-
-          <div className="skills-summary-card">
-            <span className="skills-summary-label">Pending approval</span>
-            <strong className="skills-summary-value">
-              {skills.filter((item) => item.status === 'PENDING').length}
-            </strong>
-          </div>
         </div>
 
         <div className="table-wrapper">
@@ -283,7 +256,6 @@ export default function MySkillsPage() {
                 <th>Skill</th>
                 <th>Category</th>
                 <th>Level</th>
-                <th>Status</th>
                 <th>Dynamic Score</th>
                 <th>Last Updated</th>
               </tr>
@@ -292,13 +264,13 @@ export default function MySkillsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="empty-state">
+                  <td colSpan={5} className="empty-state">
                     Loading your skills...
                   </td>
                 </tr>
               ) : filteredSkills.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="empty-state">
+                  <td colSpan={5} className="empty-state">
                     No skills found.
                   </td>
                 </tr>
@@ -337,16 +309,6 @@ export default function MySkillsPage() {
                     <td>
                       <span className={`badge badge-${(item.level || '').toLowerCase()}`}>
                         {getLevelLabel(item.level)}
-                      </span>
-                    </td>
-
-                    <td>
-                      <span
-                        className={`badge badge-status-${(
-                          item.status || ''
-                        ).toLowerCase()}`}
-                      >
-                        {getStatusLabel(item.status)}
                       </span>
                     </td>
 
@@ -417,7 +379,7 @@ export default function MySkillsPage() {
             <div className="modal-header">
               <div>
                 <h2>Add New Skill</h2>
-                <p>Submit a skill for manager approval.</p>
+                <p>Add a skill with your level and references.</p>
               </div>
 
               <button
@@ -514,7 +476,7 @@ export default function MySkillsPage() {
                 onClick={handleAddSkill}
                 disabled={submittingSkill}
               >
-                {submittingSkill ? 'Submitting...' : 'Submit for approval'}
+                {submittingSkill ? 'Submitting...' : 'Submit skill'}
               </button>
             </div>
           </div>

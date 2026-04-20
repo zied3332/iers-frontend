@@ -27,7 +27,7 @@ async function handle(res: Response) {
     } catch {
       // keep fallback
     }
-    if (res.status === 401 || res.status === 403) {
+    if (res.status === 401) {
       msg = "Unauthorized session. Please sign in with an HR account.";
     }
     throw new Error(msg);
