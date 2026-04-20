@@ -16,6 +16,32 @@ export const THEME_COLOR_OPTIONS: ReadonlyArray<{ label: string; value: string }
 
 const COLOR_SET = new Set(THEME_COLOR_OPTIONS.map((item) => item.value.toLowerCase()));
 
+function getCurrentUserScope(): string {
+  try {
+    const raw = localStorage.getItem("user");
+    if (!raw) return "guest";
+    const user = JSON.parse(raw) as {
+      _id?: string;
+      id?: string;
+      email?: string;
+    };
+    const scoped = String(user?._id || user?.id || user?.email || "").trim();
+    return scoped || "guest";
+  } catch {
+    return "guest";
+  }
+}
+
+function scopedStorageKey(baseKey: string): string {
+  return `${baseKey}:${getCurrentUserScope()}`;
+}
+
+function getStoredValueWithFallback(baseKey: string): string | null {
+  const scoped = localStorage.getItem(scopedStorageKey(baseKey));
+  if (scoped != null) return scoped;
+  return localStorage.getItem(baseKey);
+}
+
 function normalizeHexColor(raw: string | null | undefined): string {
   if (!raw) return DEFAULT_THEME_COLOR;
   const value = raw.trim().toLowerCase();
@@ -75,7 +101,7 @@ function luminance(hex: string): number {
 
 export function readStoredThemeMode(): ThemeMode {
   try {
-    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    const stored = getStoredValueWithFallback(THEME_STORAGE_KEY);
     return stored === "dark" ? "dark" : "light";
   } catch {
     return "light";
@@ -84,7 +110,7 @@ export function readStoredThemeMode(): ThemeMode {
 
 export function readStoredThemeColor(): string {
   try {
-    const stored = localStorage.getItem(THEME_COLOR_STORAGE_KEY);
+    const stored = getStoredValueWithFallback(THEME_COLOR_STORAGE_KEY);
     return normalizeHexColor(stored);
   } catch {
     return DEFAULT_THEME_COLOR;
@@ -132,8 +158,8 @@ export function applyThemePreferences({
 
   if (persist) {
     try {
-      localStorage.setItem(THEME_STORAGE_KEY, resolvedMode);
-      localStorage.setItem(THEME_COLOR_STORAGE_KEY, resolvedColor);
+      localStorage.setItem(scopedStorageKey(THEME_STORAGE_KEY), resolvedMode);
+      localStorage.setItem(scopedStorageKey(THEME_COLOR_STORAGE_KEY), resolvedColor);
     } catch {
       // ignore storage errors
     }

@@ -4,11 +4,6 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { signOut } from "../utils/auth";
 import "../index.css";
 import NotificationBell from "../components/notifications/NotificationBell";
-import {
-  applyThemePreferences,
-  readStoredThemeMode,
-  type ThemeMode,
-} from "../utils/themePreferences";
 
 const logoSrc = "/images/logo.png";
 
@@ -140,30 +135,7 @@ export default function AppShell({
 }) {
   const navigate = useNavigate();
 
-  const [themeMode, setThemeMode] = React.useState<ThemeMode>(() => {
-    const current = document.documentElement.getAttribute("data-theme");
-    if (current === "dark" || current === "light") {
-      return current;
-    }
-    return readStoredThemeMode();
-  });
-
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
-
-  React.useEffect(() => {
-    applyThemePreferences({ mode: themeMode });
-  }, [themeMode]);
-
-  React.useEffect(() => {
-    const onThemeUpdated = (event: Event) => {
-      const nextMode = (event as CustomEvent<{ mode?: ThemeMode }>).detail?.mode;
-      if (nextMode === "light" || nextMode === "dark") {
-        setThemeMode(nextMode);
-      }
-    };
-    window.addEventListener("app-theme-updated", onThemeUpdated);
-    return () => window.removeEventListener("app-theme-updated", onThemeUpdated);
-  }, []);
 
   const SIDE_W = 350;
   const workspaceCode =
@@ -281,36 +253,6 @@ export default function AppShell({
                 ))}
               </nav>
 
-              {group.title === "System" ? (
-                <button
-                  type="button"
-                  className="theme-toggle-btn"
-                  onClick={() =>
-                    setThemeMode((prev) => (prev === "light" ? "dark" : "light"))
-                  }
-                  aria-label={`Switch to ${themeMode === "light" ? "dark" : "light"} mode`}
-                  title={`Switch to ${themeMode === "light" ? "dark" : "light"} mode`}
-                >
-                  <span className="theme-toggle-meta">
-                    <span className="theme-toggle-text">
-                      {themeMode === "light" ? "Switch to dark" : "Switch to light"}
-                    </span>
-                    <span className="theme-toggle-subtext"></span>
-                  </span>
-
-                  <span
-                    className={`theme-toggle-track ${themeMode === "dark" ? "is-dark" : ""}`}
-                  >
-                    <span className="theme-toggle-icon sun" aria-hidden="true">
-                      ☀
-                    </span>
-                    <span className="theme-toggle-icon moon" aria-hidden="true">
-                      ☾
-                    </span>
-                    <span className="theme-toggle-thumb" />
-                  </span>
-                </button>
-              ) : null}
             </div>
           ))}
         </div>
