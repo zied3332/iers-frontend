@@ -43,6 +43,7 @@ import {
   ManagerPastActivitiesPage,
 } from "../pages/manger/ManagerFilteredActivitiesPage";
 import ManagerInProgressActivityPage from "../pages/hr/ManagerInProgressActivityPage";
+import ManagerPastActivitiesEvalPage from "../pages/manger/ManagerPastActivitiesPage";
 // AI pages
 import TextCorrectionPage from "../pages/ai/TextCorrectionPage";
 
@@ -61,7 +62,7 @@ import HrDashboard from "../pages/hr/Dashboard.tsx";
 import CompleteProfile from "../pages/auth/CompleteProfile";
 import AccountPending from "../pages/auth/AccountPending";
 import SettingsPage from "../pages/settings/SettingsPage";
-
+import ManagerEvaluateActivityPage from "../pages/manger/ManagerEvaluateActivityPage";
 type Role = "HR" | "SUPER_MANAGER" | "MANAGER" | "EMPLOYEE";
 
 function getRole(): Role | null {
@@ -159,6 +160,8 @@ export const router = createBrowserRouter([
           { path: "activities/archive", element: <HrCompletedActivitiesPage /> },
           { path: "activities/:activityId/staffing", element: <ActivityStaffingPage /> },
           { path: "activities/:activityId/manager-decisions", element: <ManagerDecisionsPage /> },
+          // path: "activities/archive", element: <ManagerPastActivitiesPage /> },
+          { path: "activities/:activityId/evaluate", element: <ManagerEvaluateActivityPage /> },
           { path: "skills-dashboard", element: <HrSkillsDashboard /> },
           { path: "recommendations", element: <HrGenerateRecommendations /> },
           { path: "recommendations/generate", element: <HrGenerateRecommendations /> },
@@ -238,6 +241,8 @@ export const router = createBrowserRouter([
           { path: "settings", element: <SettingsPage /> },
           { path: "employees/:id", element: <Profile /> },
           { path: "activities/:activityId/monitor", element: <ManagerInProgressActivityPage /> },
+          { path: "activities/evaluations", element: <ManagerPastActivitiesEvalPage /> },
+          { path: "activities/:activityId/evaluate", element: <ManagerEvaluateActivityPage /> },
         ],
       },
     ],
