@@ -69,7 +69,7 @@
 }
 
 .site-nav-links a:hover {
-  color: #14863a;
+  color: var(--primary-soft-text);
 }
 
 .site-nav-btn {
@@ -81,8 +81,8 @@
   font-size: 1.05rem;
   transition: 0.25s ease;
   padding: 13px 20px;
-  background: #1faa4a;
-  color: #fff;
+  background: var(--primary);
+  color: var(--primary-on);
   text-decoration: none;
 }
 
@@ -100,7 +100,7 @@
 
 .site-nav-btn:hover {
   transform: translateY(-2px);
-  background: #14863a;
+  background: var(--primary-hover);
 }
 
 .site-nav-btn-secondary:hover {
@@ -168,7 +168,7 @@
 }
 
 :root[data-theme="dark"] .site-nav-links a:hover {
-  color: #6ee7b7;
+  color: var(--primary-soft-text);
 }
 
 :root[data-theme="dark"] .site-nav-btn-secondary {

@@ -1,7 +1,7 @@
 // src/pages/auth/Login.tsx
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { loginUser, loginWithGoogle  } from "../../services/auth.service";
+import { loginUser, loginWithGoogle, verifyLoginTwoFactor } from "../../services/auth.service";
 import SiteNav from "../../components/SiteNav";
 import AuthFooter from "../../components/AuthFooter";
 import "../../auth-pages.css";
@@ -29,6 +29,10 @@ export default function Login() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [backupCode, setBackupCode] = useState("");
+  const [challengeToken, setChallengeToken] = useState("");
+  const [useBackupCode, setUseBackupCode] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
 
   // ✅ If already authenticated, redirect away from login
@@ -62,6 +66,12 @@ export default function Login() {
 
     try {
       const res = await loginUser({ email, password });
+      if (!("access_token" in res)) {
+        setChallengeToken(res.challengeToken);
+        setOtpCode("");
+        setBackupCode("");
+        return;
+      }
 
       localStorage.setItem("token", res.access_token);
       localStorage.setItem("user", JSON.stringify(res.user));
@@ -69,6 +79,27 @@ export default function Login() {
       redirectByRole(nav, res.user?.role);
     } catch (err: any) {
       setError(err?.message || "Login failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onVerifyTwoFactor(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await verifyLoginTwoFactor({
+        challengeToken,
+        code: useBackupCode ? undefined : otpCode,
+        backupCode: useBackupCode ? backupCode : undefined,
+      });
+      localStorage.setItem("token", res.access_token);
+      localStorage.setItem("user", JSON.stringify(res.user));
+      setChallengeToken("");
+      redirectByRole(nav, res.user?.role);
+    } catch (err: any) {
+      setError(err?.message || "2FA verification failed");
     } finally {
       setLoading(false);
     }
@@ -123,65 +154,118 @@ export default function Login() {
 
           {error ? <div className="auth-alert">{error}</div> : null}
 
-          <form className="modern-auth-form" onSubmit={onSubmit}>
-            <div className="field">
-              <input
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email"
-                type="email"
-                autoComplete="email"
-                required
-              />
-            </div>
+          {challengeToken ? (
+            <form className="modern-auth-form" onSubmit={onVerifyTwoFactor}>
+              <div className="auth-success">
+                Password verified. Enter your {useBackupCode ? "backup code" : "authenticator code"} to continue.
+              </div>
+              {!useBackupCode ? (
+                <div className="field">
+                  <input
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D+/g, "").slice(0, 6))}
+                    placeholder="6-digit code"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    required
+                  />
+                </div>
+              ) : (
+                <div className="field">
+                  <input
+                    value={backupCode}
+                    onChange={(e) => setBackupCode(e.target.value.toUpperCase())}
+                    placeholder="Backup code (e.g. ABC123-DEF456)"
+                    required
+                  />
+                </div>
+              )}
 
-            <div className="field">
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                autoComplete="current-password"
-                required
-              />
-            </div>
+              <button className="primary-btn" type="submit" disabled={loading}>
+                {loading ? "Verifying..." : "Verify and sign in"}
+              </button>
 
-            <div className="form-options">
-              <span className="auth-muted">Secure login</span>
-              <Link to="/auth/forgot-password">Forgot password?</Link>
-            </div>
+              <button
+                type="button"
+                className="text-btn"
+                onClick={() => setUseBackupCode((prev) => !prev)}
+              >
+                {useBackupCode ? "Use authenticator code instead" : "Use backup code instead"}
+              </button>
+              <button
+                type="button"
+                className="text-btn"
+                onClick={() => {
+                  setChallengeToken("");
+                  setOtpCode("");
+                  setBackupCode("");
+                  setUseBackupCode(false);
+                }}
+              >
+                Back to login
+              </button>
+            </form>
+          ) : (
+            <form className="modern-auth-form" onSubmit={onSubmit}>
+              <div className="field">
+                <input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                />
+              </div>
 
-            <button className="primary-btn" type="submit" disabled={loading}>
-              {loading ? "Signing in..." : "Sign in"}
-            </button>
+              <div className="field">
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  autoComplete="current-password"
+                  required
+                />
+              </div>
 
-            <div className="auth-divider">
-  <span>or</span>
-</div>
+              <div className="form-options">
+                <span className="auth-muted">Secure login</span>
+                <Link to="/auth/forgot-password">Forgot password?</Link>
+              </div>
 
-<button
-  type="button"
-  className="google-btn"
-  onClick={loginWithGoogle}
->
-  <img
-    src="https://www.svgrepo.com/show/475656/google-color.svg"
-    alt="Google"
-    width={10}
-    height={10}
-  />
-  Continue with Google
-</button>
+              <button className="primary-btn" type="submit" disabled={loading}>
+                {loading ? "Signing in..." : "Sign in"}
+              </button>
 
-            <p className="switch-text">
-              Don't have an account?
-              <Link className="text-btn-link" to="/auth/signup">Create one</Link>
-            </p>
+              <div className="auth-divider">
+                <span>or</span>
+              </div>
 
-            <p className="help-text">
-              Having trouble? <strong>Contact HR:</strong> hr@company.com
-            </p>
-          </form>
+              <button
+                type="button"
+                className="google-btn"
+                onClick={loginWithGoogle}
+              >
+                <img
+                  src="https://www.svgrepo.com/show/475656/google-color.svg"
+                  alt="Google"
+                  width={10}
+                  height={10}
+                />
+                Continue with Google
+              </button>
+
+              <p className="switch-text">
+                Don't have an account?
+                <Link className="text-btn-link" to="/auth/signup">Create one</Link>
+              </p>
+
+              <p className="help-text">
+                Having trouble? <strong>Contact HR:</strong> hr@company.com
+              </p>
+            </form>
+          )}
         </div>
       </div>
 

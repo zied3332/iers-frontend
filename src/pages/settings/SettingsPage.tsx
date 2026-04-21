@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { getCurrentUser, requestPasswordReset, type CurrentUser } from "../../services/auth.service";
+import {
+  confirmTwoFactorSetup,
+  disableTwoFactor,
+  getCurrentUser,
+  getTwoFactorStatus,
+  regenerateTwoFactorBackupCodes,
+  requestPasswordReset,
+  startTwoFactorSetup,
+  type CurrentUser,
+} from "../../services/auth.service";
 import { getMyEmployeeRecord, patchMyEmployeeRecord } from "../../services/employee.service";
 import { getAllSkills } from "../../services/skills.service";
 import { getAllDomains, type Domain } from "../../services/domains.service";
@@ -126,6 +135,23 @@ export default function SettingsPage() {
   const [sendingReset, setSendingReset] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState("");
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [twoFactorLoading, setTwoFactorLoading] = useState(true);
+  const [twoFactorSetupOpen, setTwoFactorSetupOpen] = useState(false);
+  const [twoFactorDisableOpen, setTwoFactorDisableOpen] = useState(false);
+  const [twoFactorRegenerateOpen, setTwoFactorRegenerateOpen] = useState(false);
+  const [twoFactorQr, setTwoFactorQr] = useState("");
+  const [twoFactorManualKey, setTwoFactorManualKey] = useState("");
+  const [twoFactorVerifyCode, setTwoFactorVerifyCode] = useState("");
+  const [twoFactorDisableCode, setTwoFactorDisableCode] = useState("");
+  const [twoFactorDisablePassword, setTwoFactorDisablePassword] = useState("");
+  const [twoFactorRegenCode, setTwoFactorRegenCode] = useState("");
+  const [twoFactorRegenPassword, setTwoFactorRegenPassword] = useState("");
+  const [twoFactorBusy, setTwoFactorBusy] = useState(false);
+  const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  const [backupCodesRemaining, setBackupCodesRemaining] = useState(0);
+  const [twoFactorError, setTwoFactorError] = useState("");
+  const [twoFactorSuccess, setTwoFactorSuccess] = useState("");
 
   useEffect(() => {
     const stored = readStoredSettings();
@@ -370,6 +396,119 @@ export default function SettingsPage() {
     } finally {
       setSendingReset(false);
     }
+  };
+
+  const refreshTwoFactorStatus = async () => {
+    setTwoFactorLoading(true);
+    try {
+      const status = await getTwoFactorStatus();
+      setTwoFactorEnabled(Boolean(status.enabled));
+      setBackupCodesRemaining(Number(status.backupCodesRemaining || 0));
+    } catch (e: unknown) {
+      setTwoFactorError(e instanceof Error ? e.message : "Failed to load 2FA status.");
+    } finally {
+      setTwoFactorLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void refreshTwoFactorStatus();
+  }, []);
+
+  const onStartTwoFactorSetup = async () => {
+    setTwoFactorBusy(true);
+    setTwoFactorError("");
+    setTwoFactorSuccess("");
+    try {
+      const setup = await startTwoFactorSetup();
+      setTwoFactorQr(String(setup.qrCodeDataUrl || ""));
+      setTwoFactorManualKey(String(setup.manualSecretKey || ""));
+      setTwoFactorVerifyCode("");
+      setBackupCodes([]);
+      setTwoFactorSetupOpen(true);
+    } catch (e: unknown) {
+      setTwoFactorError(e instanceof Error ? e.message : "Failed to start 2FA setup.");
+    } finally {
+      setTwoFactorBusy(false);
+    }
+  };
+
+  const onConfirmTwoFactorSetup = async () => {
+    setTwoFactorBusy(true);
+    setTwoFactorError("");
+    setTwoFactorSuccess("");
+    try {
+      const res = await confirmTwoFactorSetup(twoFactorVerifyCode.trim());
+      setTwoFactorEnabled(Boolean(res.enabled));
+      setBackupCodes(Array.isArray(res.backupCodes) ? res.backupCodes : []);
+      setBackupCodesRemaining(Array.isArray(res.backupCodes) ? res.backupCodes.length : 0);
+      setTwoFactorSetupOpen(false);
+      setTwoFactorSuccess("Two-factor authentication enabled successfully.");
+    } catch (e: unknown) {
+      setTwoFactorError(e instanceof Error ? e.message : "Failed to enable 2FA.");
+    } finally {
+      setTwoFactorBusy(false);
+    }
+  };
+
+  const onDisableTwoFactor = async () => {
+    setTwoFactorBusy(true);
+    setTwoFactorError("");
+    setTwoFactorSuccess("");
+    try {
+      await disableTwoFactor({
+        currentPassword: twoFactorDisablePassword.trim(),
+        code: twoFactorDisableCode.trim(),
+      });
+      setTwoFactorEnabled(false);
+      setBackupCodes([]);
+      setBackupCodesRemaining(0);
+      setTwoFactorDisableOpen(false);
+      setTwoFactorDisableCode("");
+      setTwoFactorDisablePassword("");
+      setTwoFactorSuccess("Two-factor authentication disabled.");
+    } catch (e: unknown) {
+      setTwoFactorError(e instanceof Error ? e.message : "Failed to disable 2FA.");
+    } finally {
+      setTwoFactorBusy(false);
+    }
+  };
+
+  const onRegenerateBackupCodes = async () => {
+    setTwoFactorBusy(true);
+    setTwoFactorError("");
+    setTwoFactorSuccess("");
+    try {
+      const res = await regenerateTwoFactorBackupCodes({
+        currentPassword: twoFactorRegenPassword.trim(),
+        code: twoFactorRegenCode.trim(),
+      });
+      const codes = Array.isArray(res.backupCodes) ? res.backupCodes : [];
+      setBackupCodes(codes);
+      setBackupCodesRemaining(codes.length);
+      setTwoFactorRegenerateOpen(false);
+      setTwoFactorRegenCode("");
+      setTwoFactorRegenPassword("");
+      setTwoFactorSuccess("Backup codes regenerated.");
+    } catch (e: unknown) {
+      setTwoFactorError(e instanceof Error ? e.message : "Failed to regenerate backup codes.");
+    } finally {
+      setTwoFactorBusy(false);
+    }
+  };
+
+  const onDownloadBackupCodes = () => {
+    if (!backupCodes.length) return;
+    const content = `IntelliHR Backup Codes\n\n${backupCodes.join("\n")}\n`;
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "intellihr-backup-codes.txt";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   };
 
   const pageStyle: CSSProperties = {
@@ -738,6 +877,66 @@ export default function SettingsPage() {
     borderBottom: "1px solid var(--border, #e2e8f0)",
   };
 
+  const modalBackdrop: CSSProperties = {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(2, 6, 23, 0.55)",
+    display: "grid",
+    placeItems: "center",
+    zIndex: 2000,
+    padding: 16,
+  };
+
+  const modalCard: CSSProperties = {
+    width: "min(560px, 100%)",
+    borderRadius: 20,
+    border: "1px solid var(--border, #dbe3ef)",
+    background: "var(--surface, #ffffff)",
+    boxShadow: "0 20px 50px rgba(2, 6, 23, 0.35)",
+    padding: 20,
+    display: "grid",
+    gap: 14,
+  };
+
+  const modalTitleStyle: CSSProperties = {
+    margin: 0,
+    fontSize: 24,
+    fontWeight: 900,
+    color: "var(--text, #0f172a)",
+    letterSpacing: "-0.02em",
+  };
+
+  const modalSubtitleStyle: CSSProperties = {
+    margin: "2px 0 0",
+    color: "var(--muted, #64748b)",
+    fontSize: 14,
+    lineHeight: 1.55,
+  };
+
+  const modalPanel: CSSProperties = {
+    border: "1px solid var(--border, #dbe3ef)",
+    borderRadius: 14,
+    background: "var(--surface, #ffffff)",
+    padding: 12,
+  };
+
+  const modalActionsRow: CSSProperties = {
+    display: "flex",
+    gap: 10,
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+  };
+
+  const modalPrimaryButton: CSSProperties = {
+    ...primaryButton,
+    minWidth: 170,
+  };
+
+  const modalSecondaryButton: CSSProperties = {
+    ...subtleButton,
+    minWidth: 110,
+  };
+
   return (
     <div style={pageStyle}>
       <div style={topBarStyle}>
@@ -1014,8 +1213,70 @@ export default function SettingsPage() {
                   {passwordSuccess}
                 </div>
               ) : null}
+              {twoFactorError ? (
+                <div style={{ padding: "12px 14px", borderRadius: 12, border: settings.themeMode === "dark" ? "1px solid rgba(248,113,113,0.45)" : "1px solid #fecaca", background: settings.themeMode === "dark" ? "rgba(127,29,29,0.28)" : "#fff1f2", color: settings.themeMode === "dark" ? "#fecaca" : "#b91c1c", fontWeight: 700, marginBottom: 12 }}>
+                  {twoFactorError}
+                </div>
+              ) : null}
+              {twoFactorSuccess ? (
+                <div style={{ padding: "12px 14px", borderRadius: 12, border: "1px solid var(--primary-border)", background: "var(--primary-weak)", color: "var(--primary-soft-text)", fontWeight: 700, marginBottom: 12 }}>
+                  {twoFactorSuccess}
+                </div>
+              ) : null}
 
               <div style={{ display: "grid", gap: 14 }}>
+                <div style={{ ...rowStyle, gridTemplateColumns: "1fr" }}>
+                  <div style={rowLabelWrap}>
+                    <span style={rowTitle}>Two-factor authentication (TOTP)</span>
+                    <span style={rowHint}>
+                      Protect your account with an authenticator app (Google Authenticator, Authy, Microsoft Authenticator).
+                    </span>
+                  </div>
+                  <div style={{ display: "grid", gap: 10, maxWidth: 620 }}>
+                    <div style={{ fontWeight: 700 }}>
+                      Status: {twoFactorLoading ? "Loading..." : twoFactorEnabled ? "Enabled" : "Disabled"}
+                    </div>
+                    <div style={{ color: "var(--muted, #64748b)" }}>
+                      Backup codes remaining: {backupCodesRemaining}
+                    </div>
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      {!twoFactorEnabled ? (
+                        <button style={primaryButton} onClick={() => void onStartTwoFactorSetup()} disabled={twoFactorBusy || twoFactorLoading}>
+                          {twoFactorBusy ? "Preparing..." : "Enable 2FA"}
+                        </button>
+                      ) : (
+                        <>
+                          <button style={primaryButton} onClick={() => setTwoFactorRegenerateOpen(true)} disabled={twoFactorBusy || twoFactorLoading}>
+                            Regenerate backup codes
+                          </button>
+                          <button style={subtleButton} onClick={() => setTwoFactorDisableOpen(true)} disabled={twoFactorBusy || twoFactorLoading}>
+                            Disable 2FA
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    {backupCodes.length > 0 ? (
+                      <div style={{ border: "1px dashed var(--primary-border)", borderRadius: 12, padding: 12, background: "var(--primary-weak)" }}>
+                        <div style={{ fontWeight: 800, marginBottom: 8, color: "var(--primary-soft-text)" }}>
+                          Save these backup codes now (each can be used once):
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8 }}>
+                          {backupCodes.map((code) => (
+                            <code key={code} style={{ fontWeight: 800, color: "var(--text, #0f172a)" }}>
+                              {code}
+                            </code>
+                          ))}
+                        </div>
+                        <div style={{ marginTop: 10 }}>
+                          <button style={subtleButton} onClick={onDownloadBackupCodes}>
+                            Download backup codes
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
                 <div style={{ ...rowStyle, gridTemplateColumns: "1fr" }}>
                   <div style={rowLabelWrap}>
                     <span style={rowTitle}>Change password now</span>
@@ -1051,6 +1312,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
+
             </section>
           )}
 
@@ -1267,6 +1529,119 @@ export default function SettingsPage() {
           </section>
         </div>
       </div>
+
+      {twoFactorSetupOpen ? (
+        <div style={modalBackdrop}>
+          <div style={modalCard}>
+            <div>
+              <h3 style={modalTitleStyle}>Enable Two-Factor Authentication</h3>
+              <p style={modalSubtitleStyle}>
+                Scan the QR code with your authenticator app, then enter the 6-digit code to activate 2FA.
+              </p>
+            </div>
+            <div style={{ ...modalPanel, display: "grid", justifyItems: "center", gap: 10 }}>
+              {twoFactorQr ? (
+                <img src={twoFactorQr} alt="2FA QR code" style={{ width: 220, height: 220, borderRadius: 12, border: "1px solid var(--border, #dbe3ef)" }} />
+              ) : null}
+              <div style={{ width: "100%", color: "var(--muted, #64748b)", fontSize: 13 }}>
+                Manual key:
+                <div style={{ marginTop: 6, border: "1px dashed var(--primary-border)", background: "var(--primary-weak)", borderRadius: 10, padding: "8px 10px", fontFamily: "monospace", fontWeight: 800, color: "var(--text, #0f172a)", wordBreak: "break-all" }}>
+                  {twoFactorManualKey || "Not available"}
+                </div>
+              </div>
+            </div>
+            <input
+              className="input"
+              placeholder="Enter 6-digit code from app"
+              value={twoFactorVerifyCode}
+              onChange={(e) => setTwoFactorVerifyCode(e.target.value.replace(/\D+/g, "").slice(0, 6))}
+            />
+            <div style={modalActionsRow}>
+              <button style={modalSecondaryButton}
+                onClick={() => {
+                  setTwoFactorSetupOpen(false);
+                  setTwoFactorQr("");
+                  setTwoFactorManualKey("");
+                  setTwoFactorVerifyCode("");
+                }}
+              >
+                Cancel
+              </button>
+              <button style={modalPrimaryButton} onClick={() => void onConfirmTwoFactorSetup()} disabled={twoFactorBusy}>
+                {twoFactorBusy ? "Verifying..." : "Confirm and activate"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {twoFactorDisableOpen ? (
+        <div style={modalBackdrop}>
+          <div style={modalCard}>
+            <div>
+              <h3 style={modalTitleStyle}>Disable Two-Factor Authentication</h3>
+              <p style={modalSubtitleStyle}>
+                Confirm your password and a valid OTP code before turning 2FA off.
+              </p>
+            </div>
+            <input
+              className="input"
+              type="password"
+              placeholder="Current password"
+              value={twoFactorDisablePassword}
+              onChange={(e) => setTwoFactorDisablePassword(e.target.value)}
+            />
+            <input
+              className="input"
+              placeholder="Authenticator 6-digit code"
+              value={twoFactorDisableCode}
+              onChange={(e) => setTwoFactorDisableCode(e.target.value.replace(/\D+/g, "").slice(0, 6))}
+            />
+            <div style={modalActionsRow}>
+              <button style={modalSecondaryButton} onClick={() => setTwoFactorDisableOpen(false)}>
+                Cancel
+              </button>
+              <button style={modalPrimaryButton} onClick={() => void onDisableTwoFactor()} disabled={twoFactorBusy}>
+                {twoFactorBusy ? "Disabling..." : "Disable 2FA"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {twoFactorRegenerateOpen ? (
+        <div style={modalBackdrop}>
+          <div style={modalCard}>
+            <div>
+              <h3 style={modalTitleStyle}>Regenerate Backup Codes</h3>
+              <p style={modalSubtitleStyle}>
+                This invalidates your old backup codes and creates a new one-time set.
+              </p>
+            </div>
+            <input
+              className="input"
+              type="password"
+              placeholder="Current password"
+              value={twoFactorRegenPassword}
+              onChange={(e) => setTwoFactorRegenPassword(e.target.value)}
+            />
+            <input
+              className="input"
+              placeholder="Authenticator 6-digit code"
+              value={twoFactorRegenCode}
+              onChange={(e) => setTwoFactorRegenCode(e.target.value.replace(/\D+/g, "").slice(0, 6))}
+            />
+            <div style={modalActionsRow}>
+              <button style={modalSecondaryButton} onClick={() => setTwoFactorRegenerateOpen(false)}>
+                Cancel
+              </button>
+              <button style={modalPrimaryButton} onClick={() => void onRegenerateBackupCodes()} disabled={twoFactorBusy}>
+                {twoFactorBusy ? "Regenerating..." : "Generate new backup codes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

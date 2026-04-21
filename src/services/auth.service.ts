@@ -49,6 +49,31 @@ export async function loginUser(data: { email: string; password: string }) {
     body: JSON.stringify(data),
   });
 
+  return handle(res) as Promise<
+    | {
+        requiresTwoFactor: false;
+        access_token: string;
+        user: { id: string; email: string; name: string; role: string };
+      }
+    | {
+        requiresTwoFactor: true;
+        challengeToken: string;
+        challengeExpiresInSeconds: number;
+        userPreview: { _id: string; email: string; name: string; role: string };
+      }
+  >;
+}
+
+export async function verifyLoginTwoFactor(data: {
+  challengeToken: string;
+  code?: string;
+  backupCode?: string;
+}) {
+  const res = await fetch(`${BASE}/auth/login/2fa`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
   return handle(res) as Promise<{
     access_token: string;
     user: { id: string; email: string; name: string; role: string };
@@ -94,6 +119,7 @@ export type CurrentUser = {
   date_embauche?: string;
   en_ligne?: boolean;
   lastLogin?: string;
+  twoFactorEnabled?: boolean;
 };
 
 function authHeaders() {
@@ -164,4 +190,61 @@ export async function completeGoogleProfile(data: {
     body: JSON.stringify(data),
   });
   return handle(res);
+}
+
+export async function getTwoFactorStatus() {
+  const res = await fetch(`${BASE}/auth/2fa/status`, {
+    method: "GET",
+    headers: authHeaders(),
+  });
+  return handle(res) as Promise<{
+    enabled: boolean;
+    setupPending: boolean;
+    backupCodesRemaining: number;
+  }>;
+}
+
+export async function startTwoFactorSetup() {
+  const res = await fetch(`${BASE}/auth/2fa/setup`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  return handle(res) as Promise<{
+    enabled: boolean;
+    setupPending: boolean;
+    qrCodeDataUrl: string | null;
+    manualSecretKey: string | null;
+    otpauthUrl: string | null;
+    backupCodesRemaining: number;
+  }>;
+}
+
+export async function confirmTwoFactorSetup(code: string) {
+  const res = await fetch(`${BASE}/auth/2fa/enable`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ code }),
+  });
+  return handle(res) as Promise<{ enabled: boolean; backupCodes: string[] }>;
+}
+
+export async function disableTwoFactor(data: { currentPassword: string; code: string }) {
+  const res = await fetch(`${BASE}/auth/2fa/disable`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handle(res) as Promise<{ enabled: boolean }>;
+}
+
+export async function regenerateTwoFactorBackupCodes(data: {
+  currentPassword: string;
+  code: string;
+}) {
+  const res = await fetch(`${BASE}/auth/2fa/backup-codes/regenerate`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handle(res) as Promise<{ backupCodes: string[] }>;
 }

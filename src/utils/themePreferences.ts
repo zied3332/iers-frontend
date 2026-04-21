@@ -37,8 +37,12 @@ function scopedStorageKey(baseKey: string): string {
 }
 
 function getStoredValueWithFallback(baseKey: string): string | null {
-  const scoped = localStorage.getItem(scopedStorageKey(baseKey));
+  const scope = getCurrentUserScope();
+  const scoped = localStorage.getItem(`${baseKey}:${scope}`);
   if (scoped != null) return scoped;
+  // Only guests (not logged-in users) can use the global fallback.
+  // Logged-in users should never inherit another user's saved theme.
+  if (scope !== "guest") return null;
   return localStorage.getItem(baseKey);
 }
 
@@ -158,6 +162,10 @@ export function applyThemePreferences({
 
   if (persist) {
     try {
+      // Keep both scoped and base keys in sync so public pages (guest scope)
+      // still reflect the latest selected theme.
+      localStorage.setItem(THEME_STORAGE_KEY, resolvedMode);
+      localStorage.setItem(THEME_COLOR_STORAGE_KEY, resolvedColor);
       localStorage.setItem(scopedStorageKey(THEME_STORAGE_KEY), resolvedMode);
       localStorage.setItem(scopedStorageKey(THEME_COLOR_STORAGE_KEY), resolvedColor);
     } catch {
