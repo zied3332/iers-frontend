@@ -70,6 +70,20 @@ function fmtDateTime(d?: string | Date | null) {
   return dt.toLocaleString();
 }
 
+function toIsoDateForApi(raw?: string) {
+  const value = String(raw || "").trim();
+  if (!value) return undefined;
+
+  // Convert yyyy-mm-dd from date input to a full ISO date-time string.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return `${value}T00:00:00.000Z`;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  return parsed.toISOString();
+}
+
 /* =======================
    Small UI helpers
    ======================= */
@@ -374,6 +388,7 @@ type NewUserForm = {
   matricule: string;
   date_embauche: string;
   role: User["role"];
+  department: string;
 };
 
 function toEditable(u: any): EditableUser {
@@ -406,6 +421,7 @@ const INITIAL_NEW_USER: NewUserForm = {
   matricule: "",
   date_embauche: "",
   role: "EMPLOYEE",
+  department: "",
 };
 
 export default function UsersManagement() {
@@ -443,15 +459,20 @@ export default function UsersManagement() {
   const [deleting, setDeleting] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
+  const openAdd = useCallback(() => {
+    setAddErr("");
+    setAddSaving(false);
+    setAddForm(INITIAL_NEW_USER);
+    setAddOpen(true);
+  }, []);
+
   useEffect(() => {
     const state = location.state as { openAdd?: boolean } | null;
     if (state?.openAdd) {
-      setAddOpen(true);
-      setAddForm(INITIAL_NEW_USER);
-      setAddErr("");
+      openAdd();
       navigate("/hr/users", { replace: true, state: {} });
     }
-  }, [location.state, navigate]);
+  }, [location.state, navigate, openAdd]);
 
   const load = useCallback(async () => {
     setErr("");
@@ -683,6 +704,8 @@ export default function UsersManagement() {
       validationErr = "Department is required.";
     } else if (!form.date_embauche) {
       validationErr = "Hire date is required.";
+    } else if (!toIsoDateForApi(form.date_embauche)) {
+      validationErr = "Hire date must be valid.";
     } else if (!(form.matricule || "").trim()) {
       validationErr = "Matricule is required.";
     } else if (
@@ -699,6 +722,7 @@ export default function UsersManagement() {
 
     setEditSaving(true);
     const snapshot = [...users];
+    const hireDateIso = toIsoDateForApi(form.date_embauche);
 
     setUsers((prev) =>
       prev.map((u: any) =>
@@ -710,7 +734,7 @@ export default function UsersManagement() {
               telephone: form.telephone || "",
               matricule: form.matricule || "",
               department: form.department || "",
-              date_embauche: form.date_embauche || "",
+              date_embauche: hireDateIso || "",
               role: normalizeRole(form.role),
             }
           : u
@@ -724,7 +748,7 @@ export default function UsersManagement() {
         telephone: form.telephone || undefined,
         matricule: form.matricule || undefined,
         department: form.department || undefined,
-        date_embauche: form.date_embauche || undefined,
+        date_embauche: hireDateIso,
         role: normalizeRole(form.role),
       });
 
@@ -768,6 +792,8 @@ export default function UsersManagement() {
       validationErr = "Password must contain at least one number.";
     } else if (!addForm.date_embauche) {
       validationErr = "Hire date is required.";
+    } else if (!toIsoDateForApi(addForm.date_embauche)) {
+      validationErr = "Hire date must be valid.";
     } else if (!addForm.matricule.trim()) {
       validationErr = "Matricule is required.";
     } else if (
@@ -785,14 +811,16 @@ export default function UsersManagement() {
     setAddSaving(true);
 
     try {
+      const hireDateIso = toIsoDateForApi(addForm.date_embauche);
       const payload: any = {
         name: addForm.name.trim(),
         email: addForm.email.trim(),
         password: addForm.password.trim(),
         role: normalizeRole(addForm.role),
+        department: addForm.department || undefined,
         telephone: addForm.telephone || undefined,
         matricule: addForm.matricule || undefined,
-        date_embauche: addForm.date_embauche || undefined,
+        date_embauche: hireDateIso,
       };
 
       const created = await createUser(payload);
@@ -904,7 +932,7 @@ export default function UsersManagement() {
 
             <button
               className="btn btn-primary"
-              onClick={() => setAddOpen(true)}
+              onClick={openAdd}
               disabled={loading}
               style={S.addBtn}
             >
@@ -1204,7 +1232,11 @@ export default function UsersManagement() {
           </div>
         )}
 
-        <AddUserForm value={addForm} onChange={setAddForm} />
+        <AddUserForm
+          value={addForm}
+          onChange={setAddForm}
+          departmentOptions={departmentOptions}
+        />
       </Modal>
     </div>
   );
@@ -1412,9 +1444,11 @@ function Label({ text }: { text: string }) {
 function AddUserForm({
   value,
   onChange,
+  departmentOptions,
 }: {
   value: NewUserForm;
   onChange: React.Dispatch<React.SetStateAction<NewUserForm>>;
+  departmentOptions: Array<{ value: string; label: string }>;
 }) {
   return (
     <div style={S.formGrid}>
@@ -1425,6 +1459,7 @@ function AddUserForm({
         <input
           className="input"
           placeholder="Full name"
+          autoComplete="off"
           value={value.name}
           onChange={(e) => onChange((p) => ({ ...p, name: e.target.value }))}
         />
@@ -1436,6 +1471,7 @@ function AddUserForm({
           className="input"
           type="email"
           placeholder="email@company.com"
+          autoComplete="off"
           value={value.email}
           onChange={(e) => onChange((p) => ({ ...p, email: e.target.value }))}
         />
@@ -1447,6 +1483,7 @@ function AddUserForm({
           className="input"
           type="password"
           placeholder="Min. 8 characters, at least 1 number"
+          autoComplete="new-password"
           value={value.password}
           onChange={(e) => onChange((p) => ({ ...p, password: e.target.value }))}
         />
@@ -1472,6 +1509,22 @@ function AddUserForm({
 
       <div className="card" style={S.infoCard}>
         <div style={S.blockTitle}>Professional Information</div>
+
+        <Label text="Department" />
+        <select
+          className="select"
+          value={value.department}
+          onChange={(e) => onChange((p) => ({ ...p, department: e.target.value }))}
+        >
+          <option value="">Select department</option>
+          {departmentOptions.map((dept) => (
+            <option key={dept.value} value={dept.value}>
+              {dept.label}
+            </option>
+          ))}
+        </select>
+
+        <div style={S.spacerSm} />
 
         <Label text="Hire Date *" />
         <input
