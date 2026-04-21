@@ -632,9 +632,9 @@ export default function Profile() {
                     style={{
                       padding: "12px 18px",
                       borderRadius: 14,
-                      border: "1px solid rgba(16,185,129,0.30)",
-                      background: "rgba(16,185,129,0.10)",
-                      color: "#065f46",
+                      border: "1px solid var(--primary-border)",
+                      background: "var(--primary-weak)",
+                      color: "var(--primary-soft-text)",
                       fontWeight: 800,
                       cursor: "pointer",
                       display: "inline-flex",

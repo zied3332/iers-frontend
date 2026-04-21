@@ -40,9 +40,9 @@ const btn: React.CSSProperties = {
 
 const btnGreen: React.CSSProperties = {
   ...btn,
-  border: "none",
-  background: "#1f7a5a",
-  color: "white",
+  border: "1px solid var(--primary)",
+  background: "var(--primary)",
+  color: "var(--primary-on)",
 };
 
 const input: React.CSSProperties = {
@@ -124,9 +124,9 @@ const listPageBtn: React.CSSProperties = {
 };
 
 const listPageBtnActive: React.CSSProperties = {
-  background: "#167c5a",
-  color: "#fff",
-  border: "1px solid #167c5a",
+  background: "var(--primary)",
+  color: "var(--primary-on)",
+  border: "1px solid var(--primary)",
 };
 
 const actionsGroup: React.CSSProperties = {
@@ -351,7 +351,7 @@ export default function HrDepartments() {
         </div>
 
         <div style={{ marginTop: 12, padding: 12, background: "color-mix(in srgb, var(--primary) 12%, var(--surface))", borderRadius: 12, border: "1px solid color-mix(in srgb, var(--primary) 35%, var(--border))" }}>
-          <div style={{ fontWeight: 900, fontSize: 16, color: "#15803d" }}>Total departments: {filteredDepartments.length}</div>
+          <div style={{ fontWeight: 900, fontSize: 16, color: "var(--primary-soft-text)" }}>Total departments: {filteredDepartments.length}</div>
         </div>
 
         <div style={{ ...card, marginTop: 14 }}>

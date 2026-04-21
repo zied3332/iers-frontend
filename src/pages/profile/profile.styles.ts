@@ -14,7 +14,7 @@ const TOKENS = {
   cardBg: "var(--surface)",
   text: "var(--text)",
   muted: "var(--muted)",
-  ring: "0 0 0 4px rgba(31,122,90,0.10)",
+  ring: "0 0 0 4px var(--primary-weak)",
   shadow: "0 18px 50px rgba(2, 6, 23, 0.06)",
   shadow2: "0 2px 10px rgba(2, 6, 23, 0.06)",
   radius: 24,
@@ -22,7 +22,7 @@ const TOKENS = {
 
 export const PILL_TONES: Record<Tone, { bg: string; bd: string; fg: string }> = {
   neutral: { bg: "rgba(100,116,139,0.10)", bd: "rgba(100,116,139,0.18)", fg: "#334155" },
-  success: { bg: "rgba(16,185,129,0.12)", bd: "rgba(16,185,129,0.20)", fg: "#065f46" },
+  success: { bg: "var(--primary-weak)", bd: "var(--primary-border)", fg: "var(--primary-soft-text)" },
   danger: { bg: "rgba(239,68,68,0.10)", bd: "rgba(239,68,68,0.18)", fg: "#991b1b" },
 };
 
@@ -48,9 +48,9 @@ export const BTN_STYLES: Record<BtnVariant, React.CSSProperties> = {
   outline: BTN_BASE,
   primary: {
     ...BTN_BASE,
-    border: "1px solid rgba(31,122,90,0.22)",
-    background: "rgba(31,122,90,0.10)",
-    color: "#145a41",
+    border: "1px solid var(--primary-border)",
+    background: "var(--primary-weak)",
+    color: "var(--primary-soft-text)",
   },
   danger: {
     ...BTN_BASE,
@@ -272,8 +272,8 @@ export const S: Record<string, React.CSSProperties> = {
   tabBtnActive: {
     padding: "10px 12px",
     borderRadius: 12,
-    border: "1px solid rgba(22,163,74,0.35)",
-    background: "rgba(22,163,74,0.08)",
+    border: "1px solid var(--primary-border)",
+    background: "var(--primary-weak)",
     color: TOKENS.text,
     fontSize: 15,
     fontWeight: 950,
@@ -309,7 +309,7 @@ export const S: Record<string, React.CSSProperties> = {
   progressBar: {
     height: "100%",
     width: "0%",
-    background: "rgba(22,163,74,0.85)",
+    background: "var(--primary)",
     borderRadius: 999,
   },
 
@@ -354,7 +354,7 @@ export const S: Record<string, React.CSSProperties> = {
     width: 10,
     height: 10,
     borderRadius: 999,
-    background: "rgba(22,163,74,0.90)",
+    background: "var(--primary)",
     marginTop: 5,
   },
 

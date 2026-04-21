@@ -121,10 +121,10 @@ const styles = {
   } as React.CSSProperties,
 
   btnPrimary: {
-    background: "#167c5a",
-    color: "#ffffff",
-    border: "1px solid #167c5a",
-    boxShadow: "0 10px 24px rgba(22, 124, 90, 0.16)",
+    background: "var(--primary)",
+    color: "var(--primary-on)",
+    border: "1px solid var(--primary)",
+    boxShadow: "0 10px 24px var(--primary-border)",
   } as React.CSSProperties,
 
   btnSecondary: {
@@ -338,7 +338,11 @@ const calculateWorkingDays = (startDate: string, endDate: string): number => {
 const statusPalette: Record<ActivityStatus, { bg: string; color: string; border: string }> = {
   PLANNED: { bg: "#f5f7fa", color: "#475467", border: "#e4e7ec" },
   IN_PROGRESS: { bg: "#fff7e6", color: "#b54708", border: "#f5d9a6" },
-  COMPLETED: { bg: "#ecfdf3", color: "#067647", border: "#abefc6" },
+  COMPLETED: {
+    bg: "var(--primary-weak)",
+    color: "var(--primary-soft-text)",
+    border: "var(--primary-border)",
+  },
   CANCELLED: { bg: "#fef3f2", color: "#b42318", border: "#fecdca" },
 };
 
@@ -833,11 +837,11 @@ export default function ActivitiesManagement() {
           ...styles.card,
           marginTop: "16px",
           padding: "16px 18px",
-          borderLeft: `4px solid ${error ? "#d92d20" : "#067647"}`,
-          background: error ? "#fff7f7" : "#f3fff8",
+          borderLeft: `4px solid ${error ? "#d92d20" : "var(--primary)"}`,
+          background: error ? "#fff7f7" : "var(--primary-weak)",
         }}
       >
-        <span style={{ color: error ? "#b42318" : "#067647", fontWeight: 700 }}>
+        <span style={{ color: error ? "#b42318" : "var(--primary-soft-text)", fontWeight: 700 }}>
           {error || success}
         </span>
       </div>

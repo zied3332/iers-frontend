@@ -42,9 +42,9 @@ const feedbackItems: FeedbackItem[] = [
 function getRatingStyles(rating: FeedbackItem["rating"]): React.CSSProperties {
   if (rating === "Excellent") {
     return {
-      background: "rgba(34,197,94,0.10)",
-      color: "#15803d",
-      border: "1px solid rgba(34,197,94,0.25)",
+      background: "var(--primary-weak)",
+      color: "var(--primary-soft-text)",
+      border: "1px solid var(--primary-border)",
     };
   }
 

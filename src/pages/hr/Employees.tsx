@@ -60,9 +60,9 @@ const baseButton: React.CSSProperties = {
 
 const primaryButton: React.CSSProperties = {
   ...baseButton,
-  background: "rgba(16, 185, 129, 0.10)",
-  color: "#10b981",
-  border: "1px solid rgba(16, 185, 129, 0.22)",
+  background: "var(--primary-weak)",
+  color: "var(--primary-soft-text)",
+  border: "1px solid var(--primary-border)",
 };
 
 const searchInput: React.CSSProperties = {
@@ -163,7 +163,7 @@ const actionBtn: React.CSSProperties = {
 
 const actionBtnPrimary: React.CSSProperties = {
   ...actionBtn,
-  color: "#166534",
+  color: "var(--primary-soft-text)",
 };
 
 const actionBtnDanger: React.CSSProperties = {
@@ -208,9 +208,9 @@ const listPageBtn: React.CSSProperties = {
 };
 
 const listPageBtnActive: React.CSSProperties = {
-  background: "#167c5a",
-  color: "#fff",
-  border: "1px solid #167c5a",
+  background: "var(--primary)",
+  color: "var(--primary-on)",
+  border: "1px solid var(--primary)",
 };
 
 type Emp = {
@@ -294,9 +294,9 @@ function getStatusBadge(isOnline: boolean): React.CSSProperties {
       minWidth: 82,
       padding: "9px 14px",
       borderRadius: 999,
-      background: "rgba(34, 197, 94, 0.10)",
-      color: "#166534",
-      border: "1px solid rgba(34, 197, 94, 0.22)",
+      background: "var(--primary-weak)",
+      color: "var(--primary-soft-text)",
+      border: "1px solid var(--primary-border)",
       fontWeight: 800,
       fontSize: 13,
     };
@@ -323,8 +323,8 @@ function getSeniorityBadge(seniority: string): React.CSSProperties {
       display: "inline-flex",
       padding: "6px 10px",
       borderRadius: 999,
-      background: "rgba(16, 185, 129, 0.12)",
-      color: "#065f46",
+      background: "var(--primary-weak)",
+      color: "var(--primary-soft-text)",
       fontWeight: 900,
       fontSize: 12,
     };
@@ -734,14 +734,14 @@ export default function HrEmployees() {
             </div>
           </div>
 
-          <div style={statCard("#22c55e")}>
+          <div style={statCard("var(--primary)")}>
             <div>
               <div
                 style={{
                   fontSize: 42,
                   lineHeight: 1,
                   fontWeight: 900,
-                  color: "#16a34a",
+                  color: "var(--primary-soft-text)",
                 }}
               >
                 {loading ? "..." : onlineUsers}

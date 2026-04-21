@@ -20,28 +20,10 @@ type NavGroup = {
   items: NavItem[];
 };
 
-type ThemeMode = "light" | "dark";
-
-const THEME_STORAGE_KEY = "themeMode";
 const FALLBACK_AVATAR = "https://randomuser.me/api/portraits/men/35.jpg";
 
 function linkClass({ isActive }: { isActive: boolean }) {
   return `side-link nav-item ${isActive ? "active" : ""}`;
-}
-
-function getStoredThemeMode(): ThemeMode {
-  try {
-    const saved = localStorage.getItem(THEME_STORAGE_KEY);
-    return saved === "dark" ? "dark" : "light";
-  } catch {
-    return "light";
-  }
-}
-
-function applyThemeMode(theme: ThemeMode) {
-  document.documentElement.setAttribute("data-theme", theme);
-  document.body.setAttribute("data-theme", theme);
-  document.body.style.colorScheme = theme;
 }
 
 function inferNavGroup(label: string) {
@@ -157,24 +139,7 @@ export default function AppShell({
 }) {
   const navigate = useNavigate();
 
-  const [themeMode, setThemeMode] = React.useState<ThemeMode>(() => {
-    const current = document.documentElement.getAttribute("data-theme");
-    if (current === "dark" || current === "light") {
-      return current as ThemeMode;
-    }
-    return getStoredThemeMode();
-  });
-
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
-
-  React.useEffect(() => {
-    applyThemeMode(themeMode);
-    try {
-      localStorage.setItem(THEME_STORAGE_KEY, themeMode);
-    } catch {
-      // ignore storage failures
-    }
-  }, [themeMode]);
 
   const SIDE_W = 350;
   const workspaceCode =
@@ -297,36 +262,6 @@ export default function AppShell({
                 ))}
               </nav>
 
-              {group.title === "System" ? (
-                <button
-                  type="button"
-                  className="theme-toggle-btn"
-                  onClick={() =>
-                    setThemeMode((prev) => (prev === "light" ? "dark" : "light"))
-                  }
-                  aria-label={`Switch to ${themeMode === "light" ? "dark" : "light"} mode`}
-                  title={`Switch to ${themeMode === "light" ? "dark" : "light"} mode`}
-                >
-                  <span className="theme-toggle-meta">
-                    <span className="theme-toggle-text">
-                      {themeMode === "light" ? "Switch to dark" : "Switch to light"}
-                    </span>
-                    <span className="theme-toggle-subtext"></span>
-                  </span>
-
-                  <span
-                    className={`theme-toggle-track ${themeMode === "dark" ? "is-dark" : ""}`}
-                  >
-                    <span className="theme-toggle-icon sun" aria-hidden="true">
-                      ☀
-                    </span>
-                    <span className="theme-toggle-icon moon" aria-hidden="true">
-                      ☾
-                    </span>
-                    <span className="theme-toggle-thumb" />
-                  </span>
-                </button>
-              ) : null}
             </div>
           ))}
         </div>

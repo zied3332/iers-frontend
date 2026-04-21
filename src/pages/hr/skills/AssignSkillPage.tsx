@@ -24,7 +24,7 @@ const theme = {
     primary: '#6366f1',
     primaryLight: '#818cf8',
     primaryBg: '#eef2ff',
-    success: '#10b981',
+    success: 'var(--primary)',
     successBg: '#ecfdf5',
     warning: '#f59e0b',
     danger: '#ef4444',

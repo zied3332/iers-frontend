@@ -301,7 +301,7 @@ export default function HrStatsDashboard() {
     const values = [
       { label: "Planned", value: activityStats.planned, color: "#3b82f6" },
       { label: "In Progress", value: activityStats.inProgress, color: "#f59e0b" },
-      { label: "Completed", value: activityStats.completed, color: "#16a34a" },
+      { label: "Completed", value: activityStats.completed, color: "var(--primary)" },
       { label: "Cancelled", value: activityStats.cancelled, color: "#ef4444" },
     ];
 

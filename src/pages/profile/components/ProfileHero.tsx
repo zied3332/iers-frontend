@@ -12,9 +12,9 @@ type UserLike = {
 function toneStyles(tone: Tone) {
   if (tone === "success") {
     return {
-      background: "rgba(16,185,129,0.12)",
-      border: "1px solid rgba(16,185,129,0.22)",
-      color: "#065f46",
+      background: "var(--primary-weak)",
+      border: "1px solid var(--primary-border)",
+      color: "var(--primary-soft-text)",
     };
   }
 

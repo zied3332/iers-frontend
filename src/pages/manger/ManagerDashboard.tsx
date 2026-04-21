@@ -344,7 +344,7 @@ export default function ManagerDashboard() {
               title: "Online Now",
               value: loading ? "..." : String(data.onlineCount),
               note: "Current availability",
-              accent: "#16a34a",
+              accent: "var(--primary)",
             },
             {
               title: "Skill Coverage",
@@ -398,7 +398,7 @@ export default function ManagerDashboard() {
                     style={{
                       height: `${Math.max((count / maxTrend) * 130, 10)}px`,
                       borderRadius: 12,
-                      background: "linear-gradient(180deg, #22c55e, #15803d)",
+                      background: "linear-gradient(180deg, var(--primary), var(--primary-hover))",
                     }}
                   />
                   <div style={{ marginTop: 8, fontWeight: 700, color: "var(--muted)", fontSize: 13 }}>{hireTrend.labels[index]}</div>
@@ -454,7 +454,7 @@ export default function ManagerDashboard() {
                 {[
                   { label: "Planned", value: activityStats.planned, color: "#3b82f6" },
                   { label: "In Progress", value: activityStats.inProgress, color: "#f59e0b" },
-                  { label: "Completed", value: activityStats.completed, color: "#16a34a" },
+                  { label: "Completed", value: activityStats.completed, color: "var(--primary)" },
                   { label: "Cancelled", value: activityStats.cancelled, color: "#ef4444" },
                 ].map((item) => {
                   const total = Math.max(data.activities.length, 1);
@@ -556,9 +556,9 @@ export default function ManagerDashboard() {
                       background: isEmpty
                         ? "transparent"
                         : isBoth
-                          ? "linear-gradient(135deg, #16a34a 0%, #f59e0b 100%)"
+                          ? "linear-gradient(135deg, var(--primary) 0%, #f59e0b 100%)"
                           : isStart
-                            ? "#16a34a"
+                            ? "var(--primary)"
                             : isEnd
                               ? "#f59e0b"
                               : "var(--surface-2)",
@@ -574,7 +574,7 @@ export default function ManagerDashboard() {
             </div>
 
             <div style={{ display: "flex", gap: 14, color: "var(--muted)", fontSize: 12, marginBottom: 14 }}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 999, background: "#16a34a" }} />Start</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 999, background: "var(--primary)" }} />Start</span>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 999, background: "#f59e0b" }} />End</span>
             </div>
 

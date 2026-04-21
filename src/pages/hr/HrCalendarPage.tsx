@@ -107,8 +107,8 @@ function getStatusColor(status?: string) {
     case "COMPLETED":
       return {
         bg: "#dcfce7",
-        border: "#22c55e",
-        text: "#166534",
+        border: "var(--primary)",
+        text: "var(--primary-soft-text)",
         soft: "#f0fdf4",
       };
     case "CANCELLED":
@@ -508,7 +508,7 @@ export default function HrCalendarPage() {
               <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                 <LegendItem color="#60a5fa" label="Planned" />
                 <LegendItem color="#f59e0b" label="In Progress" />
-                <LegendItem color="#22c55e" label="Completed" />
+                <LegendItem color="var(--primary)" label="Completed" />
                 <LegendItem color="#ef4444" label="Cancelled" />
               </div>
             </div>

@@ -84,9 +84,9 @@ const PILL_TONES: Record<Tone, { bg: string; bd: string; fg: string }> = {
     fg: "#334155",
   },
   success: {
-    bg: "rgba(22,163,74,0.12)",
-    bd: "rgba(22,163,74,0.20)",
-    fg: "#166534",
+    bg: "var(--primary-weak)",
+    bd: "var(--primary-border)",
+    fg: "var(--primary-soft-text)",
   },
   danger: {
     bg: "rgba(239,68,68,0.10)",
@@ -115,9 +115,9 @@ const BTN_STYLES: Record<BtnVariant, React.CSSProperties> = {
   outline: BTN_BASE,
   primary: {
     ...BTN_BASE,
-    border: "1px solid rgba(31,122,90,0.20)",
-    background: "rgba(31,122,90,0.10)",
-    color: "#145a41",
+    border: "1px solid var(--primary-border)",
+    background: "var(--primary-weak)",
+    color: "var(--primary-soft-text)",
   },
   danger: {
     ...BTN_BASE,
@@ -818,9 +818,9 @@ export default function UsersManagement() {
           </div>
         </div>
 
-        <div style={{ ...S.statCard, borderLeftColor: "rgba(22,163,74,0.5)" }}>
+        <div style={{ ...S.statCard, borderLeftColor: "var(--primary-border)" }}>
           <div style={S.statCardInner}>
-            <span style={{ ...S.statValue, color: "#16a34a" }}>{onlineCount}</span>
+            <span style={{ ...S.statValue, color: "var(--primary-soft-text)" }}>{onlineCount}</span>
             <span style={S.statLabel}>Online</span>
           </div>
         </div>
@@ -1610,9 +1610,9 @@ const S: Record<string, React.CSSProperties> = {
     fontWeight: 800,
     fontSize: 16,
     padding: "12px 16px",
-    background: "rgba(31,122,90,0.10)",
-    border: "1px solid rgba(31,122,90,0.20)",
-    color: "#19dd98",
+    background: "var(--primary)",
+    border: "1px solid var(--primary)",
+    color: "var(--primary-on)",
   },
 
   searchWrap: {
@@ -1851,9 +1851,9 @@ const S: Record<string, React.CSSProperties> = {
   },
 
   listPageBtnActive: {
-    background: "#167c5a",
-    color: "#fff",
-    border: "1px solid #167c5a",
+    background: "var(--primary)",
+    color: "var(--primary-on)",
+    border: "1px solid var(--primary)",
   },
 
   modalBackdrop: {

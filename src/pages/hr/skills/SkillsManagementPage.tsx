@@ -220,10 +220,10 @@ const styles = {
   } as React.CSSProperties,
 
   btnPrimary: {
-    background: '#167c5a',
-    color: '#fff',
-    border: '1px solid #167c5a',
-    boxShadow: '0 10px 24px rgba(22, 124, 90, 0.16)',
+    background: 'var(--primary)',
+    color: 'var(--primary-on)',
+    border: '1px solid var(--primary)',
+    boxShadow: '0 10px 24px var(--primary-border)',
   } as React.CSSProperties,
 
   btnGhost: {
@@ -273,9 +273,9 @@ const styles = {
     alignItems: 'center',
     padding: '8px 12px',
     borderRadius: '999px',
-    background: '#ecfdf3',
-    color: '#067647',
-    border: '1px solid #abefc6',
+    background: 'var(--primary-weak)',
+    color: 'var(--primary-soft-text)',
+    border: '1px solid var(--primary-border)',
     fontWeight: 800,
     fontSize: '13px',
   } as React.CSSProperties,
@@ -368,9 +368,9 @@ const styles = {
   } as React.CSSProperties,
 
   editBtn: {
-    color: '#0f766e',
-    background: '#f0fdfa',
-    border: '1px solid #99f6e4',
+    color: 'var(--primary-soft-text)',
+    background: 'var(--primary-weak)',
+    border: '1px solid var(--primary-border)',
   } as React.CSSProperties,
 
   deleteBtn: {
@@ -420,9 +420,9 @@ const styles = {
   } as React.CSSProperties,
 
   pageBtnActive: {
-    background: '#167c5a',
-    color: '#fff',
-    border: '1px solid #167c5a',
+    background: 'var(--primary)',
+    color: 'var(--primary-on)',
+    border: '1px solid var(--primary)',
   } as React.CSSProperties,
 } as const;
 
@@ -664,7 +664,7 @@ export default function SkillsManagementPage() {
               maintained on the{' '}
               <Link
                 to={domainsAdminPath}
-                style={{ color: '#167c5a', fontWeight: 700, textDecoration: 'none' }}
+                style={{ color: 'var(--primary-soft-text)', fontWeight: 700, textDecoration: 'none' }}
               >
                 Domain management
               </Link>{' '}
@@ -743,7 +743,7 @@ export default function SkillsManagementPage() {
                           Create domains on the{' '}
                           <Link
                             to={domainsAdminPath}
-                            style={{ color: '#167c5a', fontWeight: 700, textDecoration: 'none' }}
+                            style={{ color: 'var(--primary-soft-text)', fontWeight: 700, textDecoration: 'none' }}
                           >
                             Domain management
                           </Link>{' '}
@@ -1032,7 +1032,7 @@ export default function SkillsManagementPage() {
                                     <Link
                                       to={domainsAdminPath}
                                       style={{
-                                        color: '#167c5a',
+                                        color: 'var(--primary-soft-text)',
                                         fontWeight: 700,
                                         textDecoration: 'none',
                                       }}

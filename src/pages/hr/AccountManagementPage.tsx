@@ -58,7 +58,7 @@ function initialsFromName(name?: string) {
 function StatusPill({ status }: { status: AccountApprovalStatus }) {
   const map = {
     PENDING: { bg: "rgba(245,158,11,0.14)", fg: "#b45309" },
-    APPROVED: { bg: "rgba(34,197,94,0.14)", fg: "#15803d" },
+    APPROVED: { bg: "var(--primary-weak)", fg: "var(--primary-soft-text)" },
     REJECTED: { bg: "rgba(239,68,68,0.14)", fg: "#b91c1c" },
     UNKNOWN: { bg: "rgba(100,116,139,0.16)", fg: "#334155" },
   } as const;

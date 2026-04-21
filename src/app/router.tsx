@@ -22,6 +22,7 @@ import HrGenerateRecommendations from "../pages/hr/GenerateRecommendations";
 import AccountManagementPage from "../pages/hr/AccountManagementPage";
 import SkillsManagementPage from "../pages/hr/skills/SkillsManagementPage";
 import AssignSkillPage from "../pages/hr/skills/AssignSkillPage";
+import DomainManagementPage from "../pages/hr/domains/DomainManagementPage";
 import HrCopilotPage from "../pages/hr/HrCopilotPage";
 import HrStatsDashboard from "../pages/hr/HrStatsDashboard";
 import HrCalendarPage from "../pages/hr/HrCalendarPage.tsx";
@@ -163,6 +164,7 @@ export const router = createBrowserRouter([
           { path: "recommendations/generate", element: <HrGenerateRecommendations /> },
           { path: "copilot", element: <HrCopilotPage /> },
           { path: "skills", element: <SkillsManagementPage /> },
+          { path: "domains", element: <DomainManagementPage /> },
           { path: "skills/assign", element: <AssignSkillPage /> },
           { path: "ai/text-correction", element: <TextCorrectionPage /> },
           { path: "profile", element: <Profile /> },
@@ -196,6 +198,7 @@ export const router = createBrowserRouter([
           { path: "recommendations", element: <HrGenerateRecommendations /> },
           { path: "recommendations/generate", element: <HrGenerateRecommendations /> },
           { path: "skills", element: <SkillsManagementPage /> },
+          { path: "domains", element: <DomainManagementPage /> },
           { path: "skills/assign", element: <AssignSkillPage /> },
           { path: "profile", element: <Profile /> },
           { path: "history", element: <AuditHistoryPage /> },
@@ -226,6 +229,7 @@ export const router = createBrowserRouter([
           { path: "activities/:activityId/review", element: <ManagerActivityReviewPage /> },
           { path: "activities/:activityId/staffing", element: <ManagerStaffingToReviewRedirect /> },
           { path: "skills", element: <SkillsManagementPage /> },
+          { path: "domains", element: <DomainManagementPage /> },
           { path: "skills/assign", element: <AssignSkillPage /> },
           { path: "profile", element: <Profile /> },
           { path: "history", element: <AuditHistoryPage /> },

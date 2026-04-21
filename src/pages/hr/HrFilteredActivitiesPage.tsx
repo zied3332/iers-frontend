@@ -425,7 +425,7 @@ function HrFilteredActivitiesInner({
               "Final validation done (activity started)",
               "HR final validation already launched the activity.",
               pipelineGroups.FINAL_VALIDATED_STARTED,
-              "#16a34a"
+              "var(--primary)"
             )}
           </div>
         ) : (

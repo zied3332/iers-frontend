@@ -1,7 +1,26 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { getCurrentUser, requestPasswordReset, type CurrentUser } from "../../services/auth.service";
+import { getMyEmployeeRecord, patchMyEmployeeRecord } from "../../services/employee.service";
+import { getAllSkills } from "../../services/skills.service";
+import { getAllDomains, type Domain } from "../../services/domains.service";
+import { changeMyPassword, patchMe } from "../profile/profile.api";
+import type { ExperienceSegmentInput } from "../../utils/experienceSegments";
+import {
+  ExperienceSegmentsEditor,
+  mapApiSegmentsToInput,
+  mapApiSkillsToOptions,
+  validateExperienceSegmentsForSave,
+  type SkillOption,
+} from "../../components/ExperienceSegmentsEditor";
+import {
+  applyThemePreferences,
+  DEFAULT_THEME_COLOR,
+  readStoredThemeColor,
+  readStoredThemeMode,
+  THEME_COLOR_OPTIONS,
+} from "../../utils/themePreferences";
 
 type ThemeMode = "light" | "dark";
-type AccentColor = "green" | "blue" | "purple" | "orange" | "teal";
 type LayoutDensity = "comfortable" | "compact";
 type FontSize = "small" | "medium" | "large";
 type Language = "English" | "Français" | "العربية";
@@ -13,11 +32,23 @@ type SettingsTab =
   | "Language & Region"
   | "Notifications"
   | "Security"
-  | "Workspace";
+  | "Edit Profile";
+
+type SeniorityLevel = "JUNIOR" | "MID" | "SENIOR";
+type EditFormState = {
+  name: string;
+  email: string;
+  matricule: string;
+  telephone: string;
+  date_embauche: string;
+  jobTitle: string;
+  experienceYears: number;
+  seniorityLevel: SeniorityLevel;
+};
 
 type SettingsState = {
   themeMode: ThemeMode;
-  accentColor: AccentColor;
+  themeColor: string;
   layoutDensity: LayoutDensity;
   fontSize: FontSize;
   language: Language;
@@ -27,11 +58,10 @@ type SettingsState = {
 };
 
 const STORAGE_KEY = "workspaceSettings";
-const THEME_STORAGE_KEY = "themeMode";
 
 const DEFAULT_SETTINGS: SettingsState = {
   themeMode: "light",
-  accentColor: "green",
+  themeColor: DEFAULT_THEME_COLOR,
   layoutDensity: "comfortable",
   fontSize: "medium",
   language: "English",
@@ -39,20 +69,6 @@ const DEFAULT_SETTINGS: SettingsState = {
   timeZone: "GMT +01:00 — Tunis",
   currency: "TND — Tunisian Dinar",
 };
-
-const ACCENT_COLORS: Record<AccentColor, string> = {
-  green: "#16a34a",
-  blue: "#2563eb",
-  purple: "#7c3aed",
-  orange: "#ea580c",
-  teal: "#0f766e",
-};
-
-function applyThemeMode(theme: ThemeMode) {
-  document.documentElement.setAttribute("data-theme", theme);
-  document.body.setAttribute("data-theme", theme);
-  document.body.style.colorScheme = theme;
-}
 
 function readStoredSettings(): SettingsState {
   try {
@@ -68,24 +84,147 @@ function readStoredSettings(): SettingsState {
   }
 }
 
+function toInputDate(raw?: string): string {
+  if (!raw) return "";
+  const normalized = String(raw).trim();
+  if (!normalized) return "";
+  return normalized.includes("T") ? normalized.split("T")[0] : normalized;
+}
+
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("Appearance");
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
+  const [settingsReady, setSettingsReady] = useState(false);
   const [savedAt, setSavedAt] = useState<string>("");
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState("");
+  const [profileSuccess, setProfileSuccess] = useState("");
+  const [employeeRecordId, setEmployeeRecordId] = useState("");
+  const [experienceSegments, setExperienceSegments] = useState<ExperienceSegmentInput[]>([]);
+  const [domains, setDomains] = useState<Domain[]>([]);
+  const [skillOptions, setSkillOptions] = useState<SkillOption[]>([]);
+  const [profileForm, setProfileForm] = useState<EditFormState>({
+    name: "",
+    email: "",
+    matricule: "",
+    telephone: "",
+    date_embauche: "",
+    jobTitle: "",
+    experienceYears: 0,
+    seniorityLevel: "JUNIOR",
+  });
+
+  const [loadingEmail, setLoadingEmail] = useState(true);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [resetCurrentPassword, setResetCurrentPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
 
   useEffect(() => {
     const stored = readStoredSettings();
-    setSettings(stored);
-    applyThemeMode(stored.themeMode);
+    const storedMode = readStoredThemeMode();
+    const storedColor = readStoredThemeColor();
+    const domThemeAttr = String(document.documentElement.getAttribute("data-theme") || "").toLowerCase();
+    const activeDomMode: ThemeMode =
+      domThemeAttr === "dark" || domThemeAttr === "light"
+        ? (domThemeAttr as ThemeMode)
+        : storedMode;
+    const activeDomColorRaw = getComputedStyle(document.documentElement)
+      .getPropertyValue("--primary")
+      .trim();
+    const activeDomColor = THEME_COLOR_OPTIONS.find(
+      (option) => option.value.toLowerCase() === activeDomColorRaw.toLowerCase(),
+    )?.value;
+
+    setSettings({
+      ...stored,
+      themeMode: activeDomMode,
+      themeColor: activeDomColor || storedColor || stored.themeColor || DEFAULT_THEME_COLOR,
+    });
+    setSettingsReady(true);
   }, []);
 
   useEffect(() => {
-    applyThemeMode(settings.themeMode);
-  }, [settings.themeMode]);
+    let active = true;
+    setLoadingProfile(true);
+    setLoadingEmail(true);
+    setProfileError("");
+
+    (async () => {
+      try {
+        const me = await getCurrentUser();
+        if (!active) return;
+        setCurrentUser(me);
+        setProfileForm({
+          name: String(me.name || ""),
+          email: String(me.email || ""),
+          matricule: String(me.matricule || ""),
+          telephone: String(me.telephone || ""),
+          date_embauche: toInputDate(me.date_embauche),
+          jobTitle: "",
+          experienceYears: 0,
+          seniorityLevel: "JUNIOR",
+        });
+
+        if (String(me.role || "").toUpperCase() === "EMPLOYEE") {
+          try {
+            const [employee, skillsList, domainList] = await Promise.all([
+              getMyEmployeeRecord(),
+              getAllSkills().catch(() => []),
+              getAllDomains().catch(() => []),
+            ]);
+            if (!active || !employee) return;
+            setEmployeeRecordId(String(employee._id || ""));
+            setSkillOptions(mapApiSkillsToOptions(skillsList));
+            setDomains(Array.isArray(domainList) ? domainList : []);
+            setExperienceSegments(mapApiSegmentsToInput(employee.experienceSegments));
+            setProfileForm((prev) => ({
+              ...prev,
+              jobTitle: String(employee.jobTitle || ""),
+              experienceYears: Number(employee.experienceYears || 0),
+              seniorityLevel: (employee.seniorityLevel || "JUNIOR") as SeniorityLevel,
+            }));
+          } catch {
+            // Keep settings usable when employee extras fail.
+          }
+        }
+      } catch (e: unknown) {
+        if (!active) return;
+        setProfileError(e instanceof Error ? e.message : "Failed to load profile data.");
+      } finally {
+        if (!active) return;
+        setLoadingProfile(false);
+        setLoadingEmail(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!settingsReady) return;
+    applyThemePreferences({
+      mode: settings.themeMode,
+      color: settings.themeColor,
+      persist: true,
+    });
+  }, [settings.themeMode, settings.themeColor, settingsReady]);
+
+  const isEmployee = String(currentUser?.role || "").toUpperCase() === "EMPLOYEE";
+  const accountEmail = String(currentUser?.email || "").trim();
 
   const previewAccent = useMemo(
-    () => ACCENT_COLORS[settings.accentColor],
-    [settings.accentColor]
+    () => settings.themeColor,
+    [settings.themeColor]
   );
 
   const previewFontSize = useMemo(() => {
@@ -109,7 +248,11 @@ export default function SettingsPage() {
   const handleSave = () => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-      localStorage.setItem(THEME_STORAGE_KEY, settings.themeMode);
+      applyThemePreferences({
+        mode: settings.themeMode,
+        color: settings.themeColor,
+        persist: true,
+      });
       setSavedAt(new Date().toLocaleTimeString());
     } catch {
       // ignore storage issues
@@ -118,14 +261,115 @@ export default function SettingsPage() {
 
   const handleReset = () => {
     setSettings(DEFAULT_SETTINGS);
-    applyThemeMode(DEFAULT_SETTINGS.themeMode);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SETTINGS));
-      localStorage.setItem(THEME_STORAGE_KEY, DEFAULT_SETTINGS.themeMode);
+      applyThemePreferences({
+        mode: DEFAULT_SETTINGS.themeMode,
+        color: DEFAULT_SETTINGS.themeColor,
+        persist: true,
+      });
     } catch {
       // ignore storage issues
     }
     setSavedAt("Defaults restored");
+  };
+
+  const onSaveProfile = async () => {
+    if (!currentUser) return;
+    setSavingProfile(true);
+    setProfileError("");
+    setProfileSuccess("");
+
+    try {
+      await patchMe({
+        name: profileForm.name.trim() || undefined,
+        email: profileForm.email.trim() || undefined,
+        matricule: profileForm.matricule.trim() || undefined,
+        telephone: profileForm.telephone.trim() || undefined,
+        date_embauche: profileForm.date_embauche || undefined,
+      });
+
+      if (isEmployee && employeeRecordId) {
+        const years = Math.max(0, Number(profileForm.experienceYears || 0));
+        const segErr = validateExperienceSegmentsForSave(years, experienceSegments);
+        if (segErr) throw new Error(segErr);
+        await patchMyEmployeeRecord({
+          jobTitle: profileForm.jobTitle.trim() || "Not Assigned",
+          experienceYears: years,
+          seniorityLevel: profileForm.seniorityLevel,
+          experienceSegments: years > 0 ? experienceSegments : [],
+        });
+      }
+
+      const merged = {
+        ...(currentUser as any),
+        name: profileForm.name.trim() || currentUser.name,
+        email: profileForm.email.trim() || currentUser.email,
+        matricule: profileForm.matricule.trim() || undefined,
+        telephone: profileForm.telephone.trim() || undefined,
+        date_embauche: profileForm.date_embauche || undefined,
+      };
+      localStorage.setItem("user", JSON.stringify(merged));
+      setCurrentUser(merged);
+      setProfileSuccess("Profile updated successfully.");
+    } catch (e: unknown) {
+      setProfileError(e instanceof Error ? e.message : "Failed to save profile changes.");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const onChangePassword = async () => {
+    setPasswordError("");
+    setPasswordSuccess("");
+
+    if (!currentPassword.trim()) return setPasswordError("Please enter your current password.");
+    if (!newPassword.trim()) return setPasswordError("Please enter a new password.");
+    if (newPassword.length < 8) return setPasswordError("New password must be at least 8 characters.");
+    if (newPassword !== confirmPassword) return setPasswordError("New password and confirmation do not match.");
+    if (newPassword === currentPassword) return setPasswordError("New password must be different from current password.");
+
+    setSavingPassword(true);
+    try {
+      await changeMyPassword({
+        currentPassword: currentPassword.trim(),
+        newPassword: newPassword.trim(),
+      });
+      setPasswordSuccess("Password changed successfully.");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (e: unknown) {
+      setPasswordError(e instanceof Error ? e.message : "Failed to change password.");
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
+  const onSendResetLink = async () => {
+    setPasswordError("");
+    setPasswordSuccess("");
+    if (!resetCurrentPassword.trim()) {
+      setPasswordError("Enter your current password before sending a reset link.");
+      return;
+    }
+    if (!accountEmail) {
+      setPasswordError("No account email available.");
+      return;
+    }
+
+    setSendingReset(true);
+    try {
+      const res = await requestPasswordReset(accountEmail);
+      setPasswordSuccess(
+        String(res?.message || "If this email is registered, a reset link has been sent."),
+      );
+      setResetCurrentPassword("");
+    } catch (e: unknown) {
+      setPasswordError(e instanceof Error ? e.message : "Failed to send reset link.");
+    } finally {
+      setSendingReset(false);
+    }
   };
 
   const pageStyle: CSSProperties = {
@@ -209,8 +453,11 @@ export default function SettingsPage() {
   const activeTabStyle: CSSProperties = {
     ...tabStyle,
     color: "var(--text, #0f172a)",
-    background: "#f8fafc",
-    border: "1px solid #cbd5e1",
+    background: settings.themeMode === "dark" ? "#1e293b" : "#f8fafc",
+    border:
+      settings.themeMode === "dark"
+        ? "1px solid rgba(255,255,255,0.14)"
+        : "1px solid #cbd5e1",
     boxShadow: "inset 0 0 0 1px rgba(15, 23, 42, 0.02)",
   };
 
@@ -262,9 +509,12 @@ export default function SettingsPage() {
     alignItems: "center",
     gap: 18,
     padding: "18px 20px",
-    border: "1px solid var(--border, #e2e8f0)",
+    border:
+      settings.themeMode === "dark"
+        ? "1px solid rgba(255,255,255,0.12)"
+        : "1px solid var(--border, #e2e8f0)",
     borderRadius: 18,
-    background: "#fbfcfe",
+    background: settings.themeMode === "dark" ? "#111827" : "#fbfcfe",
   };
 
   const rowLabelWrap: CSSProperties = {
@@ -291,8 +541,11 @@ export default function SettingsPage() {
     gap: 8,
     padding: 4,
     borderRadius: 14,
-    background: "#f1f5f9",
-    border: "1px solid #e2e8f0",
+    background: settings.themeMode === "dark" ? "#0f172a" : "#f1f5f9",
+    border:
+      settings.themeMode === "dark"
+        ? "1px solid rgba(255,255,255,0.12)"
+        : "1px solid #e2e8f0",
     flexWrap: "wrap",
     justifyContent: "flex-end",
   };
@@ -300,7 +553,7 @@ export default function SettingsPage() {
   const segmentedBtn: CSSProperties = {
     border: "none",
     background: "transparent",
-    color: "#334155",
+    color: settings.themeMode === "dark" ? "#cbd5e1" : "#334155",
     borderRadius: 10,
     padding: "10px 16px",
     fontWeight: 700,
@@ -314,6 +567,71 @@ export default function SettingsPage() {
     color: activeColor === "#ffffff" ? "#0f172a" : "#ffffff",
     boxShadow: "0 1px 2px rgba(15, 23, 42, 0.08)",
   });
+
+  const themeModeChoicesWrap: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(130px, 1fr))",
+    gap: 10,
+    minWidth: 280,
+    maxWidth: 360,
+  };
+
+  const themeModeChoice = (active: boolean): CSSProperties => ({
+    border: active ? "2px solid var(--primary)" : "1px solid var(--border, #dbe3ef)",
+    borderRadius: 14,
+    background: "var(--surface, #ffffff)",
+    color: "var(--text, #0f172a)",
+    padding: "10px 12px",
+    minHeight: 88,
+    textAlign: "left",
+    cursor: "pointer",
+    display: "grid",
+    alignContent: "space-between",
+    gap: 8,
+    boxShadow: active ? "0 0 0 3px var(--primary-weak)" : "none",
+  });
+
+  const modeIconRow: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    fontSize: 12,
+    fontWeight: 700,
+    color: "var(--muted, #64748b)",
+  };
+
+  const sunIcon: CSSProperties = {
+    width: 14,
+    height: 14,
+    borderRadius: "50%",
+    background: "#f59e0b",
+    boxShadow: "0 0 0 2px rgba(245, 158, 11, 0.25)",
+  };
+
+  const moonIconWrap: CSSProperties = {
+    position: "relative",
+    width: 14,
+    height: 14,
+    display: "inline-block",
+  };
+
+  const moonIcon: CSSProperties = {
+    width: 14,
+    height: 14,
+    borderRadius: "50%",
+    background: "#334155",
+    display: "inline-block",
+  };
+
+  const moonCutout: CSSProperties = {
+    position: "absolute",
+    top: 1,
+    left: 5,
+    width: 10,
+    height: 10,
+    borderRadius: "50%",
+    background: settings.themeMode === "dark" ? "#111827" : "#ffffff",
+  };
 
   const colorWrap: CSSProperties = {
     display: "flex",
@@ -449,7 +767,7 @@ export default function SettingsPage() {
 
       <div style={tabsWrap}>
         {(
-          ["Appearance", "Language & Region", "Notifications", "Security", "Workspace"] as SettingsTab[]
+          ["Appearance", "Language & Region", "Notifications", "Security", "Edit Profile"] as SettingsTab[]
         ).map((tab) => (
           <button
             key={tab}
@@ -483,26 +801,29 @@ export default function SettingsPage() {
                       </span>
                     </div>
 
-                    <div style={segmentedWrap}>
+                    <div style={themeModeChoicesWrap}>
                       <button
-                        style={
-                          settings.themeMode === "light"
-                            ? segmentedBtnActive(previewAccent)
-                            : segmentedBtn
-                        }
+                        style={themeModeChoice(settings.themeMode === "light")}
                         onClick={() => updateSetting("themeMode", "light")}
                       >
-                        Light
+                        <span style={{ fontWeight: 800, fontSize: 14 }}>Light</span>
+                        <span style={modeIconRow}>
+                          <span style={sunIcon} />
+                          <span>Sun</span>
+                        </span>
                       </button>
                       <button
-                        style={
-                          settings.themeMode === "dark"
-                            ? segmentedBtnActive(previewAccent)
-                            : segmentedBtn
-                        }
+                        style={themeModeChoice(settings.themeMode === "dark")}
                         onClick={() => updateSetting("themeMode", "dark")}
                       >
-                        Dark
+                        <span style={{ fontWeight: 800, fontSize: 14 }}>Dark</span>
+                        <span style={modeIconRow}>
+                          <span style={moonIconWrap}>
+                            <span style={moonIcon} />
+                            <span style={moonCutout} />
+                          </span>
+                          <span>Moon</span>
+                        </span>
                       </button>
                     </div>
                   </div>
@@ -517,15 +838,15 @@ export default function SettingsPage() {
                     </div>
 
                     <div style={colorWrap}>
-                      {(Object.keys(ACCENT_COLORS) as AccentColor[]).map((colorKey) => (
+                      {THEME_COLOR_OPTIONS.map((item) => (
                         <span
-                          key={colorKey}
+                          key={item.value}
                           style={colorDot(
-                            ACCENT_COLORS[colorKey],
-                            settings.accentColor === colorKey
+                            item.value,
+                            settings.themeColor.toLowerCase() === item.value.toLowerCase()
                           )}
-                          onClick={() => updateSetting("accentColor", colorKey)}
-                          title={colorKey}
+                          onClick={() => updateSetting("themeColor", item.value)}
+                          title={item.label}
                         />
                       ))}
                     </div>
@@ -679,27 +1000,170 @@ export default function SettingsPage() {
               <div style={sectionHeaderStyle}>
                 <h2 style={sectionTitleStyle}>Security</h2>
                 <p style={sectionTextStyle}>
-                  Placeholder section. Next you can add password, sessions, and 2FA.
+                  Keep your account secure by updating your password when needed.
                 </p>
               </div>
-              <div style={rowHint}>
-                Add password change, active sessions, device management, and
-                two-factor authentication.
+
+              {passwordError ? (
+                <div style={{ padding: "12px 14px", borderRadius: 12, border: settings.themeMode === "dark" ? "1px solid rgba(248,113,113,0.45)" : "1px solid #fecaca", background: settings.themeMode === "dark" ? "rgba(127,29,29,0.28)" : "#fff1f2", color: settings.themeMode === "dark" ? "#fecaca" : "#b91c1c", fontWeight: 700, marginBottom: 12 }}>
+                  {passwordError}
+                </div>
+              ) : null}
+              {passwordSuccess ? (
+                <div style={{ padding: "12px 14px", borderRadius: 12, border: "1px solid var(--primary-border)", background: "var(--primary-weak)", color: "var(--primary-soft-text)", fontWeight: 700, marginBottom: 12 }}>
+                  {passwordSuccess}
+                </div>
+              ) : null}
+
+              <div style={{ display: "grid", gap: 14 }}>
+                <div style={{ ...rowStyle, gridTemplateColumns: "1fr" }}>
+                  <div style={rowLabelWrap}>
+                    <span style={rowTitle}>Change password now</span>
+                    <span style={rowHint}>Enter your current password and your new password.</span>
+                  </div>
+                  <div style={{ display: "grid", gap: 10, maxWidth: 520 }}>
+                    <input className="input" type="password" placeholder="Current password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+                    <input className="input" type="password" placeholder="New password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+                    <input className="input" type="password" placeholder="Confirm new password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                    <div>
+                      <button style={primaryButton} onClick={() => void onChangePassword()} disabled={savingPassword || sendingReset}>
+                        {savingPassword ? "Changing..." : "Change password"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ ...rowStyle, gridTemplateColumns: "1fr" }}>
+                  <div style={rowLabelWrap}>
+                    <span style={rowTitle}>Send reset link</span>
+                    <span style={rowHint}>For security, confirm your current password before requesting a reset email.</span>
+                  </div>
+                  <div style={{ display: "grid", gap: 10, maxWidth: 520 }}>
+                    <div style={{ fontWeight: 700 }}>
+                      {loadingEmail ? "Loading account email..." : accountEmail || "No email found"}
+                    </div>
+                    <input className="input" type="password" placeholder="Current password" value={resetCurrentPassword} onChange={(e) => setResetCurrentPassword(e.target.value)} />
+                    <div>
+                      <button style={primaryButton} onClick={() => void onSendResetLink()} disabled={sendingReset || savingPassword || loadingEmail || !accountEmail}>
+                        {sendingReset ? "Sending..." : "Send reset link"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </section>
           )}
 
-          {activeTab === "Workspace" && (
+          {activeTab === "Edit Profile" && (
             <section style={sectionCardStyle}>
               <div style={sectionHeaderStyle}>
-                <h2 style={sectionTitleStyle}>Workspace</h2>
+                <h2 style={sectionTitleStyle}>Edit Profile</h2>
                 <p style={sectionTextStyle}>
-                  Placeholder section. Next you can add workspace-specific preferences.
+                  Update your personal and professional information from the profile editor.
                 </p>
               </div>
-              <div style={rowHint}>
-                Add default dashboard, panel visibility, and HR workflow settings.
-              </div>
+              {profileError ? (
+                <div style={{ padding: "12px 14px", borderRadius: 12, border: "1px solid #fecaca", background: "#fff1f2", color: "#b91c1c", fontWeight: 700, marginBottom: 12 }}>
+                  {profileError}
+                </div>
+              ) : null}
+              {profileSuccess ? (
+                <div style={{ padding: "12px 14px", borderRadius: 12, border: "1px solid var(--primary-border)", background: "var(--primary-weak)", color: "var(--primary-soft-text)", fontWeight: 700, marginBottom: 12 }}>
+                  {profileSuccess}
+                </div>
+              ) : null}
+              {loadingProfile ? (
+                <div style={rowHint}>Loading profile fields...</div>
+              ) : (
+                <div style={{ display: "grid", gap: 14 }}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+                      gap: 14,
+                    }}
+                  >
+                    <label style={{ display: "grid", gap: 8 }}>
+                      <span style={rowTitle}>Full name</span>
+                      <input className="input" value={profileForm.name} onChange={(e) => setProfileForm((prev) => ({ ...prev, name: e.target.value }))} placeholder="Your full name" />
+                    </label>
+                    <label style={{ display: "grid", gap: 8 }}>
+                      <span style={rowTitle}>Email</span>
+                      <input className="input" type="email" value={profileForm.email} onChange={(e) => setProfileForm((prev) => ({ ...prev, email: e.target.value }))} placeholder="name@company.com" />
+                    </label>
+                    <label style={{ display: "grid", gap: 8 }}>
+                      <span style={rowTitle}>Matricule</span>
+                      <input className="input" value={profileForm.matricule} onChange={(e) => setProfileForm((prev) => ({ ...prev, matricule: e.target.value }))} placeholder="EMP-0001" />
+                    </label>
+                    <label style={{ display: "grid", gap: 8 }}>
+                      <span style={rowTitle}>Phone</span>
+                      <input className="input" value={profileForm.telephone} onChange={(e) => setProfileForm((prev) => ({ ...prev, telephone: e.target.value }))} placeholder="+216..." />
+                    </label>
+                    <label style={{ display: "grid", gap: 8 }}>
+                      <span style={rowTitle}>Hire date</span>
+                      <input className="input" type="date" value={profileForm.date_embauche} onChange={(e) => setProfileForm((prev) => ({ ...prev, date_embauche: e.target.value }))} />
+                    </label>
+
+                    {isEmployee ? (
+                      <>
+                        <label style={{ display: "grid", gap: 8 }}>
+                          <span style={rowTitle}>Job title</span>
+                          <input className="input" value={profileForm.jobTitle} onChange={(e) => setProfileForm((prev) => ({ ...prev, jobTitle: e.target.value }))} placeholder="Software Engineer" />
+                        </label>
+                        <label style={{ display: "grid", gap: 8 }}>
+                          <span style={rowTitle}>Experience years</span>
+                          <input
+                            className="input"
+                            type="number"
+                            min={0}
+                            value={profileForm.experienceYears}
+                            onChange={(e) =>
+                              setProfileForm((prev) => ({
+                                ...prev,
+                                experienceYears: Math.max(0, Number(e.target.value || 0)),
+                              }))
+                            }
+                          />
+                        </label>
+                        <label style={{ display: "grid", gap: 8 }}>
+                          <span style={rowTitle}>Seniority level</span>
+                          <select
+                            className="select"
+                            value={profileForm.seniorityLevel}
+                            onChange={(e) =>
+                              setProfileForm((prev) => ({
+                                ...prev,
+                                seniorityLevel: e.target.value as SeniorityLevel,
+                              }))
+                            }
+                          >
+                            <option value="JUNIOR">JUNIOR</option>
+                            <option value="MID">MID</option>
+                            <option value="SENIOR">SENIOR</option>
+                          </select>
+                        </label>
+                      </>
+                    ) : null}
+                  </div>
+
+                  {isEmployee ? (
+                    <ExperienceSegmentsEditor
+                      experienceYears={Math.max(0, Number(profileForm.experienceYears || 0))}
+                      segments={experienceSegments}
+                      onChange={setExperienceSegments}
+                      domains={domains}
+                      skills={skillOptions}
+                      disabled={savingProfile}
+                    />
+                  ) : null}
+
+                  <div>
+                    <button style={primaryButton} onClick={() => void onSaveProfile()} disabled={savingProfile || loadingProfile}>
+                      {savingProfile ? "Saving..." : "Save changes"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </section>
           )}
         </div>
@@ -770,16 +1234,22 @@ export default function SettingsPage() {
             </p>
 
             <div style={sideList}>
-              {[
-                ["Theme", settings.themeMode],
-                ["Accent", settings.accentColor],
-                ["Density", settings.layoutDensity],
-                ["Font size", settings.fontSize],
-                ["Language", settings.language],
-                ["Date format", settings.dateFormat],
-                ["Time zone", settings.timeZone],
-                ["Currency", settings.currency],
-              ].map(([label, value], index, arr) => (
+              {(() => {
+                const themeColorLabel =
+                  THEME_COLOR_OPTIONS.find(
+                    (option) => option.value.toLowerCase() === settings.themeColor.toLowerCase(),
+                  )?.label || settings.themeColor;
+                return [
+                  ["Theme", settings.themeMode],
+                  ["Theme color", themeColorLabel],
+                  ["Density", settings.layoutDensity],
+                  ["Font size", settings.fontSize],
+                  ["Language", settings.language],
+                  ["Date format", settings.dateFormat],
+                  ["Time zone", settings.timeZone],
+                  ["Currency", settings.currency],
+                ];
+              })().map(([label, value], index, arr) => (
                 <div
                   key={label}
                   style={{
