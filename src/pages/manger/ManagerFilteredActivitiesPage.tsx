@@ -18,7 +18,8 @@ const META: Record<
   },
   past: {
     title: "Past activities",
-    subtitle: "Completed or cancelled activities you were responsible for. Open to view details in read-only mode.",
+    subtitle:
+      "Completed or cancelled activities you were responsible for. Open to view details in read-only mode.",
   },
 };
 
@@ -40,19 +41,25 @@ function ManagerFilteredActivitiesInner({
 
   useEffect(() => {
     let cancelled = false;
+
     (async () => {
       setLoading(true);
       setError("");
+
       try {
         const data = await listActivities({ managerView: mode });
         if (!cancelled) setItems(data || []);
       } catch (e: unknown) {
-        if (!cancelled)
-          setError(e instanceof Error ? e.message : "Failed to load activities.");
+        if (!cancelled) {
+          setError(
+            e instanceof Error ? e.message : "Failed to load activities."
+          );
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
+
     return () => {
       cancelled = true;
     };
@@ -69,24 +76,47 @@ function ManagerFilteredActivitiesInner({
   }, [mode, items.length]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / ITEMS_PER_PAGE));
+
   const paginated = useMemo(() => {
     const safePage = Math.min(currentPage, totalPages);
     const start = (safePage - 1) * ITEMS_PER_PAGE;
     return sorted.slice(start, start + ITEMS_PER_PAGE);
   }, [sorted, currentPage, totalPages]);
-  const startItem = sorted.length === 0 ? 0 : (Math.min(currentPage, totalPages) - 1) * ITEMS_PER_PAGE + 1;
-  const endItem = Math.min(Math.min(currentPage, totalPages) * ITEMS_PER_PAGE, sorted.length);
+
+  const safePage = Math.min(currentPage, totalPages);
+  const startItem =
+    sorted.length === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1;
+  const endItem = Math.min(safePage * ITEMS_PER_PAGE, sorted.length);
 
   const page = META[mode];
 
+  function handleOpenActivity(activityId: string) {
+    if (mode === "running") {
+      navigate(`/manager/activities/${activityId}/monitor`);
+      return;
+    }
+
+    navigate(`/manager/activities/${activityId}/review`);
+  }
+
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", padding: "24px" }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "var(--bg)",
+        color: "var(--text)",
+        padding: "24px",
+      }}
+    >
       <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
         <div className="page-header" style={{ marginBottom: "20px" }}>
           <h1 className="page-title" style={{ margin: 0 }}>
             {page.title}
           </h1>
-          <p className="page-subtitle" style={{ maxWidth: "720px", marginTop: "8px" }}>
+          <p
+            className="page-subtitle"
+            style={{ maxWidth: "720px", marginTop: "8px" }}
+          >
             {page.subtitle}
           </p>
         </div>
@@ -108,7 +138,9 @@ function ManagerFilteredActivitiesInner({
         ) : null}
 
         {loading ? (
-          <div style={{ color: "var(--muted)", padding: "40px 0" }}>Loading…</div>
+          <div style={{ color: "var(--muted)", padding: "40px 0" }}>
+            Loading…
+          </div>
         ) : sorted.length === 0 ? (
           <div
             style={{
@@ -128,7 +160,7 @@ function ManagerFilteredActivitiesInner({
               <button
                 key={a._id}
                 type="button"
-                onClick={() => navigate(`/manager/activities/${a._id}/review`)}
+                onClick={() => handleOpenActivity(a._id)}
                 style={{
                   display: "grid",
                   gridTemplateColumns: "1fr auto",
@@ -145,11 +177,29 @@ function ManagerFilteredActivitiesInner({
                 }}
               >
                 <div>
-                  <div style={{ fontWeight: 800, fontSize: "17px", marginBottom: "6px" }}>{a.title}</div>
-                  <div style={{ fontSize: "13px", color: "var(--muted)", fontWeight: 600 }}>
-                    {formatLabel(a.type)} · {formatLabel(a.status)}
-                    {a.workflowStatus ? ` · ${formatLabel(a.workflowStatus)}` : ""}
+                  <div
+                    style={{
+                      fontWeight: 800,
+                      fontSize: "17px",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    {a.title}
                   </div>
+
+                  <div
+                    style={{
+                      fontSize: "13px",
+                      color: "var(--muted)",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {formatLabel(a.type)} · {formatLabel(a.status)}
+                    {a.workflowStatus
+                      ? ` · ${formatLabel(a.workflowStatus)}`
+                      : ""}
+                  </div>
+
                   <div
                     style={{
                       marginTop: "10px",
@@ -160,21 +210,58 @@ function ManagerFilteredActivitiesInner({
                       color: "var(--muted)",
                     }}
                   >
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
                       <FiCalendar size={14} /> {a.startDate} → {a.endDate}
                     </span>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
                       <FiUsers size={14} /> {a.availableSlots} seats
                     </span>
                   </div>
                 </div>
-                <FiArrowRight size={22} style={{ color: "var(--sidebar-link-active-pill)", flexShrink: 0 }} />
+
+                <FiArrowRight
+                  size={22}
+                  style={{
+                    color: "var(--sidebar-link-active-pill)",
+                    flexShrink: 0,
+                  }}
+                />
               </button>
             ))}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", marginTop: "8px" }}>
-              <span style={{ color: "var(--muted)", fontSize: "13px", fontWeight: 600 }}>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: "12px",
+                flexWrap: "wrap",
+                marginTop: "8px",
+              }}
+            >
+              <span
+                style={{
+                  color: "var(--muted)",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                }}
+              >
                 Showing {startItem} to {endItem} of {sorted.length}
               </span>
+
               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                 <button
                   type="button"
@@ -184,21 +271,31 @@ function ManagerFilteredActivitiesInner({
                 >
                   Previous
                 </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <button
-                    key={page}
-                    type="button"
-                    className={page === currentPage ? "btn btn-primary btn-small" : "btn btn-ghost btn-small"}
-                    onClick={() => setCurrentPage(page)}
-                  >
-                    {page}
-                  </button>
-                ))}
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (pageNumber) => (
+                    <button
+                      key={pageNumber}
+                      type="button"
+                      className={
+                        pageNumber === currentPage
+                          ? "btn btn-primary btn-small"
+                          : "btn btn-ghost btn-small"
+                      }
+                      onClick={() => setCurrentPage(pageNumber)}
+                    >
+                      {pageNumber}
+                    </button>
+                  )
+                )}
+
                 <button
                   type="button"
                   className="btn btn-ghost btn-small"
                   disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  }
                 >
                   Next
                 </button>

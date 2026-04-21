@@ -279,8 +279,8 @@ export default function ActivityStaffingPage() {
     if (listSentToManager) return;
 
     if (qualityCheckIssues.length > 0) {
-      setError("Resolve the shortlist warnings before sending to manager.");
-      return;
+     console.warn("Sending with warnings:", qualityCheckIssues);
+    
     }
 
     try {
@@ -1116,7 +1116,7 @@ export default function ActivityStaffingPage() {
                     className="primary-staffing-btn"
                     onClick={handleSendToManager}
                     disabled={
-                      sendingToManager || selectedPrimaryIds.length === 0 || !qualityCheckOk
+                      sendingToManager || selectedPrimaryIds.length === 0 
                     }
                   >
                     {sendingToManager ? "Sending..." : "Send to manager"}

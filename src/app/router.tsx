@@ -42,7 +42,7 @@ import {
   ManagerRunningActivitiesPage,
   ManagerPastActivitiesPage,
 } from "../pages/manger/ManagerFilteredActivitiesPage";
-
+import ManagerInProgressActivityPage from "../pages/hr/ManagerInProgressActivityPage";
 // AI pages
 import TextCorrectionPage from "../pages/ai/TextCorrectionPage";
 
@@ -237,6 +237,7 @@ export const router = createBrowserRouter([
           { path: "notifications/:side", element: <NotificationsPage /> },
           { path: "settings", element: <SettingsPage /> },
           { path: "employees/:id", element: <Profile /> },
+          { path: "activities/:activityId/monitor", element: <ManagerInProgressActivityPage /> },
         ],
       },
     ],
