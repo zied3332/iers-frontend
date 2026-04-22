@@ -122,8 +122,15 @@ export default function ManagerActivityReviewPage() {
     [hrSelectedCandidates, backupCandidates]
   );
 
-  const resolveName = (employeeId: string) =>
-    candidateById.get(employeeId)?.name || `Employee ${employeeId.slice(-6)}`;
+  const formatEmployeeFallback = (employeeId?: string | null) => {
+    const normalized = typeof employeeId === "string" ? employeeId.trim() : "";
+    return normalized ? `Employee ${normalized.slice(-6)}` : "Employee Unknown";
+  };
+
+  const resolveName = (employeeId?: string | null) => {
+    if (!employeeId) return formatEmployeeFallback(employeeId);
+    return candidateById.get(employeeId)?.name || formatEmployeeFallback(employeeId);
+  };
 
   const reloadStaffing = useCallback(async () => {
     if (!activityId) return;
@@ -917,7 +924,7 @@ export default function ManagerActivityReviewPage() {
             <div className="candidate-list">
               {invitationsOnlyRows.map((inv) => {
                 const invId = inv._id || inv.id || inv.employeeId;
-                const displayName = inv.employeeName || `Employee ${inv.employeeId.slice(-6)}`;
+                const displayName = inv.employeeName || formatEmployeeFallback(inv.employeeId);
                 return (
                   <div key={invId} className="manager-candidate-wrap">
                     <div className="manager-candidate-row manager-candidate-row--readonly">
