@@ -963,12 +963,12 @@ export default function SettingsPage() {
       </div>
 
       <div style={{ marginBottom: 16, color: "var(--muted, #64748b)", fontSize: 13 }}>
-        {savedAt ? `Last action: ${savedAt}` : "Changes are local until you save them."}
+        {savedAt ? `Last action: ${savedAt}` : ""}
       </div>
 
       <div style={tabsWrap}>
         {(
-          ["Appearance", "Language & Region", "Notifications", "Security", "Edit Profile"] as SettingsTab[]
+          ["Appearance", "Language & Region", "Notifications", "Security", "Edit Profile",] as SettingsTab[]
         ).map((tab) => (
           <button
             key={tab}

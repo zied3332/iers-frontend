@@ -63,6 +63,7 @@ import CompleteProfile from "../pages/auth/CompleteProfile";
 import AccountPending from "../pages/auth/AccountPending";
 import SettingsPage from "../pages/settings/SettingsPage";
 import ManagerEvaluateActivityPage from "../pages/manger/ManagerEvaluateActivityPage";
+import PostActivityFinalizedPage from "../pages/manger/PostActivityFinalizedPage";
 type Role = "HR" | "SUPER_MANAGER" | "MANAGER" | "EMPLOYEE";
 
 function getRole(): Role | null {
@@ -162,6 +163,7 @@ export const router = createBrowserRouter([
           { path: "activities/:activityId/manager-decisions", element: <ManagerDecisionsPage /> },
           // path: "activities/archive", element: <ManagerPastActivitiesPage /> },
           { path: "activities/:activityId/evaluate", element: <ManagerEvaluateActivityPage /> },
+          { path: "activities/evaluated", element: <PostActivityFinalizedPage /> },
           { path: "skills-dashboard", element: <HrSkillsDashboard /> },
           { path: "recommendations", element: <HrGenerateRecommendations /> },
           { path: "recommendations/generate", element: <HrGenerateRecommendations /> },
@@ -209,6 +211,8 @@ export const router = createBrowserRouter([
           { path: "notifications/:side", element: <NotificationsPage /> },
           { path: "settings", element: <SettingsPage /> },
           { path: "employees/:id", element: <Profile /> },
+          { path: "activities/:activityId/evaluate", element: <ManagerEvaluateActivityPage /> },
+          { path: "activities/evaluated", element: <PostActivityFinalizedPage /> },
         ],
       },
     ],
@@ -242,6 +246,7 @@ export const router = createBrowserRouter([
           { path: "employees/:id", element: <Profile /> },
           { path: "activities/:activityId/monitor", element: <ManagerInProgressActivityPage /> },
           { path: "activities/evaluations", element: <ManagerPastActivitiesEvalPage /> },
+          { path: "activities/evaluated", element: <PostActivityFinalizedPage /> },
           { path: "activities/:activityId/evaluate", element: <ManagerEvaluateActivityPage /> },
         ],
       },

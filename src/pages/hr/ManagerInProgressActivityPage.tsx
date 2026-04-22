@@ -1,175 +1,30 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { FiArrowLeft, FiCalendar, FiCheckCircle, FiClock, FiFlag, FiPlayCircle, FiUsers } from "react-icons/fi";
+import { getActivityById, type ActivityRecord } from "../../services/activities.service";
+import { getActivityInvitations } from "../../services/activityInvitations.service";
+import type { ActivityInvitationItem } from "../../types/activity-invitations";
 import {
-  FiArrowLeft,
-  FiCalendar,
-  FiCheckCircle,
-  FiClock,
-  FiFileText,
-  FiFlag,
-  FiPlayCircle,
-  FiSend,
-  FiUsers,
-} from "react-icons/fi";
-
-type DailyAttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
-type AttendanceStatus = "EXCELLENT" | "GOOD" | "IRREGULAR" | "POOR";
-type ParticipationLevel = "VERY_ACTIVE" | "ACTIVE" | "MODERATE" | "LOW";
-type SkillProgress = "STRONG" | "MODERATE" | "SLIGHT" | "NONE";
-type EvaluationOutcome =
-  | "COMPLETED_SUCCESSFULLY"
-  | "NEEDS_FOLLOW_UP"
-  | "DID_NOT_COMPLETE";
-type Recommendation =
-  | "ADVANCED_TRAINING"
-  | "PROJECT_ASSIGNMENT"
-  | "MENTORING"
-  | "RETRY_LATER";
+  buildDateRange,
+  ensureAttendanceMap,
+  getMonitorDraftWithServer,
+  saveMonitorDraftWithServer,
+  type AttendanceMap,
+  type DailyAttendanceStatus,
+} from "../../services/manager-activity-monitor.service";
 
 type ParticipantRow = {
   id: string;
   name: string;
   role: string;
-  score: number;
-  invitationStatus: "ACCEPTED" | "DECLINED" | "PENDING";
-  progress: number;
-  participationBadge: "High" | "Medium" | "Low";
-  evaluationStatus: "PENDING" | "SAVED" | "SUBMITTED";
+  invitationStatus: ActivityInvitationItem["status"];
 };
-
-type EvaluationDraft = {
-  attendanceStatus: AttendanceStatus;
-  participationLevel: ParticipationLevel;
-  skillProgress: SkillProgress;
-  outcome: EvaluationOutcome;
-  recommendation: Recommendation;
-  rating: number;
-  comment: string;
-};
-
-type AttendanceMap = Record<string, Record<string, DailyAttendanceStatus>>;
-
-const mockActivity = {
-  id: "activity-1",
-  title: "Docker & Kubernetes Fundamentals",
-  type: "TRAINING",
-  status: "IN_PROGRESS",
-  workflowStatus: "IN_PROGRESS",
-  department: "Infrastructure",
-  manager: "Manager Workspace",
-  location: "Meeting Room B / Online",
-  context: "UPSKILLING",
-  priority: "MEDIUM",
-  startDate: "2026-03-30",
-  endDate: "2026-04-05",
-  duration: "7 days",
-  seats: 3,
-  completionPercent: 68,
-};
-
-const mockParticipants: ParticipantRow[] = [
-  {
-    id: "p1",
-    name: "ziedemp1",
-    role: "Backend Engineer",
-    score: 52,
-    invitationStatus: "ACCEPTED",
-    progress: 80,
-    participationBadge: "High",
-    evaluationStatus: "PENDING",
-  },
-  {
-    id: "p2",
-    name: "ahlem1",
-    role: "DevOps Engineer",
-    score: 51,
-    invitationStatus: "ACCEPTED",
-    progress: 100,
-    participationBadge: "Medium",
-    evaluationStatus: "SAVED",
-  },
-  {
-    id: "p3",
-    name: "slimi.com",
-    role: "Cloud Engineer",
-    score: 51,
-    invitationStatus: "ACCEPTED",
-    progress: 65,
-    participationBadge: "High",
-    evaluationStatus: "PENDING",
-  },
-];
-
-const defaultEvaluation: EvaluationDraft = {
-  attendanceStatus: "GOOD",
-  participationLevel: "ACTIVE",
-  skillProgress: "MODERATE",
-  outcome: "COMPLETED_SUCCESSFULLY",
-  recommendation: "ADVANCED_TRAINING",
-  rating: 4,
-  comment: "",
-};
-
-function badgeStyle(
-  kind:
-    | "success"
-    | "warning"
-    | "danger"
-    | "info"
-    | "neutral"
-    | "primary"
-) {
-  const map = {
-    success: {
-      background: "rgba(34,197,94,0.12)",
-      color: "#166534",
-      border: "1px solid rgba(34,197,94,0.28)",
-    },
-    warning: {
-      background: "rgba(245,158,11,0.12)",
-      color: "#92400e",
-      border: "1px solid rgba(245,158,11,0.3)",
-    },
-    danger: {
-      background: "rgba(239,68,68,0.1)",
-      color: "#991b1b",
-      border: "1px solid rgba(239,68,68,0.24)",
-    },
-    info: {
-      background: "rgba(59,130,246,0.1)",
-      color: "#1d4ed8",
-      border: "1px solid rgba(59,130,246,0.22)",
-    },
-    neutral: {
-      background: "rgba(148,163,184,0.12)",
-      color: "#475569",
-      border: "1px solid rgba(148,163,184,0.22)",
-    },
-    primary: {
-      background: "rgba(99,102,241,0.1)",
-      color: "#4338ca",
-      border: "1px solid rgba(99,102,241,0.22)",
-    },
-  };
-
-  return {
-    ...map[kind],
-    borderRadius: 999,
-    padding: "6px 10px",
-    fontSize: 12,
-    fontWeight: 800 as const,
-    letterSpacing: "0.04em",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
-  };
-}
 
 function cardStyle() {
   return {
     background: "var(--card, #fff)",
     border: "1px solid var(--border, #dbe2ea)",
-    borderRadius: 24,
+    borderRadius: 20,
     boxShadow: "var(--shadow, 0 10px 30px rgba(15,23,42,0.05))",
   };
 }
@@ -178,7 +33,8 @@ function formatLabel(value: string) {
   return value.charAt(0) + value.slice(1).toLowerCase().replace(/_/g, " ");
 }
 
-function formatNiceDate(dateStr: string) {
+function formatNiceDate(dateStr?: string) {
+  if (!dateStr) return "—";
   return new Date(dateStr).toLocaleDateString(undefined, {
     weekday: "short",
     day: "2-digit",
@@ -187,112 +43,104 @@ function formatNiceDate(dateStr: string) {
   });
 }
 
-function getDateRange(start: string, end: string) {
-  const startDate = new Date(start);
-  const endDate = new Date(end);
-  const days: string[] = [];
-
-  const current = new Date(startDate);
-  while (current <= endDate) {
-    const yyyy = current.getFullYear();
-    const mm = String(current.getMonth() + 1).padStart(2, "0");
-    const dd = String(current.getDate()).padStart(2, "0");
-    days.push(`${yyyy}-${mm}-${dd}`);
-    current.setDate(current.getDate() + 1);
-  }
-
-  return days;
+function shortId(v?: string) {
+  if (!v) return "unknown";
+  return v.slice(-6);
 }
 
 function getAttendanceBadge(value: DailyAttendanceStatus) {
-  if (value === "PRESENT") return badgeStyle("success");
-  if (value === "LATE") return badgeStyle("warning");
-  if (value === "EXCUSED") return badgeStyle("info");
-  return badgeStyle("danger");
-}
-
-function getEvaluationBadge(value: ParticipantRow["evaluationStatus"]) {
-  if (value === "SUBMITTED") return badgeStyle("success");
-  if (value === "SAVED") return badgeStyle("info");
-  return badgeStyle("warning");
-}
-
-function getParticipationBadge(value: ParticipantRow["participationBadge"]) {
-  if (value === "High") return badgeStyle("success");
-  if (value === "Medium") return badgeStyle("primary");
-  return badgeStyle("neutral");
-}
-
-function buildInitialAttendance(
-  participantIds: string[],
-  days: string[]
-): AttendanceMap {
-  const result: AttendanceMap = {};
-
-  participantIds.forEach((id, index) => {
-    result[id] = {};
-    days.forEach((day, dayIndex) => {
-      if (index === 0) {
-        result[id][day] = dayIndex < 5 ? "PRESENT" : "LATE";
-      } else if (index === 1) {
-        result[id][day] = dayIndex === 2 ? "EXCUSED" : "PRESENT";
-      } else {
-        result[id][day] = dayIndex === 1 ? "ABSENT" : "PRESENT";
-      }
-    });
-  });
-
-  return result;
+  if (value === "PRESENT") return { color: "#166534", bg: "rgba(34,197,94,0.12)", bd: "rgba(34,197,94,0.28)" };
+  if (value === "LATE") return { color: "#92400e", bg: "rgba(245,158,11,0.12)", bd: "rgba(245,158,11,0.28)" };
+  if (value === "EXCUSED") return { color: "#1d4ed8", bg: "rgba(59,130,246,0.10)", bd: "rgba(59,130,246,0.22)" };
+  return { color: "#991b1b", bg: "rgba(239,68,68,0.10)", bd: "rgba(239,68,68,0.24)" };
 }
 
 export default function ManagerInProgressActivityPage() {
   const navigate = useNavigate();
-  const { activityId } = useParams();
+  const { activityId = "" } = useParams();
 
-  const participants = mockParticipants;
+  const [activity, setActivity] = useState<ActivityRecord | null>(null);
+  const [participants, setParticipants] = useState<ParticipantRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [flash, setFlash] = useState("");
+
+  const [selectedDay, setSelectedDay] = useState("");
+  const [attendanceByParticipant, setAttendanceByParticipant] = useState<AttendanceMap>({});
+  const [dayNotes, setDayNotes] = useState<Record<string, string>>({});
+
   const activityDays = useMemo(
-    () => getDateRange(mockActivity.startDate, mockActivity.endDate),
-    []
+    () => buildDateRange(activity?.startDate, activity?.endDate),
+    [activity?.startDate, activity?.endDate]
   );
 
-  const [selectedDay, setSelectedDay] = useState<string>(activityDays[0] ?? "");
-  const [selectedParticipantId, setSelectedParticipantId] = useState<string>(
-    mockParticipants[0]?.id ?? ""
-  );
-  const [dayNote, setDayNote] = useState(
-    "Docker basics workshop completed. Good engagement overall."
-  );
+  useEffect(() => {
+    if (!activityId) return;
+    let cancelled = false;
 
-  const [attendanceByParticipant, setAttendanceByParticipant] =
-    useState<AttendanceMap>(() =>
-      buildInitialAttendance(
-        mockParticipants.map((p) => p.id),
-        activityDays
-      )
-    );
+    (async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const [a, invites] = await Promise.all([
+          getActivityById(activityId),
+          getActivityInvitations(activityId),
+        ]);
+        if (cancelled) return;
 
-  const [evaluations, setEvaluations] = useState<Record<string, EvaluationDraft>>({
-    [mockParticipants[0].id]: {
-      ...defaultEvaluation,
-      comment: "Good engagement during the practical workshop.",
-    },
-  });
+        const active = (invites || []).filter((inv) =>
+          inv.status === "ACCEPTED" || inv.status === "INVITED"
+        );
+        const source = active.length > 0 ? active : invites || [];
+        const seen = new Set<string>();
+        const rows: ParticipantRow[] = source
+          .filter((inv) => {
+            const id = String(inv.employeeId || "");
+            if (!id || seen.has(id)) return false;
+            seen.add(id);
+            return true;
+          })
+          .map((inv) => ({
+          id: inv.employeeId,
+          name: inv.employeeName || `Employee ${shortId(inv.employeeId)}`,
+          role: "Participant",
+          invitationStatus: inv.status,
+          }));
 
-  const [finalReport, setFinalReport] = useState(
-    "Overall, the activity is progressing well. Participants are engaged and showing visible improvement in core containerization concepts."
-  );
+        const days = buildDateRange(a.startDate, a.endDate);
+        const draft = await getMonitorDraftWithServer(activityId);
+        const normalizedAttendance = ensureAttendanceMap(
+          rows.map((r) => r.id),
+          days,
+          draft.attendanceByParticipant
+        );
 
-  const selectedParticipant =
-    participants.find((p) => p.id === selectedParticipantId) ?? participants[0];
+        setActivity(a);
+        setParticipants(rows);
+        setAttendanceByParticipant(normalizedAttendance);
+        setDayNotes(draft.dayNotes || {});
+        setSelectedDay(days[0] || "");
 
-  const selectedEvaluation =
-    (selectedParticipant && evaluations[selectedParticipant.id]) || defaultEvaluation;
+        void saveMonitorDraftWithServer(activityId, {
+          attendanceByParticipant: normalizedAttendance,
+          dayNotes: draft.dayNotes || {},
+        });
+      } catch (e: unknown) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Failed to load activity monitor.");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activityId]);
 
   const selectedDayStats = useMemo(() => {
-    const statuses = participants.map(
-      (p) => attendanceByParticipant[p.id]?.[selectedDay] || "ABSENT"
-    );
-
+    const statuses = participants.map((p) => attendanceByParticipant[p.id]?.[selectedDay] || "ABSENT");
     return {
       present: statuses.filter((s) => s === "PRESENT").length,
       late: statuses.filter((s) => s === "LATE").length,
@@ -301,202 +149,132 @@ export default function ManagerInProgressActivityPage() {
     };
   }, [participants, attendanceByParticipant, selectedDay]);
 
-  const overallStats = useMemo(() => {
-    const confirmed = participants.filter(
-      (p) => p.invitationStatus === "ACCEPTED"
-    ).length;
-    const pending = participants.filter(
-      (p) => p.evaluationStatus === "PENDING"
-    ).length;
-    const submitted = participants.filter(
-      (p) => p.evaluationStatus === "SUBMITTED"
-    ).length;
+  const remainingDays = useMemo(() => {
+    const idx = activityDays.findIndex((d) => d === selectedDay);
+    if (idx < 0) return 0;
+    return Math.max(activityDays.length - idx - 1, 0);
+  }, [activityDays, selectedDay]);
 
-    const dayIndex = activityDays.findIndex((d) => d === selectedDay);
-    const remainingDays =
-      dayIndex >= 0 ? Math.max(activityDays.length - dayIndex - 1, 0) : 0;
+  const executionProgressPercent = useMemo(() => {
+    if (activityDays.length === 0) return 0;
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    const todayKey = `${yyyy}-${mm}-${dd}`;
 
-    return {
-      confirmed,
-      pending,
-      submitted,
-      remainingDays,
-    };
-  }, [participants, activityDays, selectedDay]);
+    const firstDay = activityDays[0];
+    const lastDay = activityDays[activityDays.length - 1];
 
-  function updateSelectedEvaluation<K extends keyof EvaluationDraft>(
-    key: K,
-    value: EvaluationDraft[K]
-  ) {
-    if (!selectedParticipant) return;
+    if (todayKey < firstDay) return 0;
+    if (todayKey > lastDay) return 100;
 
-    setEvaluations((prev) => ({
-      ...prev,
-      [selectedParticipant.id]: {
-        ...(prev[selectedParticipant.id] || defaultEvaluation),
-        [key]: value,
-      },
-    }));
+    const dayIndex = activityDays.findIndex((d) => d === todayKey);
+    if (dayIndex < 0) {
+      // If today isn't exactly in the range list (timezone edge), keep a safe rounded fallback.
+      return Math.min(100, Math.max(0, Math.round((1 / activityDays.length) * 100)));
+    }
+    return Math.round(((dayIndex + 1) / activityDays.length) * 100);
+  }, [activityDays]);
+
+  const dayNote = dayNotes[selectedDay] || "";
+  const todayKey = useMemo(() => {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }, []);
+  const canMarkSelectedDay = selectedDay === todayKey;
+
+  function updateAttendance(participantId: string, day: string, status: DailyAttendanceStatus) {
+    setAttendanceByParticipant((prev) => {
+      const next = {
+        ...prev,
+        [participantId]: {
+          ...(prev[participantId] || {}),
+          [day]: status,
+        },
+      };
+      void saveMonitorDraftWithServer(activityId, { attendanceByParticipant: next });
+      return next;
+    });
   }
 
-  function updateAttendance(
-    participantId: string,
-    day: string,
-    status: DailyAttendanceStatus
-  ) {
-    setAttendanceByParticipant((prev) => ({
-      ...prev,
-      [participantId]: {
-        ...(prev[participantId] || {}),
-        [day]: status,
-      },
-    }));
+  function saveDay() {
+    void saveMonitorDraftWithServer(activityId, { attendanceByParticipant, dayNotes });
+    setFlash(`Attendance saved for ${formatNiceDate(selectedDay)}.`);
+    window.setTimeout(() => setFlash(""), 1800);
   }
 
-  function saveDayAttendance() {
-    alert(`Attendance saved for ${formatNiceDate(selectedDay)}`);
+  if (loading) {
+    return (
+      <div className="page">
+        <div className="container" style={{ textAlign: "center", padding: 60 }}>
+          <p style={{ color: "var(--muted)" }}>Loading activity monitor…</p>
+        </div>
+      </div>
+    );
   }
 
-  function saveEvaluationDraft() {
-    if (!selectedParticipant) return;
-    alert(`Draft saved for ${selectedParticipant.name}`);
-  }
-
-  function submitEvaluation() {
-    if (!selectedParticipant) return;
-    alert(`Evaluation submitted for ${selectedParticipant.name}`);
-  }
-
-  function sendFinalReportToHr() {
-    alert("Final manager report sent to HR.");
+  if (!activity) {
+    return (
+      <div className="page">
+        <div className="container" style={{ textAlign: "center", padding: 60 }}>
+          <p style={{ color: "#b91c1c", fontWeight: 700 }}>{error || "Activity not found."}</p>
+          <button className="btn btn-ghost" type="button" onClick={() => navigate("/manager/activities/running")}>
+            <FiArrowLeft /> Back
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "var(--bg, #f4f7fb)",
-        color: "var(--text, #0f172a)",
-        padding: "24px",
-      }}
-    >
-      <div style={{ maxWidth: 1360, margin: "0 auto", display: "grid", gap: 20 }}>
-        <section
-          style={{
-            ...cardStyle(),
-            padding: "24px 24px 20px",
-            display: "grid",
-            gap: 18,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 16,
-              flexWrap: "wrap",
-              alignItems: "flex-start",
-            }}
-          >
-            <div style={{ display: "grid", gap: 10 }}>
-              <button
-                type="button"
-                onClick={() => navigate("/manager/activities/running")}
-                className="btn btn-ghost"
-                style={{ width: "fit-content" }}
-              >
-                <FiArrowLeft /> Back to activities
-              </button>
-
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 900,
-                  letterSpacing: "0.08em",
-                  color: "var(--sidebar-link-active-pill, #10b981)",
-                  textTransform: "uppercase",
-                }}
-              >
+    <div style={{ minHeight: "100vh", background: "var(--bg, #f4f7fb)", color: "var(--text, #0f172a)", padding: 24 }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto", display: "grid", gap: 18 }}>
+        <section style={{ ...cardStyle(), padding: 22, display: "grid", gap: 14 }}>
+          <button type="button" className="btn btn-ghost" style={{ width: "fit-content" }} onClick={() => navigate("/manager/activities/running")}>
+            <FiArrowLeft /> Back to activities
+          </button>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: "0.08em", color: "#10b981", textTransform: "uppercase" }}>
                 Activity monitor
               </div>
-
-              <div style={{ fontSize: 42, fontWeight: 900, lineHeight: 1.05 }}>
-                {mockActivity.title}
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 10,
-                  alignItems: "center",
-                }}
-              >
-                <span style={badgeStyle("success")}>
-                  <FiPlayCircle size={14} />
-                  In progress
+              <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1.1, marginTop: 8 }}>{activity.title}</div>
+              <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <span className="badge" style={{ background: "rgba(16,185,129,0.12)", color: "#166534", border: "1px solid rgba(16,185,129,0.26)" }}>
+                  <FiPlayCircle size={14} /> In progress
                 </span>
-                <span style={badgeStyle("primary")}>
-                  {formatLabel(mockActivity.type)}
-                </span>
-                <span style={badgeStyle("neutral")}>
-                  {mockActivity.seats} seats
-                </span>
-                <span style={badgeStyle("info")}>
-                  Activity ID: {activityId || mockActivity.id}
-                </span>
+                <span className="badge">{formatLabel(activity.type)}</span>
+                <span className="badge">{activity.availableSlots} seats</span>
+                <span className="badge">Activity ID: {activity._id}</span>
               </div>
             </div>
-
-            <div
-              style={{
-                minWidth: 280,
-                flex: "1 1 320px",
-                maxWidth: 420,
-                display: "grid",
-                gap: 12,
-              }}
-            >
+            <div style={{ minWidth: 300, flex: "1 1 360px", maxWidth: 420, display: "grid", gap: 10 }}>
               <div
                 style={{
-                  borderRadius: 18,
+                  borderRadius: 14,
                   background: "rgba(16,185,129,0.08)",
                   border: "1px solid rgba(16,185,129,0.18)",
-                  padding: 16,
+                  padding: 12,
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginBottom: 10,
-                    fontSize: 13,
-                    fontWeight: 800,
-                    color: "#065f46",
-                  }}
-                >
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 800, color: "#065f46" }}>
                   <span>Execution progress</span>
-                  <span>{mockActivity.completionPercent}%</span>
+                  <span>{executionProgressPercent}%</span>
                 </div>
-                <div
-                  style={{
-                    height: 10,
-                    borderRadius: 999,
-                    background: "rgba(15,23,42,0.08)",
-                    overflow: "hidden",
-                  }}
-                >
+                <div style={{ height: 8, borderRadius: 999, background: "rgba(15,23,42,0.08)", overflow: "hidden", marginTop: 8 }}>
                   <div
                     style={{
-                      width: `${mockActivity.completionPercent}%`,
+                      width: `${executionProgressPercent}%`,
                       height: "100%",
-                      background:
-                        "linear-gradient(90deg, #6366f1 0%, #10b981 100%)",
+                      background: "linear-gradient(90deg, #6366f1 0%, #10b981 100%)",
                     }}
                   />
                 </div>
               </div>
-
               <div
                 style={{
                   display: "grid",
@@ -507,37 +285,28 @@ export default function ManagerInProgressActivityPage() {
                 <div
                   style={{
                     border: "1px solid var(--border, #dbe2ea)",
-                    borderRadius: 18,
-                    padding: 14,
+                    borderRadius: 14,
+                    padding: 12,
                     background: "var(--surface, #fff)",
                   }}
                 >
-                  <div style={{ fontSize: 12, color: "var(--muted, #64748b)" }}>
-                    Start
-                  </div>
-                  <div style={{ fontWeight: 800, marginTop: 4 }}>
-                    {mockActivity.startDate}
-                  </div>
+                  <div style={{ fontSize: 12, color: "var(--muted, #64748b)" }}>Start</div>
+                  <div style={{ fontWeight: 800, marginTop: 4 }}>{activity.startDate || "—"}</div>
                 </div>
                 <div
                   style={{
                     border: "1px solid var(--border, #dbe2ea)",
-                    borderRadius: 18,
-                    padding: 14,
+                    borderRadius: 14,
+                    padding: 12,
                     background: "var(--surface, #fff)",
                   }}
                 >
-                  <div style={{ fontSize: 12, color: "var(--muted, #64748b)" }}>
-                    End
-                  </div>
-                  <div style={{ fontWeight: 800, marginTop: 4 }}>
-                    {mockActivity.endDate}
-                  </div>
+                  <div style={{ fontSize: 12, color: "var(--muted, #64748b)" }}>End</div>
+                  <div style={{ fontWeight: 800, marginTop: 4 }}>{activity.endDate || "—"}</div>
                 </div>
               </div>
             </div>
           </div>
-
           <div
             style={{
               display: "grid",
@@ -547,35 +316,35 @@ export default function ManagerInProgressActivityPage() {
           >
             {[
               {
-                icon: <FiCalendar size={18} />,
+                icon: <FiCalendar size={17} />,
                 label: "Duration",
-                value: mockActivity.duration,
+                value: activity.duration || `${activityDays.length || 0} days`,
               },
               {
-                icon: <FiUsers size={18} />,
+                icon: <FiUsers size={17} />,
                 label: "Department",
-                value: mockActivity.department,
+                value: activity.departmentName || "—",
               },
               {
-                icon: <FiFlag size={18} />,
+                icon: <FiFlag size={17} />,
                 label: "Priority",
-                value: formatLabel(mockActivity.priority),
+                value: formatLabel(activity.targetLevel || "MEDIUM"),
               },
               {
-                icon: <FiClock size={18} />,
+                icon: <FiClock size={17} />,
                 label: "Context",
-                value: formatLabel(mockActivity.context),
+                value: formatLabel(activity.priorityContext || "DEVELOPMENT"),
               },
             ].map((item) => (
               <div
                 key={item.label}
                 style={{
                   border: "1px solid var(--border, #dbe2ea)",
-                  borderRadius: 18,
-                  padding: 16,
+                  borderRadius: 14,
+                  padding: 14,
                   background: "var(--surface, #fff)",
                   display: "grid",
-                  gap: 8,
+                  gap: 6,
                 }}
               >
                 <div
@@ -591,50 +360,25 @@ export default function ManagerInProgressActivityPage() {
                   {item.icon}
                   {item.label}
                 </div>
-                <div style={{ fontSize: 18, fontWeight: 900 }}>{item.value}</div>
+                <div style={{ fontSize: 24, fontWeight: 900, lineHeight: 1.05 }}>{item.value}</div>
               </div>
             ))}
           </div>
+          {error ? <div style={{ color: "#b91c1c", fontWeight: 700 }}>{error}</div> : null}
+          {flash ? <div style={{ color: "#166534", fontWeight: 700 }}><FiCheckCircle style={{ marginRight: 6 }} />{flash}</div> : null}
         </section>
 
-        <section
-          style={{
-            ...cardStyle(),
-            padding: 22,
-            display: "grid",
-            gap: 18,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 12,
-              flexWrap: "wrap",
-              alignItems: "center",
-            }}
-          >
+        <section style={{ ...cardStyle(), padding: 22, display: "grid", gap: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <div>
               <div style={{ fontSize: 28, fontWeight: 900 }}>Daily attendance tracker</div>
-              <div style={{ color: "var(--muted, #64748b)", marginTop: 6 }}>
-                Switch between activity days, mark attendance, and review previous days.
-              </div>
+              <div style={{ color: "var(--muted)" }}>Select a day, update attendance, then save.</div>
             </div>
-
-            <span style={badgeStyle("primary")}>
-              {activityDays.length} tracked days
-            </span>
+            <span className="badge">{activityDays.length} tracked days</span>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              overflowX: "auto",
-              paddingBottom: 4,
-            }}
-          >
-            {activityDays.map((day, index) => {
+          <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 2 }}>
+            {activityDays.map((day, idx) => {
               const active = day === selectedDay;
               return (
                 <button
@@ -643,176 +387,66 @@ export default function ManagerInProgressActivityPage() {
                   onClick={() => setSelectedDay(day)}
                   style={{
                     minWidth: 160,
-                    padding: "12px 14px",
-                    borderRadius: 16,
-                    border: active
-                      ? "1px solid rgba(59,130,246,0.28)"
-                      : "1px solid var(--border, #dbe2ea)",
+                    padding: "10px 12px",
+                    borderRadius: 14,
+                    border: active ? "1px solid rgba(59,130,246,0.28)" : "1px solid var(--border)",
                     background: active ? "rgba(59,130,246,0.08)" : "#fff",
-                    color: "var(--text, #0f172a)",
                     textAlign: "left",
                     cursor: "pointer",
-                    flexShrink: 0,
                   }}
                 >
-                  <div style={{ fontSize: 12, color: "var(--muted, #64748b)", fontWeight: 700 }}>
-                    Day {index + 1}
-                  </div>
-                  <div style={{ fontWeight: 800, marginTop: 4 }}>
-                    {formatNiceDate(day)}
-                  </div>
+                  <div style={{ fontSize: 12, color: "var(--muted)", fontWeight: 700 }}>Day {idx + 1}</div>
+                  <div style={{ fontWeight: 800 }}>{formatNiceDate(day)}</div>
                 </button>
               );
             })}
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-              gap: 14,
-            }}
-          >
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10 }}>
             {[
-              {
-                label: "Present",
-                value: selectedDayStats.present,
-                kind: "success" as const,
-              },
-              {
-                label: "Late",
-                value: selectedDayStats.late,
-                kind: "warning" as const,
-              },
-              {
-                label: "Absent",
-                value: selectedDayStats.absent,
-                kind: "danger" as const,
-              },
-              {
-                label: "Excused",
-                value: selectedDayStats.excused,
-                kind: "info" as const,
-              },
-              {
-                label: "Days remaining",
-                value: overallStats.remainingDays,
-                kind: "neutral" as const,
-              },
-            ].map((card) => (
-              <div
-                key={card.label}
-                style={{
-                  border: "1px solid var(--border, #dbe2ea)",
-                  borderRadius: 18,
-                  background: "#fff",
-                  padding: 16,
-                  display: "grid",
-                  gap: 8,
-                }}
-              >
-                <div style={{ fontSize: 13, color: "var(--muted, #64748b)", fontWeight: 700 }}>
-                  {card.label}
-                </div>
-                <div style={{ fontSize: 30, fontWeight: 900 }}>{card.value}</div>
-                <span style={badgeStyle(card.kind)}>Selected day</span>
+              { label: "Present", value: selectedDayStats.present },
+              { label: "Late", value: selectedDayStats.late },
+              { label: "Absent", value: selectedDayStats.absent },
+              { label: "Excused", value: selectedDayStats.excused },
+              { label: "Days remaining", value: remainingDays },
+            ].map((it) => (
+              <div key={it.label} style={{ border: "1px solid var(--border)", borderRadius: 14, background: "#fff", padding: 12 }}>
+                <div style={{ fontSize: 12, color: "var(--muted)" }}>{it.label}</div>
+                <div style={{ fontWeight: 900, fontSize: 24 }}>{it.value}</div>
               </div>
             ))}
           </div>
 
           <div style={{ overflowX: "auto" }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "separate",
-                borderSpacing: 0,
-                minWidth: 980,
-              }}
-            >
+            <table style={{ width: "100%", minWidth: 920, borderCollapse: "separate", borderSpacing: 0 }}>
               <thead>
                 <tr>
-                  {[
-                    "Employee",
-                    "Role",
-                    "Selected day",
-                    "Set attendance",
-                    "Progress",
-                    "Evaluation",
-                  ].map((head) => (
-                    <th
-                      key={head}
-                      style={{
-                        textAlign: "left",
-                        padding: "14px 12px",
-                        fontSize: 12,
-                        letterSpacing: "0.06em",
-                        textTransform: "uppercase",
-                        color: "var(--muted, #64748b)",
-                        borderBottom: "1px solid var(--border, #dbe2ea)",
-                      }}
-                    >
+                  {["Employee", "Role", "Selected day", "Set attendance"].map((head) => (
+                    <th key={head} style={{ textAlign: "left", padding: "12px 10px", fontSize: 12, color: "var(--muted)", borderBottom: "1px solid var(--border)" }}>
                       {head}
                     </th>
                   ))}
                 </tr>
               </thead>
-
               <tbody>
                 {participants.map((row) => {
-                  const selectedStatus =
-                    attendanceByParticipant[row.id]?.[selectedDay] || "ABSENT";
-
+                  const status = attendanceByParticipant[row.id]?.[selectedDay] || "ABSENT";
+                  const badge = getAttendanceBadge(status);
                   return (
                     <tr key={row.id}>
-                      <td
-                        style={{
-                          padding: "16px 12px",
-                          borderBottom: "1px solid var(--border, #eef2f7)",
-                          fontWeight: 800,
-                        }}
-                      >
-                        {row.name}
-                      </td>
-                      <td
-                        style={{
-                          padding: "16px 12px",
-                          borderBottom: "1px solid var(--border, #eef2f7)",
-                          color: "var(--muted, #64748b)",
-                        }}
-                      >
-                        {row.role}
-                      </td>
-                      <td
-                        style={{
-                          padding: "16px 12px",
-                          borderBottom: "1px solid var(--border, #eef2f7)",
-                        }}
-                      >
-                        <span style={getAttendanceBadge(selectedStatus)}>
-                          {selectedStatus}
+                      <td style={{ padding: "12px 10px", borderBottom: "1px solid #eef2f7", fontWeight: 800 }}>{row.name}</td>
+                      <td style={{ padding: "12px 10px", borderBottom: "1px solid #eef2f7", color: "var(--muted)" }}>{row.role}</td>
+                      <td style={{ padding: "12px 10px", borderBottom: "1px solid #eef2f7" }}>
+                        <span style={{ borderRadius: 999, padding: "4px 10px", fontWeight: 800, fontSize: 12, color: badge.color, background: badge.bg, border: `1px solid ${badge.bd}` }}>
+                          {status}
                         </span>
                       </td>
-                      <td
-                        style={{
-                          padding: "16px 12px",
-                          borderBottom: "1px solid var(--border, #eef2f7)",
-                        }}
-                      >
+                      <td style={{ padding: "12px 10px", borderBottom: "1px solid #eef2f7" }}>
                         <select
-                          value={selectedStatus}
-                          onChange={(e) =>
-                            updateAttendance(
-                              row.id,
-                              selectedDay,
-                              e.target.value as DailyAttendanceStatus
-                            )
-                          }
-                          style={{
-                            border: "1px solid var(--border, #dbe2ea)",
-                            borderRadius: 12,
-                            padding: "10px 12px",
-                            background: "#fff",
-                          }}
+                          value={status}
+                          onChange={(e) => updateAttendance(row.id, selectedDay, e.target.value as DailyAttendanceStatus)}
+                          disabled={!canMarkSelectedDay}
+                          style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "9px 10px", background: "#fff" }}
                         >
                           <option value="PRESENT">Present</option>
                           <option value="LATE">Late</option>
@@ -820,44 +454,6 @@ export default function ManagerInProgressActivityPage() {
                           <option value="EXCUSED">Excused</option>
                         </select>
                       </td>
-                      <td
-                        style={{
-                          padding: "16px 12px",
-                          borderBottom: "1px solid var(--border, #eef2f7)",
-                          minWidth: 160,
-                        }}
-                      >
-                        <div style={{ display: "grid", gap: 8 }}>
-                          <div style={{ fontWeight: 800 }}>{row.progress}%</div>
-                          <div
-                            style={{
-                              height: 8,
-                              borderRadius: 999,
-                              background: "rgba(15,23,42,0.08)",
-                              overflow: "hidden",
-                            }}
-                          >
-                            <div
-                              style={{
-                                width: `${row.progress}%`,
-                                height: "100%",
-                                background:
-                                  "linear-gradient(90deg, #6366f1 0%, #10b981 100%)",
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </td>
-                      <td
-                        style={{
-                          padding: "16px 12px",
-                          borderBottom: "1px solid var(--border, #eef2f7)",
-                        }}
-                      >
-                        <span style={getEvaluationBadge(row.evaluationStatus)}>
-                          {row.evaluationStatus}
-                        </span>
-                      </td>
                     </tr>
                   );
                 })}
@@ -865,522 +461,40 @@ export default function ManagerInProgressActivityPage() {
             </table>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr auto",
-              gap: 12,
-              alignItems: "end",
-            }}
-          >
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "end" }}>
             <label style={{ display: "grid", gap: 8 }}>
-              <span style={{ fontWeight: 700 }}>
-                Note for {formatNiceDate(selectedDay)}
-              </span>
+              <span style={{ fontWeight: 700 }}>Note for {formatNiceDate(selectedDay)}</span>
               <textarea
-                value={dayNote}
-                onChange={(e) => setDayNote(e.target.value)}
                 rows={4}
+                value={dayNote}
+                onChange={(e) =>
+                  setDayNotes((prev) => {
+                    const next = { ...prev, [selectedDay]: e.target.value };
+                    void saveMonitorDraftWithServer(activityId, { dayNotes: next });
+                    return next;
+                  })
+                }
                 placeholder="Write what happened during this day..."
-                style={{
-                  border: "1px solid var(--border, #dbe2ea)",
-                  borderRadius: 16,
-                  padding: "14px 16px",
-                  resize: "vertical",
-                  background: "#fff",
-                  fontFamily: "inherit",
-                }}
+                style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "12px 14px", resize: "vertical", background: "#fff", fontFamily: "inherit" }}
               />
             </label>
-
             <button
-              type="button"
               className="btn btn-primary"
-              onClick={saveDayAttendance}
+              type="button"
+              onClick={saveDay}
+              disabled={!canMarkSelectedDay}
               style={{ height: "fit-content" }}
             >
-              <FiCheckCircle />
-              Save day
+              <FiCheckCircle /> Save day
             </button>
           </div>
+          {!canMarkSelectedDay ? (
+            <div style={{ color: "#92400e", fontWeight: 700, fontSize: 13 }}>
+              Attendance can only be marked for today ({todayKey}).
+            </div>
+          ) : null}
         </section>
 
-        <section
-          style={{
-            ...cardStyle(),
-            padding: 22,
-            display: "grid",
-            gap: 18,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 16,
-              flexWrap: "wrap",
-              alignItems: "center",
-            }}
-          >
-            <div>
-              <div style={{ fontSize: 28, fontWeight: 900 }}>Attendance history</div>
-              <div style={{ color: "var(--muted, #64748b)", marginTop: 6 }}>
-                Review all activity days for every employee before final evaluation.
-              </div>
-            </div>
-
-            <span style={badgeStyle("success")}>
-              {overallStats.confirmed}/{mockActivity.seats} active
-            </span>
-          </div>
-
-          <div style={{ overflowX: "auto" }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "separate",
-                borderSpacing: 0,
-                minWidth: 1100,
-              }}
-            >
-              <thead>
-                <tr>
-                  <th
-                    style={{
-                      textAlign: "left",
-                      padding: "14px 12px",
-                      fontSize: 12,
-                      letterSpacing: "0.06em",
-                      textTransform: "uppercase",
-                      color: "var(--muted, #64748b)",
-                      borderBottom: "1px solid var(--border, #dbe2ea)",
-                    }}
-                  >
-                    Employee
-                  </th>
-                  {activityDays.map((day, idx) => (
-                    <th
-                      key={day}
-                      style={{
-                        textAlign: "left",
-                        padding: "14px 12px",
-                        fontSize: 12,
-                        letterSpacing: "0.06em",
-                        textTransform: "uppercase",
-                        color: "var(--muted, #64748b)",
-                        borderBottom: "1px solid var(--border, #dbe2ea)",
-                        minWidth: 120,
-                      }}
-                    >
-                      D{idx + 1}
-                    </th>
-                  ))}
-                  <th
-                    style={{
-                      textAlign: "left",
-                      padding: "14px 12px",
-                      fontSize: 12,
-                      letterSpacing: "0.06em",
-                      textTransform: "uppercase",
-                      color: "var(--muted, #64748b)",
-                      borderBottom: "1px solid var(--border, #dbe2ea)",
-                    }}
-                  >
-                    Action
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {participants.map((row) => {
-                  const isSelected = selectedParticipantId === row.id;
-
-                  return (
-                    <tr
-                      key={row.id}
-                      style={{
-                        background: isSelected ? "rgba(59,130,246,0.04)" : "transparent",
-                      }}
-                    >
-                      <td
-                        style={{
-                          padding: "16px 12px",
-                          borderBottom: "1px solid var(--border, #eef2f7)",
-                          fontWeight: 800,
-                        }}
-                      >
-                        {row.name}
-                      </td>
-
-                      {activityDays.map((day) => {
-                        const status =
-                          attendanceByParticipant[row.id]?.[day] || "ABSENT";
-
-                        return (
-                          <td
-                            key={day}
-                            style={{
-                              padding: "16px 12px",
-                              borderBottom: "1px solid var(--border, #eef2f7)",
-                            }}
-                          >
-                            <span style={getAttendanceBadge(status)}>{status}</span>
-                          </td>
-                        );
-                      })}
-
-                      <td
-                        style={{
-                          padding: "16px 12px",
-                          borderBottom: "1px solid var(--border, #eef2f7)",
-                        }}
-                      >
-                        <button
-                          type="button"
-                          className={
-                            isSelected
-                              ? "btn btn-primary btn-small"
-                              : "btn btn-ghost btn-small"
-                          }
-                          onClick={() => setSelectedParticipantId(row.id)}
-                        >
-                          {isSelected ? "Selected" : "Evaluate"}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1.15fr 0.85fr",
-            gap: 20,
-          }}
-        >
-          <div
-            style={{
-              ...cardStyle(),
-              padding: 22,
-              display: "grid",
-              gap: 18,
-            }}
-          >
-            <div>
-              <div style={{ fontSize: 28, fontWeight: 900 }}>Employee evaluation</div>
-              <div style={{ color: "var(--muted, #64748b)", marginTop: 6 }}>
-                Use the full attendance history before submitting the final employee evaluation.
-              </div>
-            </div>
-
-            {selectedParticipant ? (
-              <>
-                <div
-                  style={{
-                    border: "1px solid var(--border, #dbe2ea)",
-                    borderRadius: 20,
-                    padding: 16,
-                    background: "var(--surface, #fff)",
-                    display: "grid",
-                    gap: 8,
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 12,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontSize: 22, fontWeight: 900 }}>
-                        {selectedParticipant.name}
-                      </div>
-                      <div style={{ color: "var(--muted, #64748b)", marginTop: 4 }}>
-                        {selectedParticipant.role}
-                      </div>
-                    </div>
-                    <div style={badgeStyle("info")}>
-                      Recommendation score: {selectedParticipant.score}/100
-                    </div>
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                    gap: 14,
-                  }}
-                >
-                  <label style={{ display: "grid", gap: 8 }}>
-                    <span style={{ fontWeight: 700 }}>Attendance</span>
-                    <select
-                      value={selectedEvaluation.attendanceStatus}
-                      onChange={(e) =>
-                        updateSelectedEvaluation(
-                          "attendanceStatus",
-                          e.target.value as AttendanceStatus
-                        )
-                      }
-                      style={{
-                        border: "1px solid var(--border, #dbe2ea)",
-                        borderRadius: 14,
-                        padding: "12px 14px",
-                        background: "#fff",
-                      }}
-                    >
-                      <option value="EXCELLENT">Excellent</option>
-                      <option value="GOOD">Good</option>
-                      <option value="IRREGULAR">Irregular</option>
-                      <option value="POOR">Poor</option>
-                    </select>
-                  </label>
-
-                  <label style={{ display: "grid", gap: 8 }}>
-                    <span style={{ fontWeight: 700 }}>Participation</span>
-                    <select
-                      value={selectedEvaluation.participationLevel}
-                      onChange={(e) =>
-                        updateSelectedEvaluation(
-                          "participationLevel",
-                          e.target.value as ParticipationLevel
-                        )
-                      }
-                      style={{
-                        border: "1px solid var(--border, #dbe2ea)",
-                        borderRadius: 14,
-                        padding: "12px 14px",
-                        background: "#fff",
-                      }}
-                    >
-                      <option value="VERY_ACTIVE">Very active</option>
-                      <option value="ACTIVE">Active</option>
-                      <option value="MODERATE">Moderate</option>
-                      <option value="LOW">Low</option>
-                    </select>
-                  </label>
-
-                  <label style={{ display: "grid", gap: 8 }}>
-                    <span style={{ fontWeight: 700 }}>Skill progress</span>
-                    <select
-                      value={selectedEvaluation.skillProgress}
-                      onChange={(e) =>
-                        updateSelectedEvaluation(
-                          "skillProgress",
-                          e.target.value as SkillProgress
-                        )
-                      }
-                      style={{
-                        border: "1px solid var(--border, #dbe2ea)",
-                        borderRadius: 14,
-                        padding: "12px 14px",
-                        background: "#fff",
-                      }}
-                    >
-                      <option value="STRONG">Strong improvement</option>
-                      <option value="MODERATE">Moderate improvement</option>
-                      <option value="SLIGHT">Slight improvement</option>
-                      <option value="NONE">No visible improvement</option>
-                    </select>
-                  </label>
-
-                  <label style={{ display: "grid", gap: 8 }}>
-                    <span style={{ fontWeight: 700 }}>Outcome</span>
-                    <select
-                      value={selectedEvaluation.outcome}
-                      onChange={(e) =>
-                        updateSelectedEvaluation(
-                          "outcome",
-                          e.target.value as EvaluationOutcome
-                        )
-                      }
-                      style={{
-                        border: "1px solid var(--border, #dbe2ea)",
-                        borderRadius: 14,
-                        padding: "12px 14px",
-                        background: "#fff",
-                      }}
-                    >
-                      <option value="COMPLETED_SUCCESSFULLY">
-                        Completed successfully
-                      </option>
-                      <option value="NEEDS_FOLLOW_UP">Needs follow-up</option>
-                      <option value="DID_NOT_COMPLETE">Did not complete</option>
-                    </select>
-                  </label>
-
-                  <label style={{ display: "grid", gap: 8 }}>
-                    <span style={{ fontWeight: 700 }}>Recommendation</span>
-                    <select
-                      value={selectedEvaluation.recommendation}
-                      onChange={(e) =>
-                        updateSelectedEvaluation(
-                          "recommendation",
-                          e.target.value as Recommendation
-                        )
-                      }
-                      style={{
-                        border: "1px solid var(--border, #dbe2ea)",
-                        borderRadius: 14,
-                        padding: "12px 14px",
-                        background: "#fff",
-                      }}
-                    >
-                      <option value="ADVANCED_TRAINING">Advanced training</option>
-                      <option value="PROJECT_ASSIGNMENT">Project assignment</option>
-                      <option value="MENTORING">Mentoring</option>
-                      <option value="RETRY_LATER">Retry later</option>
-                    </select>
-                  </label>
-
-                  <label style={{ display: "grid", gap: 8 }}>
-                    <span style={{ fontWeight: 700 }}>Manager rating</span>
-                    <select
-                      value={selectedEvaluation.rating}
-                      onChange={(e) =>
-                        updateSelectedEvaluation("rating", Number(e.target.value))
-                      }
-                      style={{
-                        border: "1px solid var(--border, #dbe2ea)",
-                        borderRadius: 14,
-                        padding: "12px 14px",
-                        background: "#fff",
-                      }}
-                    >
-                      <option value={1}>1 / 5</option>
-                      <option value={2}>2 / 5</option>
-                      <option value={3}>3 / 5</option>
-                      <option value={4}>4 / 5</option>
-                      <option value={5}>5 / 5</option>
-                    </select>
-                  </label>
-                </div>
-
-                <label style={{ display: "grid", gap: 8 }}>
-                  <span style={{ fontWeight: 700 }}>Manager comment</span>
-                  <textarea
-                    value={selectedEvaluation.comment}
-                    onChange={(e) =>
-                      updateSelectedEvaluation("comment", e.target.value)
-                    }
-                    rows={6}
-                    placeholder="Write your evaluation note here..."
-                    style={{
-                      border: "1px solid var(--border, #dbe2ea)",
-                      borderRadius: 16,
-                      padding: "14px 16px",
-                      resize: "vertical",
-                      background: "#fff",
-                      fontFamily: "inherit",
-                    }}
-                  />
-                </label>
-
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    onClick={saveEvaluationDraft}
-                  >
-                    Save draft
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={submitEvaluation}
-                  >
-                    <FiCheckCircle />
-                    Submit evaluation
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div style={{ color: "var(--muted, #64748b)" }}>
-                No participant selected.
-              </div>
-            )}
-          </div>
-
-          <div
-            style={{
-              ...cardStyle(),
-              padding: 22,
-              display: "grid",
-              gap: 18,
-              alignContent: "start",
-            }}
-          >
-            <div>
-              <div style={{ fontSize: 28, fontWeight: 900 }}>Final report to HR</div>
-              <div style={{ color: "var(--muted, #64748b)", marginTop: 6 }}>
-                Summarize the activity outcome and send the report once manager evaluations are ready.
-              </div>
-            </div>
-
-            <div
-              style={{
-                borderRadius: 18,
-                padding: 16,
-                background: "rgba(59,130,246,0.06)",
-                border: "1px solid rgba(59,130,246,0.18)",
-                display: "grid",
-                gap: 10,
-              }}
-            >
-              <div style={{ fontWeight: 800 }}>Quick summary</div>
-              <div style={{ color: "var(--muted, #64748b)", lineHeight: 1.6 }}>
-                <div>Confirmed participants: {overallStats.confirmed}</div>
-                <div>Pending evaluations: {overallStats.pending}</div>
-                <div>Submitted evaluations: {overallStats.submitted}</div>
-                <div>Selected day: {formatNiceDate(selectedDay)}</div>
-              </div>
-            </div>
-
-            <label style={{ display: "grid", gap: 8 }}>
-              <span style={{ fontWeight: 700 }}>Manager final note</span>
-              <textarea
-                value={finalReport}
-                onChange={(e) => setFinalReport(e.target.value)}
-                rows={10}
-                placeholder="Write the summary that HR will receive..."
-                style={{
-                  border: "1px solid var(--border, #dbe2ea)",
-                  borderRadius: 16,
-                  padding: "14px 16px",
-                  resize: "vertical",
-                  background: "#fff",
-                  fontFamily: "inherit",
-                }}
-              />
-            </label>
-
-            <div style={{ display: "grid", gap: 10 }}>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={sendFinalReportToHr}
-              >
-                <FiSend />
-                Send final report to HR
-              </button>
-
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => alert("Export report coming next.")}
-              >
-                <FiFileText />
-                Export report
-              </button>
-            </div>
-          </div>
-        </section>
       </div>
     </div>
   );

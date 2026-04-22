@@ -59,6 +59,12 @@ export default function SuperManagerLayout() {
         icon: "activity",
       },
       {
+        to: "/super-manager/activities/evaluated",
+        label: "Post-activity evaluations",
+        group: "Operations",
+        icon: "review",
+      },
+      {
         to: "/super-manager/domains",
         label: "Domain management",
         group: "Skills",

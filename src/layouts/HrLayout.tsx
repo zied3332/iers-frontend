@@ -77,6 +77,12 @@ export default function HrLayout() {
         icon: "archive",
       },
       {
+        to: "/hr/activities/evaluated",
+        label: "Post-activity evaluations",
+        group: "Operations",
+        icon: "review",
+      },
+      {
         to: "/hr/domains",
         label: "Domain management",
         group: "Skills",

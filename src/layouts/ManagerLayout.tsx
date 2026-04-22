@@ -59,6 +59,12 @@ export default function ManagerLayout() {
         icon: "archive",
       },
       {
+        to: "/manager/activities/evaluated",
+        label: "Evaluated activities",
+        group: "Operations",
+        icon: "review",
+      },
+      {
         to: "/manager/domains",
         label: "Domain management",
         group: "Skills",

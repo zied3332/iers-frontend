@@ -96,7 +96,7 @@ function ManagerFilteredActivitiesInner({
       return;
     }
 
-    navigate(`/manager/activities/${activityId}/review`);
+    navigate(`/manager/activities/${activityId}/evaluate`);
   }
 
   return (
