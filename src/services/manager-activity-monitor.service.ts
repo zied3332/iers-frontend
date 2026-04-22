@@ -55,7 +55,7 @@ function pickTodayAttendancePatch(
     const v = byDay?.[todayKey];
     if (v) out[employeeId] = { [todayKey]: v };
   });
-  return out;
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 export function buildDateRange(start?: string, end?: string): string[] {

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { FiSearch } from "react-icons/fi";
 import {
   getFinalizedActivitiesForEvaluation,
   type ActivityEvalProgress,
@@ -32,6 +33,12 @@ export default function PostActivityFinalizedPage() {
   const [items, setItems] = useState<ActivityEvalProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<
+    "all" | "TRAINING" | "CERTIFICATION" | "PROJECT" | "MISSION" | "AUDIT"
+  >("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 8;
 
   useEffect(() => {
     let cancelled = false;
@@ -54,15 +61,48 @@ export default function PostActivityFinalizedPage() {
     };
   }, []);
 
-  const sorted = useMemo(() => {
+  const filteredSorted = useMemo(() => {
     const copy = [...items];
     copy.sort((a, b) =>
       String(b.activity?.managerEvaluationFinalizedAt || "").localeCompare(
         String(a.activity?.managerEvaluationFinalizedAt || "")
       )
     );
-    return copy;
-  }, [items]);
+    const q = search.trim().toLowerCase();
+    return copy.filter((item) => {
+      if (
+        typeFilter !== "all" &&
+        String(item.activity?.type || "").toUpperCase() !== typeFilter
+      ) {
+        return false;
+      }
+      if (!q) return true;
+      const haystack = [
+        item.activity?.title || "",
+        item.activity?.type || "",
+        item.activity?.status || "",
+        String(item.reviewedCount),
+        String(item.totalParticipants),
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [items, search, typeFilter]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, typeFilter, items.length]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSorted.length / ITEMS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginated = useMemo(() => {
+    const start = (safePage - 1) * ITEMS_PER_PAGE;
+    return filteredSorted.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredSorted, safePage]);
+  const startItem =
+    filteredSorted.length === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1;
+  const endItem = Math.min(safePage * ITEMS_PER_PAGE, filteredSorted.length);
 
   if (loading) {
     return (
@@ -87,22 +127,95 @@ export default function PostActivityFinalizedPage() {
         </div>
 
         {error ? (
-          <div style={{ padding: 14, borderRadius: 12, border: "1px solid #fecaca", color: "#b91c1c", background: "rgba(239,68,68,0.08)", marginBottom: 16 }}>
+          <div
+            style={{
+              padding: 14,
+              borderRadius: 12,
+              border: "1px solid color-mix(in srgb, var(--border) 66%, #ef4444)",
+              color: "color-mix(in srgb, var(--text) 78%, #b91c1c)",
+              background: "color-mix(in srgb, var(--surface) 92%, #ef4444)",
+              marginBottom: 16,
+            }}
+          >
             {error}
           </div>
         ) : null}
 
-        {sorted.length === 0 ? (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr auto",
+            gap: 12,
+            marginBottom: 14,
+          }}
+        >
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              border: "1px solid var(--border)",
+              borderRadius: 12,
+              padding: "10px 12px",
+              background: "var(--card)",
+            }}
+          >
+            <FiSearch size={16} style={{ color: "var(--muted)" }} />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search finalized activities..."
+              style={{
+                width: "100%",
+                border: "none",
+                outline: "none",
+                background: "transparent",
+                color: "var(--text)",
+              }}
+            />
+          </label>
+          <select
+            value={typeFilter}
+            onChange={(e) =>
+              setTypeFilter(
+                e.target.value as
+                  | "all"
+                  | "TRAINING"
+                  | "CERTIFICATION"
+                  | "PROJECT"
+                  | "MISSION"
+                  | "AUDIT"
+              )
+            }
+            style={{
+              border: "1px solid var(--border)",
+              borderRadius: 12,
+              padding: "10px 12px",
+              background: "var(--card)",
+              color: "var(--text)",
+              fontWeight: 600,
+            }}
+          >
+            <option value="all">All activity types</option>
+            <option value="TRAINING">Training</option>
+            <option value="CERTIFICATION">Certification</option>
+            <option value="PROJECT">Project</option>
+            <option value="MISSION">Mission</option>
+            <option value="AUDIT">Audit</option>
+          </select>
+        </div>
+
+        {filteredSorted.length === 0 ? (
           <div style={{ padding: 30, borderRadius: 14, border: "1px dashed var(--border)", color: "var(--muted)", textAlign: "center" }}>
             No finalized evaluations yet.
           </div>
         ) : (
           <div style={{ display: "grid", gap: 12 }}>
-            {sorted.map((item) => (
+            {paginated.map((item) => (
               <button
                 key={item.activity._id}
                 type="button"
-                onClick={() => navigate(`${prefix}/activities/${item.activity._id}/evaluate`)}
+                onClick={() => navigate(`${prefix}/activities/${item.activity._id}/evaluated`)}
                 style={{
                   textAlign: "left",
                   padding: 16,
@@ -123,6 +236,64 @@ export default function PostActivityFinalizedPage() {
                 </div>
               </button>
             ))}
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: "12px",
+                flexWrap: "wrap",
+                marginTop: "8px",
+              }}
+            >
+              <span
+                style={{
+                  color: "var(--muted)",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                }}
+              >
+                Showing {startItem} to {endItem} of {filteredSorted.length}
+              </span>
+
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-small"
+                  disabled={safePage === 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                >
+                  Previous
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (pageNumber) => (
+                    <button
+                      key={pageNumber}
+                      type="button"
+                      className={
+                        pageNumber === safePage
+                          ? "btn btn-primary btn-small"
+                          : "btn btn-ghost btn-small"
+                      }
+                      onClick={() => setCurrentPage(pageNumber)}
+                    >
+                      {pageNumber}
+                    </button>
+                  )
+                )}
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-small"
+                  disabled={safePage === totalPages}
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  }
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

@@ -26,7 +26,7 @@ const card: React.CSSProperties = {
   border: "1px solid var(--border)",
   borderRadius: 16,
   padding: 24,
-  boxShadow: "0 4px 16px rgba(15, 23, 42, 0.06)",
+  boxShadow: "var(--shadow)",
 };
 
 const avatarStyle = (size = 40): React.CSSProperties => ({
@@ -67,15 +67,31 @@ function toStatusLabel(v: DailyAttendanceStatus) {
 
 function getAttendanceBadgeStyle(value: DailyAttendanceStatus): React.CSSProperties {
   if (value === "PRESENT") {
-    return { color: "#166534", background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.28)" };
+    return {
+      color: "color-mix(in srgb, var(--text) 84%, #166534)",
+      background: "color-mix(in srgb, var(--surface) 86%, #22c55e)",
+      border: "1px solid color-mix(in srgb, var(--border) 68%, #22c55e)",
+    };
   }
   if (value === "LATE") {
-    return { color: "#92400e", background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.28)" };
+    return {
+      color: "color-mix(in srgb, var(--text) 84%, #92400e)",
+      background: "color-mix(in srgb, var(--surface) 86%, #f59e0b)",
+      border: "1px solid color-mix(in srgb, var(--border) 68%, #f59e0b)",
+    };
   }
   if (value === "EXCUSED") {
-    return { color: "#1d4ed8", background: "rgba(59,130,246,0.10)", border: "1px solid rgba(59,130,246,0.22)" };
+    return {
+      color: "color-mix(in srgb, var(--text) 84%, #1d4ed8)",
+      background: "color-mix(in srgb, var(--surface) 88%, #3b82f6)",
+      border: "1px solid color-mix(in srgb, var(--border) 70%, #3b82f6)",
+    };
   }
-  return { color: "#991b1b", background: "rgba(239,68,68,0.10)", border: "1px solid rgba(239,68,68,0.24)" };
+  return {
+    color: "color-mix(in srgb, var(--text) 84%, #991b1b)",
+    background: "color-mix(in srgb, var(--surface) 88%, #ef4444)",
+    border: "1px solid color-mix(in srgb, var(--border) 70%, #ef4444)",
+  };
 }
 
 function buildFinalReportText(params: {
@@ -397,6 +413,13 @@ export default function ManagerEvaluateActivityPage() {
     if (!activityId || isReadOnly) return;
     setMonitorDraft((prev) => ({ ...prev, finalReport: reportText }));
     void saveMonitorDraftWithServer(activityId, { finalReport: reportText });
+    setReportMessage("Report updated successfully.");
+    window.setTimeout(() => setReportMessage(""), 1800);
+  }
+
+  function finalizeAllEvaluations() {
+    if (!activityId || isReadOnly) return;
+    setPageError("");
     finalizeActivityEvaluations(activityId)
       .then((res) => {
         setData((prev) =>
@@ -408,7 +431,7 @@ export default function ManagerEvaluateActivityPage() {
             : prev
         );
         setReportMessage(
-          res?.message || "Evaluations finalized and sent to HR/super manager."
+          res?.message || "Final evaluation sent to HR and Super Manager."
         );
       })
       .catch((e: unknown) => {
@@ -448,7 +471,9 @@ export default function ManagerEvaluateActivityPage() {
     return (
       <div className="page">
         <div className="container" style={{ textAlign: "center", padding: 60 }}>
-          <p style={{ color: "#b91c1c" }}>{pageError || "Activity not found or not accessible."}</p>
+          <p style={{ color: "color-mix(in srgb, var(--text) 78%, #b91c1c)" }}>
+            {pageError || "Activity not found or not accessible."}
+          </p>
           <button onClick={() => navigate(-1)} style={{ marginTop: 16, cursor: "pointer" }}>
             ← Go back
           </button>
@@ -484,7 +509,17 @@ export default function ManagerEvaluateActivityPage() {
           </p>
           {isFinalized ? (
             <div style={{ marginTop: 8 }}>
-              <span className="badge" style={{ background: "rgba(34,197,94,0.12)", color: "#166534", border: "1px solid rgba(34,197,94,0.28)" }}>
+              <span
+                className="badge"
+                style={{
+                  background:
+                    "color-mix(in srgb, var(--surface) 86%, var(--sidebar-link-active-pill))",
+                  color:
+                    "color-mix(in srgb, var(--text) 84%, var(--sidebar-link-active-pill))",
+                  border:
+                    "1px solid color-mix(in srgb, var(--border) 68%, var(--sidebar-link-active-pill))",
+                }}
+              >
                 Finalized • read-only
               </span>
             </div>
@@ -492,7 +527,15 @@ export default function ManagerEvaluateActivityPage() {
         </div>
 
         {pageError ? (
-          <div style={{ ...card, borderColor: "#fecaca", color: "#b91c1c", marginBottom: 18 }}>
+          <div
+            style={{
+              ...card,
+              borderColor: "color-mix(in srgb, var(--border) 66%, #ef4444)",
+              background: "color-mix(in srgb, var(--surface) 92%, #ef4444)",
+              color: "color-mix(in srgb, var(--text) 78%, #b91c1c)",
+              marginBottom: 18,
+            }}
+          >
             {pageError}
           </div>
         ) : null}
@@ -519,7 +562,10 @@ export default function ManagerEvaluateActivityPage() {
                 height: "100%",
                 width: `${pct}%`,
                 borderRadius: 999,
-                background: pct === 100 ? "#22c55e" : "#3b82f6",
+                background:
+                  pct === 100
+                    ? "color-mix(in srgb, var(--text) 35%, var(--sidebar-link-active-pill))"
+                    : "color-mix(in srgb, var(--text) 35%, #3b82f6)",
                 transition: "width 0.4s",
               }}
             />
@@ -561,14 +607,14 @@ export default function ManagerEvaluateActivityPage() {
                     const name = p.employee.user_id?.name || "Unknown";
                     return (
                       <tr key={empId}>
-                        <td style={{ padding: "12px 10px", borderBottom: "1px solid #eef2f7", fontWeight: 800 }}>
+                        <td style={{ padding: "12px 10px", borderBottom: "1px solid var(--border)", fontWeight: 800 }}>
                           {name}
                         </td>
                         {attendanceSnapshot.days.map((day) => {
                           const status =
                             monitorDraft.attendanceByParticipant?.[empId]?.[day] || "ABSENT";
                           return (
-                            <td key={day} style={{ padding: "12px 10px", borderBottom: "1px solid #eef2f7" }}>
+                            <td key={day} style={{ padding: "12px 10px", borderBottom: "1px solid var(--border)" }}>
                               <span
                                 style={{
                                   ...getAttendanceBadgeStyle(status),
@@ -620,7 +666,11 @@ export default function ManagerEvaluateActivityPage() {
                     gap: 10,
                     padding: "10px 12px",
                     borderRadius: 12,
-                    border: `1.5px solid ${isSelected ? "#3b82f6" : "var(--border)"}`,
+                    border: `1.5px solid ${
+                      isSelected
+                        ? "color-mix(in srgb, var(--text) 38%, #3b82f6)"
+                        : "var(--border)"
+                    }`,
                     background: isSelected
                       ? "color-mix(in srgb, #3b82f6 8%, var(--surface))"
                       : "var(--surface)",
@@ -647,7 +697,9 @@ export default function ManagerEvaluateActivityPage() {
                       width: 10,
                       height: 10,
                       borderRadius: "50%",
-                      background: isDone ? "#22c55e" : "#f59e0b",
+                      background: isDone
+                        ? "color-mix(in srgb, var(--text) 38%, var(--sidebar-link-active-pill))"
+                        : "color-mix(in srgb, var(--text) 38%, #f59e0b)",
                       flexShrink: 0,
                     }}
                   />
@@ -711,11 +763,11 @@ export default function ManagerEvaluateActivityPage() {
               rows={12}
               placeholder="Write the summary that HR will receive..."
               style={{
-                border: "1px solid var(--border, #dbe2ea)",
+                border: "1px solid var(--border)",
                 borderRadius: 12,
                 padding: "12px 14px",
                 resize: "vertical",
-                background: "#fff",
+                background: "var(--surface)",
                 fontFamily: "inherit",
                 boxSizing: "border-box",
               }}
@@ -729,11 +781,33 @@ export default function ManagerEvaluateActivityPage() {
             <button type="button" className="btn btn-primary" onClick={sendFinalReport} disabled={isReadOnly}>
               Mark report ready for HR
             </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={finalizeAllEvaluations}
+              disabled={isReadOnly}
+              style={{
+                background:
+                  "color-mix(in srgb, var(--text) 28%, var(--sidebar-link-active-pill))",
+              }}
+            >
+              Final evaluation
+            </button>
             <button type="button" className="btn btn-ghost" onClick={exportFinalReport}>
               Export report
             </button>
             {reportMessage ? (
-              <div style={{ fontSize: 13, color: "#166534", fontWeight: 700, alignSelf: "center" }}>{reportMessage}</div>
+              <div
+                style={{
+                  fontSize: 13,
+                  color:
+                    "color-mix(in srgb, var(--text) 84%, var(--sidebar-link-active-pill))",
+                  fontWeight: 700,
+                  alignSelf: "center",
+                }}
+              >
+                {reportMessage}
+              </div>
             ) : null}
           </div>
         </div>
@@ -768,7 +842,7 @@ function EvaluationForm({
         border: "1px solid var(--border)",
         borderRadius: 16,
         padding: 24,
-        boxShadow: "0 4px 16px rgba(15, 23, 42, 0.06)",
+        boxShadow: "var(--shadow)",
       }}
     >
       <div style={{ marginBottom: 18 }}>
@@ -782,10 +856,10 @@ function EvaluationForm({
 
       <div
         style={{
-          border: "1px solid var(--border, #dbe2ea)",
+          border: "1px solid var(--border)",
           borderRadius: 14,
           padding: 16,
-          background: "var(--surface, #fff)",
+          background: "var(--surface)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -802,9 +876,9 @@ function EvaluationForm({
           style={{
             borderRadius: 999,
             padding: "10px 16px",
-            background: "rgba(59,130,246,0.08)",
-            border: "1px solid rgba(59,130,246,0.25)",
-            color: "#1d4ed8",
+            background: "color-mix(in srgb, var(--surface) 90%, #3b82f6)",
+            border: "1px solid color-mix(in srgb, var(--border) 68%, #3b82f6)",
+            color: "color-mix(in srgb, var(--text) 84%, #1d4ed8)",
             fontWeight: 800,
             fontSize: 13,
           }}
@@ -829,7 +903,7 @@ function EvaluationForm({
             onChange={(e) =>
               onChange({ attendanceStatus: e.target.value as AttendanceStatus })
             }
-            style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "#fff" }}
+            style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "var(--surface)" }}
           >
             <option value="EXCELLENT">Excellent</option>
             <option value="GOOD">Good</option>
@@ -845,7 +919,7 @@ function EvaluationForm({
             onChange={(e) =>
               onChange({ participationLevel: e.target.value as ParticipationLevel })
             }
-            style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "#fff" }}
+            style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "var(--surface)" }}
           >
             <option value="VERY_ACTIVE">Very active</option>
             <option value="ACTIVE">Active</option>
@@ -861,7 +935,7 @@ function EvaluationForm({
             onChange={(e) =>
               onChange({ skillProgress: e.target.value as SkillProgress })
             }
-            style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "#fff" }}
+            style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "var(--surface)" }}
           >
             <option value="STRONG">Strong improvement</option>
             <option value="MODERATE">Moderate improvement</option>
@@ -877,7 +951,7 @@ function EvaluationForm({
             onChange={(e) =>
               onChange({ outcome: e.target.value as EvaluationOutcome })
             }
-            style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "#fff" }}
+            style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "var(--surface)" }}
           >
             <option value="COMPLETED_SUCCESSFULLY">Completed successfully</option>
             <option value="NEEDS_FOLLOW_UP">Needs follow-up</option>
@@ -892,7 +966,7 @@ function EvaluationForm({
             onChange={(e) =>
               onChange({ recommendation: e.target.value as Recommendation })
             }
-            style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "#fff" }}
+            style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "var(--surface)" }}
           >
             <option value="ADVANCED_TRAINING">Advanced training</option>
             <option value="PROJECT_ASSIGNMENT">Project assignment</option>
@@ -906,7 +980,7 @@ function EvaluationForm({
             disabled={draft.submitting || readOnly}
             value={draft.rating}
             onChange={(e) => onChange({ rating: Number(e.target.value) || 1 })}
-            style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "#fff" }}
+            style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "var(--surface)" }}
           >
             <option value={1}>1 / 5</option>
             <option value={2}>2 / 5</option>
@@ -963,8 +1037,10 @@ function EvaluationForm({
               padding: "11px 16px",
               borderRadius: 10,
               border: "none",
-              background: draft.submitting ? "var(--border)" : "#10b981",
-              color: "#fff",
+              background: draft.submitting
+                ? "var(--border)"
+                : "color-mix(in srgb, var(--text) 28%, var(--sidebar-link-active-pill))",
+              color: "var(--surface)",
               fontWeight: 900,
               fontSize: 14,
               cursor: draft.submitting ? "default" : "pointer",
@@ -977,7 +1053,15 @@ function EvaluationForm({
               : "Submit evaluation"}
           </button>
           {savedHint ? (
-            <span style={{ color: "#166534", fontWeight: 700, fontSize: 13, alignSelf: "center" }}>
+            <span
+              style={{
+                color:
+                  "color-mix(in srgb, var(--text) 84%, var(--sidebar-link-active-pill))",
+                fontWeight: 700,
+                fontSize: 13,
+                alignSelf: "center",
+              }}
+            >
               {savedHint}
             </span>
           ) : null}
@@ -988,11 +1072,14 @@ function EvaluationForm({
             textAlign: "center",
             padding: "12px",
             borderRadius: 12,
-            background: "color-mix(in srgb, #22c55e 10%, var(--surface))",
-            color: "#16a34a",
+            background:
+              "color-mix(in srgb, var(--surface) 88%, var(--sidebar-link-active-pill))",
+            color:
+              "color-mix(in srgb, var(--text) 84%, var(--sidebar-link-active-pill))",
             fontWeight: 800,
             fontSize: 15,
-            border: "1.5px solid #22c55e",
+            border:
+              "1.5px solid color-mix(in srgb, var(--border) 66%, var(--sidebar-link-active-pill))",
           }}
         >
           Submitting evaluation...

@@ -22,10 +22,10 @@ type ParticipantRow = {
 
 function cardStyle() {
   return {
-    background: "var(--card, #fff)",
-    border: "1px solid var(--border, #dbe2ea)",
+    background: "var(--card)",
+    border: "1px solid var(--border)",
     borderRadius: 20,
-    boxShadow: "var(--shadow, 0 10px 30px rgba(15,23,42,0.05))",
+    boxShadow: "var(--shadow)",
   };
 }
 
@@ -49,10 +49,29 @@ function shortId(v?: string) {
 }
 
 function getAttendanceBadge(value: DailyAttendanceStatus) {
-  if (value === "PRESENT") return { color: "#166534", bg: "rgba(34,197,94,0.12)", bd: "rgba(34,197,94,0.28)" };
-  if (value === "LATE") return { color: "#92400e", bg: "rgba(245,158,11,0.12)", bd: "rgba(245,158,11,0.28)" };
-  if (value === "EXCUSED") return { color: "#1d4ed8", bg: "rgba(59,130,246,0.10)", bd: "rgba(59,130,246,0.22)" };
-  return { color: "#991b1b", bg: "rgba(239,68,68,0.10)", bd: "rgba(239,68,68,0.24)" };
+  if (value === "PRESENT")
+    return {
+      color: "color-mix(in srgb, var(--text) 84%, #166534)",
+      bg: "color-mix(in srgb, var(--surface) 86%, #22c55e)",
+      bd: "color-mix(in srgb, var(--border) 68%, #22c55e)",
+    };
+  if (value === "LATE")
+    return {
+      color: "color-mix(in srgb, var(--text) 84%, #92400e)",
+      bg: "color-mix(in srgb, var(--surface) 86%, #f59e0b)",
+      bd: "color-mix(in srgb, var(--border) 68%, #f59e0b)",
+    };
+  if (value === "EXCUSED")
+    return {
+      color: "color-mix(in srgb, var(--text) 84%, #1d4ed8)",
+      bg: "color-mix(in srgb, var(--surface) 88%, #3b82f6)",
+      bd: "color-mix(in srgb, var(--border) 70%, #3b82f6)",
+    };
+  return {
+    color: "color-mix(in srgb, var(--text) 84%, #991b1b)",
+    bg: "color-mix(in srgb, var(--surface) 88%, #ef4444)",
+    bd: "color-mix(in srgb, var(--border) 70%, #ef4444)",
+  };
 }
 
 export default function ManagerInProgressActivityPage() {
@@ -121,10 +140,6 @@ export default function ManagerInProgressActivityPage() {
         setDayNotes(draft.dayNotes || {});
         setSelectedDay(days[0] || "");
 
-        void saveMonitorDraftWithServer(activityId, {
-          attendanceByParticipant: normalizedAttendance,
-          dayNotes: draft.dayNotes || {},
-        });
       } catch (e: unknown) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : "Failed to load activity monitor.");
@@ -221,7 +236,14 @@ export default function ManagerInProgressActivityPage() {
     return (
       <div className="page">
         <div className="container" style={{ textAlign: "center", padding: 60 }}>
-          <p style={{ color: "#b91c1c", fontWeight: 700 }}>{error || "Activity not found."}</p>
+          <p
+            style={{
+              color: "color-mix(in srgb, var(--text) 78%, #b91c1c)",
+              fontWeight: 700,
+            }}
+          >
+            {error || "Activity not found."}
+          </p>
           <button className="btn btn-ghost" type="button" onClick={() => navigate("/manager/activities/running")}>
             <FiArrowLeft /> Back
           </button>
@@ -231,7 +253,7 @@ export default function ManagerInProgressActivityPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg, #f4f7fb)", color: "var(--text, #0f172a)", padding: 24 }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", padding: 24 }}>
       <div style={{ maxWidth: 1280, margin: "0 auto", display: "grid", gap: 18 }}>
         <section style={{ ...cardStyle(), padding: 22, display: "grid", gap: 14 }}>
           <button type="button" className="btn btn-ghost" style={{ width: "fit-content" }} onClick={() => navigate("/manager/activities/running")}>
@@ -239,12 +261,31 @@ export default function ManagerInProgressActivityPage() {
           </button>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: "0.08em", color: "#10b981", textTransform: "uppercase" }}>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 900,
+                  letterSpacing: "0.08em",
+                  color:
+                    "color-mix(in srgb, var(--text) 72%, var(--sidebar-link-active-pill))",
+                  textTransform: "uppercase",
+                }}
+              >
                 Activity monitor
               </div>
               <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1.1, marginTop: 8 }}>{activity.title}</div>
               <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <span className="badge" style={{ background: "rgba(16,185,129,0.12)", color: "#166534", border: "1px solid rgba(16,185,129,0.26)" }}>
+                <span
+                  className="badge"
+                  style={{
+                    background:
+                      "color-mix(in srgb, var(--surface) 86%, var(--sidebar-link-active-pill))",
+                    color:
+                      "color-mix(in srgb, var(--text) 84%, var(--sidebar-link-active-pill))",
+                    border:
+                      "1px solid color-mix(in srgb, var(--border) 68%, var(--sidebar-link-active-pill))",
+                  }}
+                >
                   <FiPlayCircle size={14} /> In progress
                 </span>
                 <span className="badge">{formatLabel(activity.type)}</span>
@@ -256,21 +297,33 @@ export default function ManagerInProgressActivityPage() {
               <div
                 style={{
                   borderRadius: 14,
-                  background: "rgba(16,185,129,0.08)",
-                  border: "1px solid rgba(16,185,129,0.18)",
+                  background:
+                    "color-mix(in srgb, var(--surface) 90%, var(--sidebar-link-active-pill))",
+                  border:
+                    "1px solid color-mix(in srgb, var(--border) 70%, var(--sidebar-link-active-pill))",
                   padding: 12,
                 }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 800, color: "#065f46" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontSize: 13,
+                    fontWeight: 800,
+                    color:
+                      "color-mix(in srgb, var(--text) 80%, var(--sidebar-link-active-pill))",
+                  }}
+                >
                   <span>Execution progress</span>
                   <span>{executionProgressPercent}%</span>
                 </div>
-                <div style={{ height: 8, borderRadius: 999, background: "rgba(15,23,42,0.08)", overflow: "hidden", marginTop: 8 }}>
+                <div style={{ height: 8, borderRadius: 999, background: "var(--border)", overflow: "hidden", marginTop: 8 }}>
                   <div
                     style={{
                       width: `${executionProgressPercent}%`,
                       height: "100%",
-                      background: "linear-gradient(90deg, #6366f1 0%, #10b981 100%)",
+                      background:
+                        "linear-gradient(90deg, color-mix(in srgb, var(--text) 36%, #6366f1) 0%, color-mix(in srgb, var(--text) 36%, var(--sidebar-link-active-pill)) 100%)",
                     }}
                   />
                 </div>
@@ -284,24 +337,24 @@ export default function ManagerInProgressActivityPage() {
               >
                 <div
                   style={{
-                    border: "1px solid var(--border, #dbe2ea)",
+                    border: "1px solid var(--border)",
                     borderRadius: 14,
                     padding: 12,
-                    background: "var(--surface, #fff)",
+                    background: "var(--surface)",
                   }}
                 >
-                  <div style={{ fontSize: 12, color: "var(--muted, #64748b)" }}>Start</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>Start</div>
                   <div style={{ fontWeight: 800, marginTop: 4 }}>{activity.startDate || "—"}</div>
                 </div>
                 <div
                   style={{
-                    border: "1px solid var(--border, #dbe2ea)",
+                    border: "1px solid var(--border)",
                     borderRadius: 14,
                     padding: 12,
-                    background: "var(--surface, #fff)",
+                    background: "var(--surface)",
                   }}
                 >
-                  <div style={{ fontSize: 12, color: "var(--muted, #64748b)" }}>End</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>End</div>
                   <div style={{ fontWeight: 800, marginTop: 4 }}>{activity.endDate || "—"}</div>
                 </div>
               </div>
@@ -339,17 +392,17 @@ export default function ManagerInProgressActivityPage() {
               <div
                 key={item.label}
                 style={{
-                  border: "1px solid var(--border, #dbe2ea)",
+                  border: "1px solid var(--border)",
                   borderRadius: 14,
                   padding: 14,
-                  background: "var(--surface, #fff)",
+                  background: "var(--surface)",
                   display: "grid",
                   gap: 6,
                 }}
               >
                 <div
                   style={{
-                    color: "var(--muted, #64748b)",
+                    color: "var(--muted)",
                     display: "flex",
                     gap: 8,
                     alignItems: "center",
@@ -364,8 +417,23 @@ export default function ManagerInProgressActivityPage() {
               </div>
             ))}
           </div>
-          {error ? <div style={{ color: "#b91c1c", fontWeight: 700 }}>{error}</div> : null}
-          {flash ? <div style={{ color: "#166534", fontWeight: 700 }}><FiCheckCircle style={{ marginRight: 6 }} />{flash}</div> : null}
+          {error ? (
+            <div style={{ color: "color-mix(in srgb, var(--text) 78%, #b91c1c)", fontWeight: 700 }}>
+              {error}
+            </div>
+          ) : null}
+          {flash ? (
+            <div
+              style={{
+                color:
+                  "color-mix(in srgb, var(--text) 84%, var(--sidebar-link-active-pill))",
+                fontWeight: 700,
+              }}
+            >
+              <FiCheckCircle style={{ marginRight: 6 }} />
+              {flash}
+            </div>
+          ) : null}
         </section>
 
         <section style={{ ...cardStyle(), padding: 22, display: "grid", gap: 16 }}>
@@ -389,8 +457,12 @@ export default function ManagerInProgressActivityPage() {
                     minWidth: 160,
                     padding: "10px 12px",
                     borderRadius: 14,
-                    border: active ? "1px solid rgba(59,130,246,0.28)" : "1px solid var(--border)",
-                    background: active ? "rgba(59,130,246,0.08)" : "#fff",
+                    border: active
+                      ? "1px solid color-mix(in srgb, var(--border) 70%, #3b82f6)"
+                      : "1px solid var(--border)",
+                    background: active
+                      ? "color-mix(in srgb, var(--surface) 90%, #3b82f6)"
+                      : "var(--surface)",
                     textAlign: "left",
                     cursor: "pointer",
                   }}
@@ -410,7 +482,7 @@ export default function ManagerInProgressActivityPage() {
               { label: "Excused", value: selectedDayStats.excused },
               { label: "Days remaining", value: remainingDays },
             ].map((it) => (
-              <div key={it.label} style={{ border: "1px solid var(--border)", borderRadius: 14, background: "#fff", padding: 12 }}>
+              <div key={it.label} style={{ border: "1px solid var(--border)", borderRadius: 14, background: "var(--surface)", padding: 12 }}>
                 <div style={{ fontSize: 12, color: "var(--muted)" }}>{it.label}</div>
                 <div style={{ fontWeight: 900, fontSize: 24 }}>{it.value}</div>
               </div>
@@ -434,19 +506,19 @@ export default function ManagerInProgressActivityPage() {
                   const badge = getAttendanceBadge(status);
                   return (
                     <tr key={row.id}>
-                      <td style={{ padding: "12px 10px", borderBottom: "1px solid #eef2f7", fontWeight: 800 }}>{row.name}</td>
-                      <td style={{ padding: "12px 10px", borderBottom: "1px solid #eef2f7", color: "var(--muted)" }}>{row.role}</td>
-                      <td style={{ padding: "12px 10px", borderBottom: "1px solid #eef2f7" }}>
+                      <td style={{ padding: "12px 10px", borderBottom: "1px solid var(--border)", fontWeight: 800 }}>{row.name}</td>
+                      <td style={{ padding: "12px 10px", borderBottom: "1px solid var(--border)", color: "var(--muted)" }}>{row.role}</td>
+                      <td style={{ padding: "12px 10px", borderBottom: "1px solid var(--border)" }}>
                         <span style={{ borderRadius: 999, padding: "4px 10px", fontWeight: 800, fontSize: 12, color: badge.color, background: badge.bg, border: `1px solid ${badge.bd}` }}>
                           {status}
                         </span>
                       </td>
-                      <td style={{ padding: "12px 10px", borderBottom: "1px solid #eef2f7" }}>
+                      <td style={{ padding: "12px 10px", borderBottom: "1px solid var(--border)" }}>
                         <select
                           value={status}
                           onChange={(e) => updateAttendance(row.id, selectedDay, e.target.value as DailyAttendanceStatus)}
                           disabled={!canMarkSelectedDay}
-                          style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "9px 10px", background: "#fff" }}
+                          style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "9px 10px", background: "var(--surface)", color: "var(--text)" }}
                         >
                           <option value="PRESENT">Present</option>
                           <option value="LATE">Late</option>
@@ -475,7 +547,7 @@ export default function ManagerInProgressActivityPage() {
                   })
                 }
                 placeholder="Write what happened during this day..."
-                style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "12px 14px", resize: "vertical", background: "#fff", fontFamily: "inherit" }}
+                style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "12px 14px", resize: "vertical", background: "var(--surface)", color: "var(--text)", fontFamily: "inherit" }}
               />
             </label>
             <button
@@ -489,7 +561,7 @@ export default function ManagerInProgressActivityPage() {
             </button>
           </div>
           {!canMarkSelectedDay ? (
-            <div style={{ color: "#92400e", fontWeight: 700, fontSize: 13 }}>
+            <div style={{ color: "color-mix(in srgb, var(--text) 84%, #92400e)", fontWeight: 700, fontSize: 13 }}>
               Attendance can only be marked for today ({todayKey}).
             </div>
           ) : null}

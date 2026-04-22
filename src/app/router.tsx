@@ -64,6 +64,7 @@ import AccountPending from "../pages/auth/AccountPending";
 import SettingsPage from "../pages/settings/SettingsPage";
 import ManagerEvaluateActivityPage from "../pages/manger/ManagerEvaluateActivityPage";
 import PostActivityFinalizedPage from "../pages/manger/PostActivityFinalizedPage";
+import PostActivityEvaluationReadOnlyPage from "../pages/manger/PostActivityEvaluationReadOnlyPage";
 type Role = "HR" | "SUPER_MANAGER" | "MANAGER" | "EMPLOYEE";
 
 function getRole(): Role | null {
@@ -163,6 +164,7 @@ export const router = createBrowserRouter([
           { path: "activities/:activityId/manager-decisions", element: <ManagerDecisionsPage /> },
           // path: "activities/archive", element: <ManagerPastActivitiesPage /> },
           { path: "activities/:activityId/evaluate", element: <ManagerEvaluateActivityPage /> },
+          { path: "activities/:activityId/evaluated", element: <PostActivityEvaluationReadOnlyPage /> },
           { path: "activities/evaluated", element: <PostActivityFinalizedPage /> },
           { path: "skills-dashboard", element: <HrSkillsDashboard /> },
           { path: "recommendations", element: <HrGenerateRecommendations /> },
@@ -212,6 +214,7 @@ export const router = createBrowserRouter([
           { path: "settings", element: <SettingsPage /> },
           { path: "employees/:id", element: <Profile /> },
           { path: "activities/:activityId/evaluate", element: <ManagerEvaluateActivityPage /> },
+          { path: "activities/:activityId/evaluated", element: <PostActivityEvaluationReadOnlyPage /> },
           { path: "activities/evaluated", element: <PostActivityFinalizedPage /> },
         ],
       },
@@ -248,6 +251,7 @@ export const router = createBrowserRouter([
           { path: "activities/evaluations", element: <ManagerPastActivitiesEvalPage /> },
           { path: "activities/evaluated", element: <PostActivityFinalizedPage /> },
           { path: "activities/:activityId/evaluate", element: <ManagerEvaluateActivityPage /> },
+          { path: "activities/:activityId/evaluated", element: <PostActivityEvaluationReadOnlyPage /> },
         ],
       },
     ],
