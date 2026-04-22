@@ -28,6 +28,7 @@ import {
   readStoredThemeMode,
   THEME_COLOR_OPTIONS,
 } from "../../utils/themePreferences";
+import { useTranslate } from '../../context/TranslateContext';
 
 type ThemeMode = "light" | "dark";
 type LayoutDensity = "comfortable" | "compact";
@@ -152,6 +153,7 @@ export default function SettingsPage() {
   const [backupCodesRemaining, setBackupCodesRemaining] = useState(0);
   const [twoFactorError, setTwoFactorError] = useState("");
   const [twoFactorSuccess, setTwoFactorSuccess] = useState("");
+  const { isFrench, setIsFrench } = useTranslate();
 
   useEffect(() => {
     const stored = readStoredSettings();
@@ -1121,30 +1123,64 @@ export default function SettingsPage() {
                 </div>
 
                 <div style={settingsListStyle}>
-                  <div style={rowStyle}>
-                    <div style={rowLabelWrap}>
-                      <span style={rowTitle}>Language</span>
-                      <span style={rowHint}>
-                        Set the display language used throughout the workspace.
-                      </span>
-                    </div>
+<div style={rowStyle}>
+  <div style={rowLabelWrap}>
+    <span style={rowTitle}>Language</span>
+    <span style={rowHint}>
+      Set the display language used throughout the workspace.
+    </span>
+  </div>
 
-                    <div style={segmentedWrap}>
-                      {(["English", "Français", "العربية"] as Language[]).map((lang) => (
-                        <button
-                          key={lang}
-                          style={
-                            settings.language === lang
-                              ? segmentedBtnActive(previewAccent)
-                              : segmentedBtn
-                          }
-                          onClick={() => updateSetting("language", lang)}
-                        >
-                          {lang}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+  <div style={segmentedWrap}>
+  {/* Bouton English — texte fixe, jamais traduit */}
+  <button
+    data-notranslate="true"
+    style={
+      !isFrench && settings.language !== "العربية"
+        ? segmentedBtnActive(previewAccent)
+        : segmentedBtn
+    }
+    onClick={() => {
+      updateSetting("language", "English");
+      setIsFrench(false);
+    }}
+  >
+    🇬🇧 English
+  </button>
+
+  {/* Bouton Français */}
+  <button
+    data-notranslate="true"
+    style={
+      isFrench
+        ? segmentedBtnActive(previewAccent)
+        : segmentedBtn
+    }
+    onClick={() => {
+      updateSetting("language", "Français");
+      setIsFrench(true);
+    }}
+  >
+    🇫🇷 Français
+  </button>
+
+  {/* Bouton العربية */}
+  <button
+    data-notranslate="true"
+    style={
+      settings.language === "العربية" && !isFrench
+        ? segmentedBtnActive(previewAccent)
+        : segmentedBtn
+    }
+    onClick={() => {
+      updateSetting("language", "العربية");
+      setIsFrench(false);
+    }}
+  >
+    🇹🇳 العربية
+  </button>
+</div>
+</div>
 
                   <div style={rowStyle}>
                     <div style={rowLabelWrap}>
