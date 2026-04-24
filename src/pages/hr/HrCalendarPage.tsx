@@ -149,6 +149,22 @@ function getMonthRangeLabel(currentDate: Date) {
 }
 
 export default function HrCalendarPage() {
+  const role = useMemo(() => {
+    try {
+      const raw = localStorage.getItem("user");
+      const parsed = raw ? JSON.parse(raw) : {};
+      return String(parsed?.role || "").toUpperCase();
+    } catch {
+      return "";
+    }
+  }, []);
+  const calendarScopeLabel = role === "MANAGER" ? "Manager Calendar" : role === "SUPER_MANAGER" ? "Super Manager Calendar" : "HR Calendar";
+  const calendarSubtitle =
+    role === "MANAGER"
+      ? "Follow activities assigned to you."
+      : role === "SUPER_MANAGER"
+      ? "Follow activities across all departments."
+      : "Follow multi-day training activities, certifications, and internal programs.";
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
@@ -345,7 +361,7 @@ export default function HrCalendarPage() {
                   marginBottom: "6px",
                 }}
               >
-                HR Calendar
+                {calendarScopeLabel}
               </div>
               <h1 style={{ margin: 0, fontSize: "32px", fontWeight: 800 }}>
                 Activities Calendar
@@ -357,7 +373,7 @@ export default function HrCalendarPage() {
                   fontSize: "14px",
                 }}
               >
-                Follow multi-day training activities, certifications, and internal programs.
+                {calendarSubtitle}
               </div>
             </div>
 

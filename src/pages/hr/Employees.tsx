@@ -217,6 +217,7 @@ type Emp = {
   id: string;
   name: string;
   role: string;
+  jobTitle: string;
   departmentId: string;
   department: string;
   email: string;
@@ -370,14 +371,15 @@ function getSeniorityBadge(seniority: string): React.CSSProperties {
 }
 
 function inferOnlineStatus(user: any) {
+  if (typeof user?.en_ligne === "boolean") return user.en_ligne;
   const raw = String(
-    user?.status ?? user?.presence ?? user?.connectionStatus ?? user?.isOnline ?? ""
+    user?.presence ?? user?.connectionStatus ?? user?.isOnline ?? ""
   )
     .trim()
     .toLowerCase();
 
   if (typeof user?.isOnline === "boolean") return user.isOnline;
-  if (raw === "online" || raw === "active" || raw === "true") return true;
+  if (raw === "online" || raw === "true") return true;
   return false;
 }
 
@@ -519,6 +521,7 @@ export default function HrEmployees() {
         id: String(r._id || ""),
         name: String(user?.name || "-"),
         role: roleValue || "Not Assigned",
+        jobTitle: String(r.jobTitle || "Not Assigned"),
         departmentId: depId,
         department: resolveDepartmentName(
           (user as any)?.departement_id,
@@ -1253,7 +1256,7 @@ export default function HrEmployees() {
 
                 <div>
                   <div style={fieldLabel}>Job title</div>
-                  <div style={fieldValue}>{viewing.role}</div>
+                  <div style={fieldValue}>{viewing.jobTitle}</div>
                 </div>
 
                 <div>

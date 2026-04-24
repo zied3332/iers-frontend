@@ -85,12 +85,6 @@ export default function SuperManagerLayout() {
         icon: "assign",
       },
       {
-        to: "/super-manager/recommendations",
-        label: "Recommendations",
-        group: "Intelligence",
-        icon: "copilot",
-      },
-      {
         to: "/super-manager/history",
         label: "My history",
         group: "Personal",

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getCurrentUser } from "../../services/auth.service";
 import { getAllDepartments } from "../../services/departments.service";
 import { getUsers } from "../../services/users.service";
@@ -40,6 +41,7 @@ function monthKey(date: Date) {
 }
 
 export default function ManagerDashboard() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [calendarDate, setCalendarDate] = useState(() => new Date());
@@ -503,12 +505,31 @@ export default function ManagerDashboard() {
           </div>
 
           <section
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate("/manager/calendar")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                navigate("/manager/calendar");
+              }
+            }}
             style={{
               background: "var(--card)",
               borderRadius: 24,
               padding: 22,
               border: "1px solid var(--border)",
               boxShadow: "0 10px 26px rgba(15, 23, 42, 0.07)",
+              cursor: "pointer",
+              transition: "transform 0.2s ease, box-shadow 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "0 14px 32px rgba(15, 23, 42, 0.12)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 10px 26px rgba(15, 23, 42, 0.07)";
             }}
           >
             <div className="section-head" style={{ marginBottom: 12 }}>
