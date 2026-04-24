@@ -11,7 +11,7 @@ import {
   HiOutlineSparkles,
   HiOutlineUserCircle,
 } from 'react-icons/hi2';
-import { assignSkill, getAllSkills } from '../../../services/skills.service';
+import { assignSkill, getAllSkills, getEmployeeSkills } from '../../../services/skills.service';
 import { getUsers } from '../../../services/users.service';
 import { getAllDepartments, type Department } from '../../../services/departments.service';
 import { getAllDomains, type Domain } from '../../../services/domains.service';
@@ -70,6 +70,13 @@ type Employee = {
 };
 
 type SkillLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'EXPERT';
+type EmployeeAssignedSkill = {
+  id: string;
+  name: string;
+  category: Skill['category'] | string;
+  level: SkillLevel | string;
+  dynamicScore?: number;
+};
 
 // ─────────────────────────────────────────────────────────────
 // 🎨 Reusable UI Components
@@ -301,6 +308,9 @@ export default function AssignSkillPage() {
   const [searchSkill, setSearchSkill] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [selectedEmployeeSkills, setSelectedEmployeeSkills] = useState<EmployeeAssignedSkill[]>([]);
+  const [employeeSkillsLoading, setEmployeeSkillsLoading] = useState(false);
+  const [employeeSkillsError, setEmployeeSkillsError] = useState('');
 
   const [form, setForm] = useState<{
     employeeId: string;
@@ -394,12 +404,60 @@ export default function AssignSkillPage() {
   const selectedSkill = skills.find(s => s._id === form.skillId);
   const isValid = form.employeeId && form.skillId && form.dynamicScore >= 0;
 
+  useEffect(() => {
+    if (!form.employeeId) {
+      setSelectedEmployeeSkills([]);
+      setEmployeeSkillsLoading(false);
+      setEmployeeSkillsError('');
+      return;
+    }
+
+    let active = true;
+    const loadEmployeeSkills = async () => {
+      setEmployeeSkillsLoading(true);
+      setEmployeeSkillsError('');
+      try {
+        const rows = await getEmployeeSkills(form.employeeId);
+        if (!active) return;
+        const mapped = (Array.isArray(rows) ? rows : []).map((row: any) => ({
+          id: String(row?._id || ''),
+          name: String(row?.skill?.name || 'Unknown skill'),
+          category: String(row?.skill?.category || '-'),
+          level: String(row?.level || '-'),
+          dynamicScore: typeof row?.dynamicScore === 'number' ? row.dynamicScore : undefined,
+        }));
+        setSelectedEmployeeSkills(mapped);
+      } catch (e: any) {
+        if (!active) return;
+        setSelectedEmployeeSkills([]);
+        setEmployeeSkillsError(String(e?.message || 'Failed to load employee skills.'));
+      } finally {
+        if (!active) return;
+        setEmployeeSkillsLoading(false);
+      }
+    };
+    void loadEmployeeSkills();
+
+    return () => {
+      active = false;
+    };
+  }, [form.employeeId]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isValid) { setError('Please complete all required fields.'); return; }
     try {
       setSubmitting(true); setError(''); setSuccess('');
       await assignSkill(form as any);
+      const refreshedSkills = await getEmployeeSkills(form.employeeId);
+      const refreshedMapped = (Array.isArray(refreshedSkills) ? refreshedSkills : []).map((row: any) => ({
+        id: String(row?._id || ''),
+        name: String(row?.skill?.name || 'Unknown skill'),
+        category: String(row?.skill?.category || '-'),
+        level: String(row?.level || '-'),
+        dynamicScore: typeof row?.dynamicScore === 'number' ? row.dynamicScore : undefined,
+      }));
+      setSelectedEmployeeSkills(refreshedMapped);
       setForm({ employeeId: '', skillId: '', level: 'LOW', dynamicScore: 0 });
       setSuccess('Skill assigned successfully.');
       setTimeout(() => setSuccess(''), 4000);
@@ -666,6 +724,44 @@ export default function AssignSkillPage() {
                     <div style={{ fontSize: '16px', color: theme.colors.muted, fontStyle: 'italic' }}>Select an employee</div>
                   )}
                 </div>
+
+                {/* Existing Employee Skills */}
+                {selectedEmployee ? (
+                  <div>
+                    <div style={{ fontSize: '12px', fontWeight: 800, color: theme.colors.text, opacity: 0.8, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <HiOutlineAcademicCap size={14} /> Existing skills
+                    </div>
+                    <div style={{ padding: '14px', borderRadius: theme.radius.sm, background: theme.colors.surface, border: '1px solid ' + theme.colors.border }}>
+                      {employeeSkillsLoading ? (
+                        <div style={{ color: theme.colors.muted, fontSize: '14px', fontStyle: 'italic' }}>Loading employee skills...</div>
+                      ) : employeeSkillsError ? (
+                        <div style={{ color: theme.colors.danger, fontSize: '14px', fontWeight: 700 }}>{employeeSkillsError}</div>
+                      ) : selectedEmployeeSkills.length === 0 ? (
+                        <div style={{ color: theme.colors.muted, fontSize: '14px', fontStyle: 'italic' }}>No skills assigned yet</div>
+                      ) : (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          {selectedEmployeeSkills.map((s) => (
+                            <span
+                              key={s.id}
+                              style={{
+                                padding: '6px 10px',
+                                borderRadius: '999px',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                background: '#f3f4f6',
+                                border: '1px solid #e5e7eb',
+                                color: theme.colors.text,
+                              }}
+                              title={typeof s.dynamicScore === 'number' ? `Score: ${s.dynamicScore}` : undefined}
+                            >
+                              {s.name} - {String(s.level || '-')}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
 
                 {/* Skill Preview */}
                 <div>
