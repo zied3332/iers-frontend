@@ -6,6 +6,13 @@ import {
   type PostActivityEvaluation,
 } from "../../services/post-activity-evaluations.service";
 import {
+  FiCalendar,
+  FiCheckCircle,
+  FiClock,
+  FiMapPin,
+  FiUsers,
+} from "react-icons/fi";
+import {
   buildDateRange,
   getMonitorDraftWithServer,
   type MonitorDraft,
@@ -125,6 +132,9 @@ export default function PostActivityEvaluationReadOnlyPage() {
 
   const participants = data.participants || [];
   const evaluatedCount = participants.filter((p) => p.isEvaluated).length;
+  const completionPercent = participants.length
+    ? Math.round((evaluatedCount / participants.length) * 100)
+    : 0;
 
   const parseLineValue = (feedback: string, prefix: string): string | null => {
     const line = feedback
@@ -205,8 +215,21 @@ export default function PostActivityEvaluationReadOnlyPage() {
           <p className="page-subtitle">Finalized post-activity evaluation (read-only)</p>
         </div>
 
-        <div style={{ ...card, marginBottom: 14 }}>
-          <div style={{ fontWeight: 800, marginBottom: 10 }}>Activity details</div>
+        <div
+          style={{
+            ...card,
+            marginBottom: 14,
+            background: "color-mix(in srgb, var(--surface) 90%, var(--sidebar-link-active-pill))",
+            border: "1px solid color-mix(in srgb, var(--border) 68%, var(--sidebar-link-active-pill))",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
+            <div style={{ fontWeight: 900, fontSize: 18 }}>Activity details</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <span className="badge">{String(data.activity?.type || "—").replaceAll("_", " ")}</span>
+              <span className="badge">Status: {String(data.activity?.status || "—").replaceAll("_", " ")}</span>
+            </div>
+          </div>
           <div
             style={{
               display: "grid",
@@ -215,16 +238,41 @@ export default function PostActivityEvaluationReadOnlyPage() {
               fontSize: 13,
             }}
           >
-            <div><strong>Type:</strong> {String(data.activity?.type || "—").replaceAll("_", " ")}</div>
-            <div><strong>Status:</strong> {String(data.activity?.status || "—").replaceAll("_", " ")}</div>
-            <div><strong>Start date:</strong> {formatDateDisplay(data.activity?.startDate)}</div>
-            <div><strong>End date:</strong> {formatDateDisplay(data.activity?.endDate)}</div>
-            <div><strong>Duration:</strong> {data.activity?.duration || "—"}</div>
-            <div><strong>Location:</strong> {data.activity?.location || "—"}</div>
-            <div><strong>Available seats:</strong> {data.activity?.seats ?? "—"}</div>
-            <div>
-              <strong>Finalized at:</strong>{" "}
-              {formatDateDisplay(data.activity?.managerEvaluationFinalizedAt)}
+            <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 10, background: "var(--card)" }}>
+              <div style={{ color: "var(--muted)", fontWeight: 700, fontSize: 12 }}>Start date</div>
+              <div style={{ marginTop: 4, fontWeight: 800, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <FiCalendar size={14} /> {formatDateDisplay(data.activity?.startDate)}
+              </div>
+            </div>
+            <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 10, background: "var(--card)" }}>
+              <div style={{ color: "var(--muted)", fontWeight: 700, fontSize: 12 }}>End date</div>
+              <div style={{ marginTop: 4, fontWeight: 800, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <FiCalendar size={14} /> {formatDateDisplay(data.activity?.endDate)}
+              </div>
+            </div>
+            <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 10, background: "var(--card)" }}>
+              <div style={{ color: "var(--muted)", fontWeight: 700, fontSize: 12 }}>Duration</div>
+              <div style={{ marginTop: 4, fontWeight: 800, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <FiClock size={14} /> {data.activity?.duration || "—"}
+              </div>
+            </div>
+            <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 10, background: "var(--card)" }}>
+              <div style={{ color: "var(--muted)", fontWeight: 700, fontSize: 12 }}>Location</div>
+              <div style={{ marginTop: 4, fontWeight: 800, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <FiMapPin size={14} /> {data.activity?.location || "—"}
+              </div>
+            </div>
+            <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 10, background: "var(--card)" }}>
+              <div style={{ color: "var(--muted)", fontWeight: 700, fontSize: 12 }}>Available seats</div>
+              <div style={{ marginTop: 4, fontWeight: 800, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <FiUsers size={14} /> {data.activity?.seats ?? "—"}
+              </div>
+            </div>
+            <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 10, background: "var(--card)" }}>
+              <div style={{ color: "var(--muted)", fontWeight: 700, fontSize: 12 }}>Finalized at</div>
+              <div style={{ marginTop: 4, fontWeight: 800, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <FiCheckCircle size={14} /> {formatDateDisplay(data.activity?.managerEvaluationFinalizedAt)}
+              </div>
             </div>
           </div>
         </div>
@@ -232,13 +280,13 @@ export default function PostActivityEvaluationReadOnlyPage() {
         <div style={{ ...card, marginBottom: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
             <span style={{ fontWeight: 700 }}>Overall progress</span>
-            <span style={{ fontWeight: 800 }}>{evaluatedCount}/{participants.length}</span>
+            <span style={{ fontWeight: 800 }}>{evaluatedCount}/{participants.length} ({completionPercent}%)</span>
           </div>
           <div style={{ height: 8, borderRadius: 999, background: "var(--border)", overflow: "hidden" }}>
             <div
               style={{
                 height: "100%",
-                width: `${participants.length ? Math.round((evaluatedCount / participants.length) * 100) : 0}%`,
+                width: `${completionPercent}%`,
                 background: "color-mix(in srgb, var(--text) 35%, #22c55e)",
               }}
             />

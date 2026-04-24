@@ -54,7 +54,7 @@ function toMonthIndex(rawDate?: string): number {
   return date.getMonth();
 }
 
-type GroupMode = "department" | "month";
+type GroupMode = "department" | "month" | "category";
 type CreatedSortOrder = "newest" | "oldest";
 
 function toCreationTimestamp(activity: ActivityRecord): number {
@@ -63,6 +63,17 @@ function toCreationTimestamp(activity: ActivityRecord): number {
   if (!Number.isNaN(parsed)) return parsed;
   const fallback = Date.parse(String(activity.startDate || ""));
   return Number.isNaN(fallback) ? 0 : fallback;
+}
+
+function isRealExecutionCompleted(activity: ActivityRecord): boolean {
+  const workflow = String(activity.workflowStatus || "").toUpperCase();
+  return (
+    Boolean(activity.hrFinalLaunchAt) ||
+    workflow === "IN_PROGRESS" ||
+    workflow === "COMPLETED" ||
+    workflow === "READY_FOR_HR_FINAL" ||
+    workflow === "EMPLOYEE_INVITATIONS_SENT"
+  );
 }
 
 function getDepartmentKey(activity: ActivityRecord): string {
@@ -126,7 +137,7 @@ function HrFilteredActivitiesInner({
   const isSectionView = Boolean(
     sectionGroup &&
       sectionKey &&
-      (sectionGroup === "department" || sectionGroup === "month")
+      (sectionGroup === "department" || sectionGroup === "month" || sectionGroup === "category")
   );
 
   const reload = async () => {
@@ -150,6 +161,12 @@ function HrFilteredActivitiesInner({
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (mode !== "completed" && groupMode === "category") {
+      setGroupMode("department");
+    }
+  }, [mode, groupMode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -245,6 +262,10 @@ function HrFilteredActivitiesInner({
 
   const page = META[mode];
   const showCancelOnRow = mode === "pipeline";
+  const detailsPathFor = (activityId: string) =>
+    mode === "completed"
+      ? `/hr/activities/${activityId}/completed-details`
+      : `/hr/activities/${activityId}/staffing`;
 
   const groupedByDepartment = useMemo(() => {
     return availableDepartments.map(([departmentId, departmentName]) => {
@@ -269,6 +290,24 @@ function HrFilteredActivitiesInner({
       };
     });
   }, [sorted]);
+  const groupedByCategory = useMemo(() => {
+    return [
+      {
+        key: "completed_real_execution",
+        title: "Completed after real execution",
+        subtitle: "Activities that were truly executed before completion.",
+        rows: sorted.filter((a) => isRealExecutionCompleted(a)),
+        accent: "var(--primary)",
+      },
+      {
+        key: "completed_expired_only",
+        title: "Expired without real execution",
+        subtitle: "Activities that ended by date without real execution.",
+        rows: sorted.filter((a) => !isRealExecutionCompleted(a)),
+        accent: "#f59e0b",
+      },
+    ];
+  }, [sorted]);
 
   const cardStyles = {
     display: "flex",
@@ -287,7 +326,7 @@ function HrFilteredActivitiesInner({
     <div key={a._id} style={cardStyles}>
       <button
         type="button"
-        onClick={() => navigate(`/hr/activities/${a._id}/staffing`)}
+        onClick={() => navigate(detailsPathFor(a._id))}
         style={{
           flex: "1 1 620px",
           minWidth: "min(100%, 320px)",
@@ -398,7 +437,7 @@ function HrFilteredActivitiesInner({
         <button
           type="button"
           aria-label="Open staffing"
-          onClick={() => navigate(`/hr/activities/${a._id}/staffing`)}
+          onClick={() => navigate(detailsPathFor(a._id))}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -654,6 +693,9 @@ function HrFilteredActivitiesInner({
             >
               <option value="department">Filter by department</option>
               <option value="month">Filter by time (months)</option>
+              {mode === "completed" ? (
+                <option value="category">Filter by category</option>
+              ) : null}
             </select>
 
             <select
@@ -710,6 +752,15 @@ function HrFilteredActivitiesInner({
             }}
           >
             No activities in this list yet.
+          </div>
+        ) : mode === "completed" && groupMode === "category" ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            {(isSectionView && sectionGroup === "category"
+              ? groupedByCategory.filter((s) => s.key === sectionKey)
+              : groupedByCategory
+            ).map((section) =>
+              renderSection(section.key, section.title, section.subtitle, section.rows, section.accent)
+            )}
           </div>
         ) : groupMode === "department" ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
