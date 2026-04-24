@@ -18,7 +18,6 @@ import UsersManagement from "../pages/hr/UsersManagement";
 import HrDepartments from "../pages/hr/Departments";
 import HrActivitiesManagement from "../pages/hr/ActivitiesManagement.tsx";
 import HrSkillsDashboard from "../pages/hr/HrSkillsDashboard";
-import HrGenerateRecommendations from "../pages/hr/GenerateRecommendations";
 import AccountManagementPage from "../pages/hr/AccountManagementPage";
 import SkillsManagementPage from "../pages/hr/skills/SkillsManagementPage";
 import AssignSkillPage from "../pages/hr/skills/AssignSkillPage";
@@ -56,7 +55,6 @@ import EmployeeActivityArchivePage from "../pages/employee/EmployeeActivityArchi
 import EmployeeActivityInvitationDetailPage from "../pages/employee/EmployeeActivityInvitationDetailPage";
 import AuditHistoryPage from "../pages/audit/AuditHistoryPage";
 
-import Blank from "../pages/Blank";
 import Profile from "../pages/profile/Profile";
 import NotificationsPage from "../pages/notifications/NotificationsPage";
 import HrDashboard from "../pages/hr/Dashboard.tsx";
@@ -66,6 +64,8 @@ import SettingsPage from "../pages/settings/SettingsPage";
 import ManagerEvaluateActivityPage from "../pages/manger/ManagerEvaluateActivityPage";
 import PostActivityFinalizedPage from "../pages/manger/PostActivityFinalizedPage";
 import PostActivityEvaluationReadOnlyPage from "../pages/manger/PostActivityEvaluationReadOnlyPage";
+import HrEmployeeDetails from "../pages/hr/EmployeeDetails";
+import AppearanceSettingsPage from "../pages/settings/AppearanceSettingsPage";
 type Role = "HR" | "SUPER_MANAGER" | "MANAGER" | "EMPLOYEE";
 
 function getRole(): Role | null {
@@ -149,9 +149,6 @@ export const router = createBrowserRouter([
         path: "/hr",
         element: <HrLayout />,
         children: [
-          { index: true, element: <Blank /> },
-          { path: "blank", element: <Blank /> },
-
           { path: "dashboard", element: <HrStatsDashboard /> },
           { path: "employees", element: <HrEmployees /> },
           { path: "users", element: <UsersManagement /> },
@@ -169,8 +166,6 @@ export const router = createBrowserRouter([
           { path: "activities/:activityId/evaluated", element: <PostActivityEvaluationReadOnlyPage /> },
           { path: "activities/evaluated", element: <PostActivityFinalizedPage /> },
           { path: "skills-dashboard", element: <HrSkillsDashboard /> },
-          { path: "recommendations", element: <HrGenerateRecommendations /> },
-          { path: "recommendations/generate", element: <HrGenerateRecommendations /> },
           { path: "copilot", element: <HrCopilotPage /> },
           { path: "skills", element: <SkillsManagementPage /> },
           { path: "domains", element: <DomainManagementPage /> },
@@ -195,9 +190,6 @@ export const router = createBrowserRouter([
         path: "/super-manager",
         element: <SuperManagerLayout />,
         children: [
-          { index: true, element: <Blank /> },
-          { path: "blank", element: <Blank /> },
-
           { path: "dashboard", element: <HrDashboard /> },
           { path: "employees", element: <HrEmployees /> },
           { path: "users", element: <UsersManagement /> },
@@ -230,8 +222,6 @@ export const router = createBrowserRouter([
         element: <ManagerLayout />,
         children: [
           { index: true, element: <ManagerDashboard /> },
-          { path: "blank", element: <Blank /> },
-
           { path: "dashboard", element: <ManagerDashboard /> },
           { path: "team", element: <ManagerTeam /> },
           { path: "activities", element: <ManagerActivities /> },
@@ -266,9 +256,6 @@ export const router = createBrowserRouter([
         path: "/me",
         element: <EmployeeLayout />,
         children: [
-          { index: true, element: <Blank /> },
-          { path: "blank", element: <Blank /> },
-
           { path: "profile", element: <Profile /> },
           { path: "history", element: <AuditHistoryPage /> },
           { path: "cv", element: <CvUpload /> },
@@ -297,5 +284,8 @@ export const router = createBrowserRouter([
   },
 
   { path: "/complete-profile", element: <CompleteProfile /> },
+  // Temporary debug routes for currently unlinked legacy pages.
+  { path: "/dev/hr-employee-details/:id", element: <HrEmployeeDetails /> },
+  { path: "/dev/settings-appearance", element: <AppearanceSettingsPage /> },
   { path: "*", element: <Navigate to="/" replace /> },
 ]);
