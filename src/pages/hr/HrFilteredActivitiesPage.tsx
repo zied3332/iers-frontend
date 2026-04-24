@@ -1,21 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { FiArrowRight, FiCalendar, FiSlash, FiUsers } from "react-icons/fi";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { FiArrowRight, FiCalendar, FiSearch, FiSlash, FiUsers } from "react-icons/fi";
 import {
   listActivities,
   cancelActivityById,
   type ActivityRecord,
   type ListActivitiesQuery,
 } from "../../services/activities.service";
+import { getAllDepartments, type Department } from "../../services/departments.service";
 
 const META: Record<
   NonNullable<ListActivitiesQuery["hrView"]>,
   { title: string; subtitle: string }
 > = {
+  drafts: {
+    title: "Activity drafts",
+    subtitle: "Planned activities still in draft mode.",
+  },
   pipeline: {
     title: "Staffing & validation",
-    subtitle:
-      "Activities where HR used recommendations, finalized the shortlist, and sent it to the manager — through invitations and launch. Open one to continue HR work. Cancel is available for activities that are already in progress.",
+    subtitle: "",
   },
   completed: {
     title: "Completed activities",
@@ -26,6 +30,62 @@ const META: Record<
 
 function formatLabel(v: string) {
   return v.charAt(0) + v.slice(1).toLowerCase().replace(/_/g, " ");
+}
+
+const MONTH_OPTIONS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
+function toMonthIndex(rawDate?: string): number {
+  if (!rawDate) return -1;
+  const date = new Date(rawDate);
+  if (Number.isNaN(date.getTime())) return -1;
+  return date.getMonth();
+}
+
+type GroupMode = "department" | "month";
+type CreatedSortOrder = "newest" | "oldest";
+
+function toCreationTimestamp(activity: ActivityRecord): number {
+  const raw = activity.createdAt || "";
+  const parsed = Date.parse(String(raw));
+  if (!Number.isNaN(parsed)) return parsed;
+  const fallback = Date.parse(String(activity.startDate || ""));
+  return Number.isNaN(fallback) ? 0 : fallback;
+}
+
+function getDepartmentKey(activity: ActivityRecord): string {
+  const raw = activity.departmentId as unknown;
+  if (!raw) return "__unassigned__";
+  if (typeof raw === "string") return raw;
+  if (typeof raw === "object") {
+    const candidate = raw as { _id?: unknown; id?: unknown };
+    if (typeof candidate._id === "string") return candidate._id;
+    if (typeof candidate.id === "string") return candidate.id;
+  }
+  return "__unassigned__";
+}
+
+function normalizeDepartments(raw: unknown): Department[] {
+  if (Array.isArray(raw)) return raw as Department[];
+  if (raw && typeof raw === "object") {
+    const candidate = raw as { data?: unknown; items?: unknown; departments?: unknown };
+    if (Array.isArray(candidate.data)) return candidate.data as Department[];
+    if (Array.isArray(candidate.items)) return candidate.items as Department[];
+    if (Array.isArray(candidate.departments)) return candidate.departments as Department[];
+  }
+  return [];
 }
 
 type PipelinePhase = "PRIMARY_SENT_TO_MANAGER" | "MANAGER_SENT_TO_HR" | "FINAL_VALIDATED_STARTED";
@@ -51,18 +111,39 @@ function HrFilteredActivitiesInner({
   mode: NonNullable<ListActivitiesQuery["hrView"]>;
 }) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [items, setItems] = useState<ActivityRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [search, setSearch] = useState("");
+  const [groupMode, setGroupMode] = useState<GroupMode>("department");
+  const [createdSortOrder, setCreatedSortOrder] = useState<CreatedSortOrder>("newest");
+  const sectionGroup = searchParams.get("sectionGroup");
+  const sectionKey = searchParams.get("sectionKey");
+  const isSectionView = Boolean(
+    sectionGroup &&
+      sectionKey &&
+      (sectionGroup === "department" || sectionGroup === "month")
+  );
 
   const reload = async () => {
     setLoading(true);
     setError("");
     try {
-      const data = await listActivities({ hrView: mode });
-      setItems(data || []);
+        const [activities, allDepartments] = await Promise.allSettled([
+          listActivities({ hrView: mode }),
+          getAllDepartments(),
+        ]);
+
+        setItems(activities.status === "fulfilled" ? activities.value || [] : []);
+        setDepartments(
+          allDepartments.status === "fulfilled"
+            ? normalizeDepartments(allDepartments.value)
+            : []
+        );
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to load activities.");
     } finally {
@@ -76,8 +157,17 @@ function HrFilteredActivitiesInner({
       setLoading(true);
       setError("");
       try {
-        const data = await listActivities({ hrView: mode });
-        if (!cancelled) setItems(data || []);
+        const [activities, allDepartments] = await Promise.allSettled([
+          listActivities({ hrView: mode }),
+          getAllDepartments(),
+        ]);
+        if (cancelled) return;
+        setItems(activities.status === "fulfilled" ? activities.value || [] : []);
+        setDepartments(
+          allDepartments.status === "fulfilled"
+            ? normalizeDepartments(allDepartments.value)
+            : []
+        );
       } catch (e: unknown) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : "Failed to load activities.");
@@ -93,10 +183,54 @@ function HrFilteredActivitiesInner({
   }, [mode]);
 
   const sorted = useMemo(() => {
-    const copy = [...items];
-    copy.sort((a, b) => String(b.startDate).localeCompare(String(a.startDate)));
+    const q = search.trim().toLowerCase();
+    const filteredItems = !q
+      ? items
+      : items.filter((activity) => {
+          const blob = [
+            activity.title,
+            activity.type,
+            activity.status,
+            activity.workflowStatus || "",
+            activity.departmentName || "",
+            activity.location || "",
+          ]
+            .join(" ")
+            .toLowerCase();
+          return blob.includes(q);
+        });
+
+    const copy = [...filteredItems];
+    copy.sort((a, b) => {
+      const aTs = toCreationTimestamp(a);
+      const bTs = toCreationTimestamp(b);
+      return createdSortOrder === "oldest" ? aTs - bTs : bTs - aTs;
+    });
     return copy;
-  }, [items]);
+  }, [items, search, createdSortOrder]);
+
+  const availableDepartments = useMemo(() => {
+    const map = new Map<string, string>();
+
+    for (const d of departments) {
+      const id = String(d?._id || "").trim();
+      if (!id) continue;
+      map.set(id, String(d?.name || "Unnamed Department"));
+    }
+
+    for (const activity of sorted) {
+      const key = getDepartmentKey(activity);
+      if (key === "__unassigned__") continue;
+      if (!map.has(key)) {
+        map.set(key, String(activity.departmentName || "Unnamed Department"));
+      }
+    }
+
+    const base = [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+    const hasUnassigned = sorted.some((a) => getDepartmentKey(a) === "__unassigned__");
+    if (hasUnassigned) return [...base, ["__unassigned__", "Unassigned Department"] as const];
+    return base;
+  }, [departments, sorted]);
   const pipelineGroups = useMemo(() => {
     const groups: Record<PipelinePhase, ActivityRecord[]> = {
       PRIMARY_SENT_TO_MANAGER: [],
@@ -111,6 +245,30 @@ function HrFilteredActivitiesInner({
 
   const page = META[mode];
   const showCancelOnRow = mode === "pipeline";
+
+  const groupedByDepartment = useMemo(() => {
+    return availableDepartments.map(([departmentId, departmentName]) => {
+      const rows = sorted.filter((a) => getDepartmentKey(a) === departmentId);
+      return {
+        key: departmentId,
+        title: departmentName,
+        subtitle: "Activities in this department.",
+        rows,
+      };
+    });
+  }, [availableDepartments, sorted]);
+
+  const groupedByMonth = useMemo(() => {
+    return MONTH_OPTIONS.map((monthName, monthIdx) => {
+      const rows = sorted.filter((a) => toMonthIndex(a.startDate) === monthIdx);
+      return {
+        key: String(monthIdx),
+        title: monthName,
+        subtitle: "Activities that start in this month.",
+        rows,
+      };
+    });
+  }, [sorted]);
 
   const cardStyles = {
     display: "flex",
@@ -224,9 +382,9 @@ function HrFilteredActivitiesInner({
               gap: "6px",
               padding: "10px 14px",
               borderRadius: "12px",
-              border: "1px solid #fcd34d",
-              background: "#fef3c7",
-              color: "#92400e",
+              border: "1px solid color-mix(in srgb, var(--border) 72%, #f59e0b)",
+              background: "color-mix(in srgb, var(--surface-2) 86%, #f59e0b)",
+              color: "var(--text)",
               fontWeight: 800,
               fontSize: "13px",
               cursor: "pointer",
@@ -261,12 +419,30 @@ function HrFilteredActivitiesInner({
     </div>
   );
 
+  const openSectionView = (group: GroupMode, key: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("sectionGroup", group);
+    params.set("sectionKey", key);
+    navigate({ search: params.toString() });
+  };
+
+  const clearSectionView = () => {
+    const params = new URLSearchParams(searchParams);
+    params.delete("sectionGroup");
+    params.delete("sectionKey");
+    navigate({ search: params.toString() });
+  };
+
   const renderSection = (
+    sectionKeyValue: string,
     title: string,
     subtitle: string,
     rows: ActivityRecord[],
     accent: string
-  ) => (
+  ) => {
+    const rowsToRender = isSectionView ? rows : rows.slice(0, 3);
+    const hasMore = !isSectionView && rows.length > 3;
+    return (
     <section
       style={{
         border: "1px solid var(--border)",
@@ -275,7 +451,7 @@ function HrFilteredActivitiesInner({
         background: "var(--card)",
       }}
     >
-      <div style={{ marginBottom: "12px" }}>
+      <div style={{ marginBottom: "12px", display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
         <div
           style={{
             display: "inline-flex",
@@ -296,6 +472,44 @@ function HrFilteredActivitiesInner({
           />
           {title} ({rows.length})
         </div>
+        {hasMore ? (
+          <button
+            type="button"
+            onClick={() => openSectionView(groupMode, sectionKeyValue)}
+            style={{
+              marginLeft: "auto",
+              height: "34px",
+              padding: "0 12px",
+              borderRadius: "10px",
+              border: "1px solid var(--border)",
+              background: "var(--surface-2)",
+              color: "var(--text)",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            View more
+          </button>
+        ) : null}
+        {isSectionView ? (
+          <button
+            type="button"
+            onClick={clearSectionView}
+            style={{
+              marginLeft: "auto",
+              height: "34px",
+              padding: "0 12px",
+              borderRadius: "10px",
+              border: "1px solid var(--border)",
+              background: "var(--surface-2)",
+              color: "var(--text)",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Back
+          </button>
+        ) : null}
         <p style={{ margin: "6px 0 0", color: "var(--muted)", fontSize: "13px" }}>{subtitle}</p>
       </div>
       {rows.length === 0 ? (
@@ -309,15 +523,22 @@ function HrFilteredActivitiesInner({
             fontSize: "13px",
           }}
         >
-          No activities in this phase.
+          There is no activity yet.
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {rows.map((a) => renderActivityRow(a))}
+        <div
+          style={{
+            display: "grid",
+            gap: "12px",
+            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+          }}
+        >
+          {rowsToRender.map((a) => renderActivityRow(a))}
         </div>
       )}
     </section>
-  );
+    );
+  };
 
   const onConfirmCancel = async () => {
     if (!cancelConfirmId) return;
@@ -354,26 +575,109 @@ function HrFilteredActivitiesInner({
         <div
           className="page-header"
           style={{
-            marginBottom: "24px",
+            marginBottom: "65px",
             display: "flex",
             flexDirection: "column",
+            alignItems: "flex-start",
             gap: "8px",
           }}
         >
           <h1 className="page-title" style={{ margin: 0 }}>
             {page.title}
           </h1>
-          <p
-            className="page-subtitle"
-            style={{
-              maxWidth: "900px",
-              margin: 0,
-              marginTop: "4px",
-              lineHeight: 1.6,
-            }}
-          >
-            {page.subtitle}
-          </p>
+          {page.subtitle ? (
+            <p
+              className="page-subtitle"
+              style={{
+                maxWidth: "900px",
+                margin: 0,
+                marginTop: "4px",
+                lineHeight: 1.6,
+              }}
+            >
+              {page.subtitle}
+            </p>
+          ) : null}
+        </div>
+
+        <div
+          style={{
+            marginBottom: "16px",
+            display: "flex",
+            gap: "12px",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div style={{ position: "relative", flex: "1 1 340px", maxWidth: "620px" }}>
+            <FiSearch
+              style={{
+                position: "absolute",
+                left: "14px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "var(--muted)",
+              }}
+            />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search activities..."
+              style={{
+                height: "42px",
+                width: "100%",
+                borderRadius: "12px",
+                border: "1px solid var(--border)",
+                background: "var(--card)",
+                color: "var(--text)",
+                padding: "0 12px 0 40px",
+                fontWeight: 600,
+              }}
+            />
+          </div>
+
+          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
+            <select
+              value={groupMode}
+              onChange={(e) => setGroupMode(e.target.value as GroupMode)}
+              style={{
+                height: "42px",
+                minWidth: "240px",
+                borderRadius: "12px",
+                border: "1px solid var(--border)",
+                background: "var(--card)",
+                color: "var(--text)",
+                padding: "0 12px",
+                fontWeight: 700,
+              }}
+            >
+              <option value="department">Filter by department</option>
+              <option value="month">Filter by time (months)</option>
+            </select>
+
+            <select
+              value={createdSortOrder}
+              onChange={(e) => setCreatedSortOrder(e.target.value as CreatedSortOrder)}
+              style={{
+                height: "42px",
+                minWidth: "220px",
+                borderRadius: "12px",
+                border: "1px solid var(--border)",
+                background: "var(--card)",
+                color: "var(--text)",
+                padding: "0 12px",
+                fontWeight: 700,
+              }}
+            >
+              <option value="newest">newest first</option>
+              <option value="oldest">oldest first</option>
+            </select>
+          </div>
+        </div>
+        <div style={{ marginBottom: "14px", color: "var(--muted)", fontSize: "13px", fontWeight: 600 }}>
+          Showing {sorted.length} activity{sorted.length === 1 ? "" : "ies"}
+          {search.trim() ? " after search" : ""}
         </div>
 
         {error ? (
@@ -381,9 +685,9 @@ function HrFilteredActivitiesInner({
             style={{
               padding: "14px 18px",
               borderRadius: "14px",
-              border: "1px solid #fecaca",
-              background: "rgba(239,68,68,0.08)",
-              color: "#b91c1c",
+              border: "1px solid color-mix(in srgb, var(--border) 66%, #ef4444)",
+              background: "color-mix(in srgb, var(--surface-2) 90%, #ef4444)",
+              color: "var(--text)",
               fontWeight: 600,
               marginBottom: "18px",
             }}
@@ -407,21 +711,42 @@ function HrFilteredActivitiesInner({
           >
             No activities in this list yet.
           </div>
+        ) : groupMode === "department" ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            {(isSectionView && sectionGroup === "department"
+              ? groupedByDepartment.filter((s) => s.key === sectionKey)
+              : groupedByDepartment
+            ).map((section) =>
+              renderSection(section.key, section.title, section.subtitle, section.rows, "var(--primary)")
+            )}
+          </div>
+        ) : groupMode === "month" ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            {(isSectionView && sectionGroup === "month"
+              ? groupedByMonth.filter((s) => s.key === sectionKey)
+              : groupedByMonth
+            ).map((section) =>
+              renderSection(section.key, section.title, section.subtitle, section.rows, "var(--primary)")
+            )}
+          </div>
         ) : mode === "pipeline" ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
             {renderSection(
+              "PRIMARY_SENT_TO_MANAGER",
               "Primary list sent to manager",
               "HR shortlist is sent and waiting on manager-side review/replacements.",
               pipelineGroups.PRIMARY_SENT_TO_MANAGER,
               "#f59e0b"
             )}
             {renderSection(
+              "MANAGER_SENT_TO_HR",
               "Manager sent list to HR",
               "Manager confirmed the roster and sent it back. HR can run final validation.",
               pipelineGroups.MANAGER_SENT_TO_HR,
               "#2563eb"
             )}
             {renderSection(
+              "FINAL_VALIDATED_STARTED",
               "Final validation done (activity started)",
               "HR final validation already launched the activity.",
               pipelineGroups.FINAL_VALIDATED_STARTED,
@@ -457,7 +782,7 @@ function HrFilteredActivitiesInner({
               border: "1px solid var(--border)",
               borderRadius: "16px",
               padding: "24px",
-              borderLeft: "4px solid #d97706",
+              borderLeft: "4px solid color-mix(in srgb, var(--primary) 70%, #f59e0b)",
               boxShadow: "0 18px 40px rgba(15, 23, 42, 0.12)",
             }}
           >
@@ -465,7 +790,7 @@ function HrFilteredActivitiesInner({
               style={{
                 fontWeight: 800,
                 fontSize: "18px",
-                color: "#92400e",
+                color: "var(--text)",
                 marginBottom: "12px",
               }}
             >
@@ -508,8 +833,8 @@ function HrFilteredActivitiesInner({
                   padding: "10px 16px",
                   borderRadius: "12px",
                   border: "none",
-                  background: "#92400e",
-                  color: "#fff",
+                  background: "var(--primary)",
+                  color: "var(--primary-on)",
                   fontWeight: 800,
                   cursor: cancelling ? "not-allowed" : "pointer",
                 }}

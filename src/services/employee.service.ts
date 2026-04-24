@@ -29,7 +29,7 @@ export type EmployeeRecord = {
 		email?: string;
 		role?: string;
 		matricule?: string;
-		departement_id?: string | { _id: string; name?: string };
+		departement_id?: { _id: string; name?: string } | null;
 	} | string;
 	jobTitle?: string;
 	experienceYears?: number;
@@ -45,12 +45,41 @@ export type ExperienceSegment = {
 	company?: string;
 };
 
+function normalizeEmployeeRecord(raw: any): EmployeeRecord {
+	const userRaw = typeof raw?.user_id === "object" && raw?.user_id ? raw.user_id : {};
+	const depRaw = userRaw?.departement_id ?? userRaw?.department ?? userRaw?.departmentId ?? null;
+	const dep =
+		depRaw && typeof depRaw === "object"
+			? {
+					_id: String((depRaw as any)?._id || (depRaw as any)?.id || ""),
+					name: (depRaw as any)?.name ? String((depRaw as any).name) : undefined,
+			  }
+			: depRaw
+			? { _id: String(depRaw), name: undefined }
+			: null;
+
+	return {
+		...raw,
+		_id: String(raw?._id || ""),
+		user_id: {
+			_id: String(userRaw?._id || ""),
+			name: userRaw?.name ? String(userRaw.name) : undefined,
+			email: userRaw?.email ? String(userRaw.email) : undefined,
+			role: userRaw?.role ? String(userRaw.role).toUpperCase() : undefined,
+			matricule: userRaw?.matricule ? String(userRaw.matricule) : undefined,
+			departement_id: dep,
+		},
+	};
+}
+
 export async function getAllEmployees(): Promise<EmployeeRecord[]> {
 	const res = await fetch(`${BASE}/employee`, {
 		method: "GET",
 		headers: authHeaders(),
 	});
-	return handle(res);
+	const data = await handle(res);
+	const rows = Array.isArray(data) ? data : [];
+	return rows.map(normalizeEmployeeRecord);
 }
 
 export async function getEmployeesByDepartment(departmentId: string): Promise<EmployeeRecord[]> {
@@ -58,7 +87,9 @@ export async function getEmployeesByDepartment(departmentId: string): Promise<Em
 		method: "GET",
 		headers: authHeaders(),
 	});
-	return handle(res);
+	const data = await handle(res);
+	const rows = Array.isArray(data) ? data : [];
+	return rows.map(normalizeEmployeeRecord);
 }
 
 export async function getEmployeeByUserId(userId: string): Promise<EmployeeRecord | null> {
@@ -75,7 +106,8 @@ export async function getMyEmployeeRecord(): Promise<EmployeeRecord> {
 		method: "GET",
 		headers: authHeaders(),
 	});
-	return handle(res);
+	const data = await handle(res);
+	return normalizeEmployeeRecord(data || {});
 }
 
 /** Update current user's employee profile (EMPLOYEE role). */
@@ -89,7 +121,8 @@ export async function patchMyEmployeeRecord(
 		headers: authHeaders(),
 		body: JSON.stringify(payload),
 	});
-	return handle(res);
+	const data = await handle(res);
+	return normalizeEmployeeRecord(data || {});
 }
 
 export async function patchEmployeeById(
@@ -103,7 +136,8 @@ export async function patchEmployeeById(
 		headers: authHeaders(),
 		body: JSON.stringify(payload),
 	});
-	return handle(res);
+	const data = await handle(res);
+	return normalizeEmployeeRecord(data || {});
 }
 
 export async function deleteEmployeeById(employeeId: string): Promise<void> {

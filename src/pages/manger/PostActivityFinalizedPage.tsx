@@ -34,6 +34,7 @@ export default function PostActivityFinalizedPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [createdSortOrder, setCreatedSortOrder] = useState<"newest" | "oldest">("newest");
   const [typeFilter, setTypeFilter] = useState<
     "all" | "TRAINING" | "CERTIFICATION" | "PROJECT" | "MISSION" | "AUDIT"
   >("all");
@@ -63,11 +64,27 @@ export default function PostActivityFinalizedPage() {
 
   const filteredSorted = useMemo(() => {
     const copy = [...items];
-    copy.sort((a, b) =>
-      String(b.activity?.managerEvaluationFinalizedAt || "").localeCompare(
-        String(a.activity?.managerEvaluationFinalizedAt || "")
-      )
-    );
+    copy.sort((a, b) => {
+      const aTs = Date.parse(
+        String(
+          (a.activity as any)?.createdAt ||
+            a.activity?.managerEvaluationFinalizedAt ||
+            a.activity?.startDate ||
+            ""
+        )
+      );
+      const bTs = Date.parse(
+        String(
+          (b.activity as any)?.createdAt ||
+            b.activity?.managerEvaluationFinalizedAt ||
+            b.activity?.startDate ||
+            ""
+        )
+      );
+      const safeA = Number.isNaN(aTs) ? 0 : aTs;
+      const safeB = Number.isNaN(bTs) ? 0 : bTs;
+      return createdSortOrder === "oldest" ? safeA - safeB : safeB - safeA;
+    });
     const q = search.trim().toLowerCase();
     return copy.filter((item) => {
       if (
@@ -88,7 +105,7 @@ export default function PostActivityFinalizedPage() {
         .toLowerCase();
       return haystack.includes(q);
     });
-  }, [items, search, typeFilter]);
+  }, [items, search, typeFilter, createdSortOrder]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -174,35 +191,53 @@ export default function PostActivityFinalizedPage() {
               }}
             />
           </label>
-          <select
-            value={typeFilter}
-            onChange={(e) =>
-              setTypeFilter(
-                e.target.value as
-                  | "all"
-                  | "TRAINING"
-                  | "CERTIFICATION"
-                  | "PROJECT"
-                  | "MISSION"
-                  | "AUDIT"
-              )
-            }
-            style={{
-              border: "1px solid var(--border)",
-              borderRadius: 12,
-              padding: "10px 12px",
-              background: "var(--card)",
-              color: "var(--text)",
-              fontWeight: 600,
-            }}
-          >
-            <option value="all">All activity types</option>
-            <option value="TRAINING">Training</option>
-            <option value="CERTIFICATION">Certification</option>
-            <option value="PROJECT">Project</option>
-            <option value="MISSION">Mission</option>
-            <option value="AUDIT">Audit</option>
-          </select>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <select
+              value={typeFilter}
+              onChange={(e) =>
+                setTypeFilter(
+                  e.target.value as
+                    | "all"
+                    | "TRAINING"
+                    | "CERTIFICATION"
+                    | "PROJECT"
+                    | "MISSION"
+                    | "AUDIT"
+                )
+              }
+              style={{
+                border: "1px solid var(--border)",
+                borderRadius: 12,
+                padding: "10px 12px",
+                background: "var(--card)",
+                color: "var(--text)",
+                fontWeight: 600,
+              }}
+            >
+              <option value="all">All activity types</option>
+              <option value="TRAINING">Training</option>
+              <option value="CERTIFICATION">Certification</option>
+              <option value="PROJECT">Project</option>
+              <option value="MISSION">Mission</option>
+              <option value="AUDIT">Audit</option>
+            </select>
+
+            <select
+              value={createdSortOrder}
+              onChange={(e) => setCreatedSortOrder(e.target.value as "newest" | "oldest")}
+              style={{
+                border: "1px solid var(--border)",
+                borderRadius: 12,
+                padding: "10px 12px",
+                background: "var(--card)",
+                color: "var(--text)",
+                fontWeight: 600,
+              }}
+            >
+              <option value="newest"> newest first</option>
+              <option value="oldest">oldest first</option>
+            </select>
+          </div>
         </div>
 
         {filteredSorted.length === 0 ? (

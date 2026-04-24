@@ -299,12 +299,6 @@ const contextOptions: PriorityContext[] = [
   "EXPERTISE",
   "DEVELOPMENT",
 ];
-const statusOptions: ActivityStatus[] = [
-  "PLANNED",
-  "IN_PROGRESS",
-  "COMPLETED",
-  "CANCELLED",
-];
 const skillLevelOptions: ("LOW" | "MEDIUM" | "HIGH" | "EXPERT")[] = [
   "LOW",
   "MEDIUM",
@@ -372,6 +366,15 @@ type AssignFormState = {
   departmentId: string;
 };
 
+type CreatedSortOrder = "newest" | "oldest";
+
+function toActivityCreationTimestamp(activity: ActivityRecord): number {
+  const parsed = Date.parse(String(activity.createdAt || ""));
+  if (!Number.isNaN(parsed)) return parsed;
+  const fallback = Date.parse(String(activity.startDate || ""));
+  return Number.isNaN(fallback) ? 0 : fallback;
+}
+
 const INITIAL_FORM: FormState = {
   title: "",
   type: "TRAINING",
@@ -404,13 +407,8 @@ export default function ActivitiesManagement() {
   const [success, setSuccess] = useState("");
 
   const [q, setQ] = useState("");
-  const [groupBy, setGroupBy] = useState<"status" | "department">(() => {
-    try {
-      const saved = localStorage.getItem("activityGroupBy");
-      if (saved === "department" || saved === "status") return saved;
-    } catch {}
-    return "status";
-  });
+  const [createdSortOrder, setCreatedSortOrder] = useState<CreatedSortOrder>("newest");
+  const groupBy: "department" = "department";
 
   const [createOpen, setCreateOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
@@ -428,16 +426,9 @@ export default function ActivitiesManagement() {
 
   const sectionGroupByParam = searchParams.get("sectionGroupBy");
   const sectionKeyParam = searchParams.get("sectionKey");
-  const isValidSectionGroupBy =
-    sectionGroupByParam === "status" || sectionGroupByParam === "department";
+  const isValidSectionGroupBy = sectionGroupByParam === "department";
   const sectionViewGroupBy = isValidSectionGroupBy ? sectionGroupByParam : null;
   const isSectionView = Boolean(sectionViewGroupBy && sectionKeyParam);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("activityGroupBy", groupBy);
-    } catch {}
-  }, [groupBy]);
 
   useEffect(() => {
     const load = async () => {
@@ -446,7 +437,7 @@ export default function ActivitiesManagement() {
       try {
         const [activitiesRes, usersRes, departmentsRes, skillsRes] =
           await Promise.allSettled([
-            listActivities(),
+            listActivities({ hrView: "drafts" }),
             getUsers(),
             getAllDepartments(),
             listSkills(),
@@ -505,30 +496,38 @@ export default function ActivitiesManagement() {
 
   const filtered = useMemo(() => {
     const search = q.trim().toLowerCase();
-    if (!search) return activities;
+    const base = !search
+      ? activities
+      : activities.filter((a) => {
+          const blob = [
+            a.title,
+            a.type,
+            a.location,
+            a.duration,
+            a.startDate,
+            a.endDate,
+            a.status,
+            managerNameById.get(a.responsibleManagerId || "") || "",
+            departmentNameById.get(a.departmentId || "") || "",
+            a.description,
+            a.priorityContext,
+            a.targetLevel,
+            ...a.requiredSkills.map((s) => `${s.name} ${s.type} ${s.desiredLevel}`),
+          ]
+            .join(" ")
+            .toLowerCase();
 
-    return activities.filter((a) => {
-      const blob = [
-        a.title,
-        a.type,
-        a.location,
-        a.duration,
-        a.startDate,
-        a.endDate,
-        a.status,
-        managerNameById.get(a.responsibleManagerId || "") || "",
-        departmentNameById.get(a.departmentId || "") || "",
-        a.description,
-        a.priorityContext,
-        a.targetLevel,
-        ...a.requiredSkills.map((s) => `${s.name} ${s.type} ${s.desiredLevel}`),
-      ]
-        .join(" ")
-        .toLowerCase();
+          return blob.includes(search);
+        });
 
-      return blob.includes(search);
+    const copy = [...base];
+    copy.sort((a, b) => {
+      const aTs = toActivityCreationTimestamp(a);
+      const bTs = toActivityCreationTimestamp(b);
+      return createdSortOrder === "oldest" ? aTs - bTs : bTs - aTs;
     });
-  }, [activities, q, managerNameById, departmentNameById]);
+    return copy;
+  }, [activities, q, managerNameById, departmentNameById, createdSortOrder]);
 
   const groupedBoard = useMemo(() => {
     const sections: Array<{
@@ -537,18 +536,6 @@ export default function ActivitiesManagement() {
       items: ActivityRecord[];
       tone?: string;
     }> = [];
-
-    if (groupBy === "status") {
-      statusOptions.forEach((status) => {
-        sections.push({
-          key: status,
-          title: formatLabel(status),
-          items: filtered.filter((a) => (a.status || "PLANNED") === status),
-          tone: statusPalette[status].color,
-        });
-      });
-      return sections;
-    }
 
     const byDepartment = new Map<string, ActivityRecord[]>();
     filtered.forEach((a) => {
@@ -588,22 +575,16 @@ export default function ActivitiesManagement() {
     if (!isSectionView || !sectionViewGroupBy) return groupedBoard;
 
     const sectionTitle =
-      sectionViewGroupBy === "status"
-        ? formatLabel(sectionKeyParam || "")
-        : sectionKeyParam === "__unassigned__"
+      sectionKeyParam === "__unassigned__"
         ? "Unassigned Department"
         : departmentNameById.get(sectionKeyParam || "") || "Department";
 
     const sectionItems = filtered.filter((a) => {
-      if (sectionViewGroupBy === "status") return (a.status || "PLANNED") === sectionKeyParam;
       const departmentKey = a.departmentId || "__unassigned__";
       return departmentKey === sectionKeyParam;
     });
 
-    const sectionTone =
-      sectionViewGroupBy === "status"
-        ? statusPalette[(sectionKeyParam as ActivityStatus) || "PLANNED"]?.color || "var(--text)"
-        : "var(--text)";
+    const sectionTone = "var(--text)";
 
     return [
       {
@@ -978,7 +959,7 @@ export default function ActivitiesManagement() {
               }}
             >
               <FiUsers size={15} />
-              Staff
+              Launch AI
             </button>
           </div>
 
@@ -1032,7 +1013,7 @@ export default function ActivitiesManagement() {
               Activity Management
             </h1>
             <p style={{ ...styles.muted, margin: "8px 0 0", fontSize: "14px" }}>
-              Organize activities, manage staffing, and track progress in one clean view.
+              Draft planned activities before launching AI staffing.
             </p>
           </div>
 
@@ -1076,25 +1057,7 @@ export default function ActivitiesManagement() {
               <div style={styles.subheading}>Activities</div>
 
               <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
-                <div style={{ position: "relative" }}>
-                  <FiFilter
-                    style={{
-                      position: "absolute",
-                      left: "14px",
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      color: "var(--muted)",
-                    }}
-                  />
-                  <select
-                    style={{ ...styles.input, paddingLeft: "38px", width: "220px", cursor: "pointer" }}
-                    value={groupBy}
-                    onChange={(e) => setGroupBy(e.target.value as "status" | "department")}
-                  >
-                    <option value="status">Group by status</option>
-                    <option value="department">Group by department</option>
-                  </select>
-                </div>
+               
 
                 <div style={{ position: "relative", width: "320px", maxWidth: "100%" }}>
                   <FiSearch
@@ -1113,6 +1076,14 @@ export default function ActivitiesManagement() {
                     onChange={(e) => setQ(e.target.value)}
                   />
                 </div>
+                <select
+                  value={createdSortOrder}
+                  onChange={(e) => setCreatedSortOrder(e.target.value as CreatedSortOrder)}
+                  style={{ ...styles.input, width: "260px", fontWeight: 700 }}
+                >
+                  <option value="newest">newest first</option>
+                  <option value="oldest">oldest first</option>
+                </select>
               </div>
             </div>
           </div>

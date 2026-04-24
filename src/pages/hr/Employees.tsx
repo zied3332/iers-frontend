@@ -245,7 +245,23 @@ function getDepartmentId(value: any): string {
   if (!value) return "";
   if (typeof value === "string") return value;
   if (typeof value === "object" && value._id) return String(value._id);
+  if (typeof value === "object" && value.id) return String(value.id);
   return "";
+}
+
+function resolveDepartmentName(
+  rawDepartment: any,
+  depId: string,
+  departmentNameById: Map<string, string>
+): string {
+  if (rawDepartment && typeof rawDepartment === "object") {
+    const explicitName = String(rawDepartment.name || "").trim();
+    if (explicitName) return explicitName;
+  }
+  if (depId && departmentNameById.has(depId)) {
+    return String(departmentNameById.get(depId));
+  }
+  return "No dept";
 }
 
 function formatYears(years: number): string {
@@ -470,8 +486,10 @@ export default function HrEmployees() {
   const departmentNameById = useMemo(() => {
     const map = new Map<string, string>();
     departments.forEach((d) => {
-      if (d?._id && d?.name) {
-        map.set(String(d._id), String(d.name));
+      const depId = String((d as any)?._id || (d as any)?.id || "").trim();
+      const depName = String((d as any)?.name || "").trim();
+      if (depId && depName) {
+        map.set(depId, depName);
       }
     });
     return map;
@@ -493,13 +511,20 @@ export default function HrEmployees() {
     const mapped = (records || []).map((r) => {
       const user = typeof r.user_id === "object" ? r.user_id : null;
       const depId = getDepartmentId(user?.departement_id);
+      const roleValue = String(user?.role || "Not Assigned")
+        .trim()
+        .toUpperCase();
 
       return {
         id: String(r._id || ""),
         name: String(user?.name || "-"),
-        role: String(r.jobTitle || "Not Assigned"),
+        role: roleValue || "Not Assigned",
         departmentId: depId,
-        department: departmentNameById.get(depId) || "No dept",
+        department: resolveDepartmentName(
+          (user as any)?.departement_id,
+          depId,
+          departmentNameById
+        ),
         email: String(user?.email || "-"),
         matricule: String(user?.matricule || "-"),
         seniority: normalizeSeniority(r.seniorityLevel),

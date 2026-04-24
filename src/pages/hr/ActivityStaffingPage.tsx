@@ -557,7 +557,9 @@ export default function ActivityStaffingPage() {
     width: "min(920px, 100%)",
     maxHeight: "85vh",
     overflow: "auto",
-    background: "#fff",
+    background: "var(--card)",
+    color: "var(--text)",
+    border: "1px solid var(--border)",
     borderRadius: 24,
     boxShadow: "0 24px 60px rgba(15, 23, 42, 0.18)",
     padding: 24,
@@ -572,8 +574,9 @@ export default function ActivityStaffingPage() {
   };
 
   const closeBtnStyle: React.CSSProperties = {
-    border: "1px solid #dbe3ef",
-    background: "#fff",
+    border: "1px solid var(--border)",
+    background: "var(--surface-2)",
+    color: "var(--text)",
     borderRadius: 12,
     padding: "8px 12px",
     cursor: "pointer",
@@ -605,7 +608,7 @@ export default function ActivityStaffingPage() {
             <span className="staffing-kicker">HR staffing</span>
             <h1>{statusData?.activityTitle || "Loading activity..."}</h1>
             {!loading && statusData ? (
-              <p style={{ margin: "8px 0 0", color: "#64748b", fontSize: 14 }}>
+              <p style={{ margin: "8px 0 0", color: "var(--muted)", fontSize: 14 }}>
                 {selectedPrimaryIds.length} selected • {compareCandidates.length} in compare •{" "}
                 {qualityCheckOk ? "Ready to send" : "Needs attention"}
               </p>
@@ -731,7 +734,9 @@ export default function ActivityStaffingPage() {
                 border: qualityCheckOk
                   ? "1px solid rgba(34,197,94,0.22)"
                   : "1px solid rgba(245,158,11,0.28)",
-                background: qualityCheckOk ? "#f0fdf4" : "#fffaf0",
+                background: qualityCheckOk
+                  ? "color-mix(in srgb, var(--surface-2) 88%, #22c55e)"
+                  : "color-mix(in srgb, var(--surface-2) 88%, #f59e0b)",
                 borderRadius: 20,
                 padding: 18,
               }}
@@ -758,8 +763,10 @@ export default function ActivityStaffingPage() {
                     borderRadius: 999,
                     fontSize: 12,
                     fontWeight: 700,
-                    background: qualityCheckOk ? "#dcfce7" : "#fef3c7",
-                    color: qualityCheckOk ? "#166534" : "#92400e",
+                  background: qualityCheckOk
+                    ? "color-mix(in srgb, var(--surface-2) 85%, #22c55e)"
+                    : "color-mix(in srgb, var(--surface-2) 85%, #f59e0b)",
+                  color: "var(--text)",
                   }}
                 >
                   {qualityCheckOk ? "Ready to send" : `${qualityCheckIssues.length} warning(s)`}
@@ -769,11 +776,11 @@ export default function ActivityStaffingPage() {
               <div
                 style={{
                   marginTop: 12,
-                  background: "#fff",
+                  background: "var(--card)",
                   borderRadius: 14,
                   padding: "10px 12px",
                   fontSize: 14,
-                  color: qualityCheckOk ? "#166534" : "#92400e",
+                  color: "var(--text)",
                   border: qualityCheckOk
                     ? "1px solid rgba(34,197,94,0.14)"
                     : "1px solid rgba(245,158,11,0.16)",
@@ -788,12 +795,12 @@ export default function ActivityStaffingPage() {
                     <div
                       key={index}
                       style={{
-                        background: "#fff",
+                        background: "var(--card)",
                         border: "1px solid rgba(245,158,11,0.18)",
                         borderRadius: 14,
                         padding: "10px 12px",
                         fontSize: 14,
-                        color: "#92400e",
+                        color: "var(--text)",
                       }}
                     >
                       {issue}
@@ -804,12 +811,12 @@ export default function ActivityStaffingPage() {
                 <div
                   style={{
                     marginTop: 14,
-                    background: "#fff",
+                    background: "var(--card)",
                     border: "1px solid rgba(34,197,94,0.16)",
                     borderRadius: 14,
                     padding: "10px 12px",
                     fontSize: 14,
-                    color: "#166534",
+                    color: "var(--text)",
                   }}
                 >
                   The current shortlist looks balanced and ready for manager review.
@@ -875,10 +882,12 @@ export default function ActivityStaffingPage() {
                     style={{
                       width: "100%",
                       borderRadius: 14,
-                      border: "1px solid #dbe3ef",
+                      border: "1px solid var(--border)",
                       padding: "12px 14px",
                       fontSize: 14,
                       outline: "none",
+                      background: "var(--card)",
+                      color: "var(--text)",
                     }}
                   />
 
@@ -887,10 +896,11 @@ export default function ActivityStaffingPage() {
                     onChange={(e) => setSortBy(e.target.value as SortOption)}
                     style={{
                       borderRadius: 14,
-                      border: "1px solid #dbe3ef",
+                      border: "1px solid var(--border)",
                       padding: "12px 14px",
                       fontSize: 14,
-                      background: "#fff",
+                      background: "var(--card)",
+                      color: "var(--text)",
                     }}
                   >
                     <option value="score-desc">Sort: Score</option>
@@ -1020,7 +1030,7 @@ export default function ActivityStaffingPage() {
                                   gap: 10,
                                   flexWrap: "wrap",
                                   marginTop: 10,
-                                  color: "#64748b",
+                                  color: "var(--muted)",
                                   fontSize: 13,
                                 }}
                               >
@@ -1144,7 +1154,7 @@ export default function ActivityStaffingPage() {
                         border: "1px solid rgba(148, 163, 184, 0.22)",
                         borderRadius: 18,
                         padding: 16,
-                        background: "#fff",
+                        background: "var(--card)",
                       }}
                     >
                       <div
@@ -1180,9 +1190,11 @@ export default function ActivityStaffingPage() {
                           style={{
                             width: 86,
                             borderRadius: 12,
-                            border: "1px solid #dbe3ef",
+                            border: "1px solid var(--border)",
                             padding: "10px 12px",
                             fontSize: 14,
+                            background: "var(--surface-2)",
+                            color: "var(--text)",
                           }}
                         />
                         <span style={{ fontSize: 14, opacity: 0.7 }}>days</span>
@@ -1194,7 +1206,7 @@ export default function ActivityStaffingPage() {
                         border: "1px solid rgba(148, 163, 184, 0.22)",
                         borderRadius: 18,
                         padding: 16,
-                        background: "#fff",
+                        background: "var(--card)",
                       }}
                     >
                       <div
@@ -1215,27 +1227,27 @@ export default function ActivityStaffingPage() {
                           gap: 10,
                         }}
                       >
-                        <div style={{ border: "1px solid #eef2f7", borderRadius: 14, padding: 12 }}>
+                        <div style={{ border: "1px solid var(--border)", borderRadius: 14, padding: 12 }}>
                           <div style={{ fontSize: 12, opacity: 0.7 }}>Selected</div>
                           <strong>{shortlistSummary.selectedCount}</strong>
                         </div>
-                        <div style={{ border: "1px solid #eef2f7", borderRadius: 14, padding: 12 }}>
+                        <div style={{ border: "1px solid var(--border)", borderRadius: 14, padding: 12 }}>
                           <div style={{ fontSize: 12, opacity: 0.7 }}>Avg score</div>
                           <strong>{shortlistSummary.avgScore}</strong>
                         </div>
-                        <div style={{ border: "1px solid #eef2f7", borderRadius: 14, padding: 12 }}>
+                        <div style={{ border: "1px solid var(--border)", borderRadius: 14, padding: 12 }}>
                           <div style={{ fontSize: 12, opacity: 0.7 }}>Available</div>
                           <strong>{shortlistSummary.availableCount}</strong>
                         </div>
-                        <div style={{ border: "1px solid #eef2f7", borderRadius: 14, padding: 12 }}>
+                        <div style={{ border: "1px solid var(--border)", borderRadius: 14, padding: 12 }}>
                           <div style={{ fontSize: 12, opacity: 0.7 }}>Low risk</div>
                           <strong>{shortlistSummary.lowRiskCount}</strong>
                         </div>
-                        <div style={{ border: "1px solid #eef2f7", borderRadius: 14, padding: 12 }}>
+                        <div style={{ border: "1px solid var(--border)", borderRadius: 14, padding: 12 }}>
                           <div style={{ fontSize: 12, opacity: 0.7 }}>Likely accept</div>
                           <strong>{shortlistSummary.likelyAcceptCount}</strong>
                         </div>
-                        <div style={{ border: "1px solid #eef2f7", borderRadius: 14, padding: 12 }}>
+                        <div style={{ border: "1px solid var(--border)", borderRadius: 14, padding: 12 }}>
                           <div style={{ fontSize: 12, opacity: 0.7 }}>Missing seats</div>
                           <strong>{shortlistSummary.missingSeats}</strong>
                         </div>
@@ -1247,7 +1259,7 @@ export default function ActivityStaffingPage() {
                         border: "1px solid rgba(148, 163, 184, 0.22)",
                         borderRadius: 18,
                         padding: 16,
-                        background: "#fff",
+                        background: "var(--card)",
                       }}
                     >
                       <div
@@ -1279,7 +1291,7 @@ export default function ActivityStaffingPage() {
                         border: "1px solid rgba(148, 163, 184, 0.22)",
                         borderRadius: 18,
                         padding: 16,
-                        background: "#fff",
+                        background: "var(--card)",
                       }}
                     >
                       <div
@@ -1310,7 +1322,7 @@ export default function ActivityStaffingPage() {
                                   justifyContent: "space-between",
                                   gap: 12,
                                   alignItems: "center",
-                                  border: "1px solid #eef2f7",
+                                  border: "1px solid var(--border)",
                                   borderRadius: 14,
                                   padding: "12px 14px",
                                 }}
@@ -1354,7 +1366,7 @@ export default function ActivityStaffingPage() {
                         border: "1px solid rgba(148, 163, 184, 0.22)",
                         borderRadius: 18,
                         padding: 16,
-                        background: "#fff",
+                        background: "var(--card)",
                       }}
                     >
                       <div
@@ -1401,7 +1413,7 @@ export default function ActivityStaffingPage() {
                                 alignItems: "center",
                                 justifyContent: "space-between",
                                 gap: 12,
-                                border: "1px solid #eef2f7",
+                                border: "1px solid var(--border)",
                                 borderRadius: 12,
                                 padding: "10px 12px",
                               }}
@@ -1642,10 +1654,10 @@ export default function ActivityStaffingPage() {
                 marginBottom: 16,
                 padding: "12px 14px",
                 borderRadius: 14,
-                background: "#f8fafc",
-                color: "#334155",
+                background: "var(--surface-2)",
+                color: "var(--text)",
                 fontSize: 14,
-                border: "1px solid #eef2f7",
+                border: "1px solid var(--border)",
               }}
             >
               Good fit with <strong>{activeCandidateInsight.managerFit.toLowerCase()}</strong> manager alignment,{" "}
@@ -1663,7 +1675,7 @@ export default function ActivityStaffingPage() {
             >
               <div
                 style={{
-                  border: "1px solid #eef2f7",
+                  border: "1px solid var(--border)",
                   borderRadius: 16,
                   padding: 14,
                 }}
@@ -1674,7 +1686,7 @@ export default function ActivityStaffingPage() {
 
               <div
                 style={{
-                  border: "1px solid #eef2f7",
+                  border: "1px solid var(--border)",
                   borderRadius: 16,
                   padding: 14,
                 }}
@@ -1685,7 +1697,7 @@ export default function ActivityStaffingPage() {
 
               <div
                 style={{
-                  border: "1px solid #eef2f7",
+                  border: "1px solid var(--border)",
                   borderRadius: 16,
                   padding: 14,
                 }}
@@ -1696,7 +1708,7 @@ export default function ActivityStaffingPage() {
 
               <div
                 style={{
-                  border: "1px solid #eef2f7",
+                  border: "1px solid var(--border)",
                   borderRadius: 16,
                   padding: 14,
                 }}
@@ -1715,7 +1727,7 @@ export default function ActivityStaffingPage() {
             >
               <div
                 style={{
-                  border: "1px solid #eef2f7",
+                  border: "1px solid var(--border)",
                   borderRadius: 18,
                   padding: 16,
                 }}
@@ -1742,7 +1754,7 @@ export default function ActivityStaffingPage() {
 
               <div
                 style={{
-                  border: "1px solid #eef2f7",
+                  border: "1px solid var(--border)",
                   borderRadius: 18,
                   padding: 16,
                 }}
@@ -1771,13 +1783,13 @@ export default function ActivityStaffingPage() {
             <div
               style={{
                 marginTop: 16,
-                border: "1px solid #eef2f7",
+                border: "1px solid var(--border)",
                 borderRadius: 18,
                 padding: 16,
               }}
             >
               <h3 style={{ marginTop: 0, marginBottom: 8 }}>Activity history</h3>
-              <p style={{ margin: 0, color: "#475569" }}>
+              <p style={{ margin: 0, color: "var(--muted)" }}>
                 Participated in {activeCandidateInsight.previousActivityCount} similar
                 activity{activeCandidateInsight.previousActivityCount === 1 ? "" : "ies"}.
               </p>
@@ -1867,10 +1879,10 @@ export default function ActivityStaffingPage() {
                     <div
                       key={candidate.employeeId}
                       style={{
-                        border: "1px solid #e5e7eb",
+                        border: "1px solid var(--border)",
                         borderRadius: 20,
                         padding: 18,
-                        background: "#fff",
+                        background: "var(--card)",
                       }}
                     >
                       <div
@@ -1894,7 +1906,7 @@ export default function ActivityStaffingPage() {
                       <div style={{ display: "grid", gap: 10 }}>
                         <div
                           style={{
-                            border: "1px solid #eef2f7",
+                            border: "1px solid var(--border)",
                             borderRadius: 14,
                             padding: "10px 12px",
                           }}
@@ -1904,7 +1916,7 @@ export default function ActivityStaffingPage() {
 
                         <div
                           style={{
-                            border: "1px solid #eef2f7",
+                            border: "1px solid var(--border)",
                             borderRadius: 14,
                             padding: "10px 12px",
                           }}
@@ -1914,7 +1926,7 @@ export default function ActivityStaffingPage() {
 
                         <div
                           style={{
-                            border: "1px solid #eef2f7",
+                            border: "1px solid var(--border)",
                             borderRadius: 14,
                             padding: "10px 12px",
                           }}
@@ -1924,7 +1936,7 @@ export default function ActivityStaffingPage() {
 
                         <div
                           style={{
-                            border: "1px solid #eef2f7",
+                            border: "1px solid var(--border)",
                             borderRadius: 14,
                             padding: "10px 12px",
                           }}
@@ -1934,7 +1946,7 @@ export default function ActivityStaffingPage() {
 
                         <div
                           style={{
-                            border: "1px solid #eef2f7",
+                            border: "1px solid var(--border)",
                             borderRadius: 14,
                             padding: "10px 12px",
                           }}
@@ -1944,7 +1956,7 @@ export default function ActivityStaffingPage() {
 
                         <div
                           style={{
-                            border: "1px solid #eef2f7",
+                            border: "1px solid var(--border)",
                             borderRadius: 14,
                             padding: "10px 12px",
                           }}
@@ -1971,7 +1983,7 @@ export default function ActivityStaffingPage() {
 
                         <div
                           style={{
-                            border: "1px solid #eef2f7",
+                            border: "1px solid var(--border)",
                             borderRadius: 14,
                             padding: "10px 12px",
                           }}
