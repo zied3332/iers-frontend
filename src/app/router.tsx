@@ -6,7 +6,7 @@ import Login from "../pages/auth/Login";
 import Signup from "../pages/auth/Signup";
 import ForgotPassword from "../pages/auth/ForgotPassword";
 import ResetPassword from "../pages/auth/ResetPassword";
-
+import HrRecommendationPage from "../pages/hr/HrRecommendationPage";
 import HrLayout from "../layouts/HrLayout";
 import SuperManagerLayout from "../layouts/SuperManagerLayout";
 import ManagerLayout from "../layouts/ManagerLayout";
@@ -178,6 +178,7 @@ export const router = createBrowserRouter([
           { path: "settings", element: <SettingsPage /> },
           { path: "employees/:id", element: <Profile /> },
           { path: "calendar", element: <HrCalendarPage /> },
+          { path: "activities/:activityId/recommendation", element: <HrRecommendationPage /> },
         ],
       },
     ],

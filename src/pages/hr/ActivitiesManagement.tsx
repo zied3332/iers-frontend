@@ -955,7 +955,7 @@ export default function ActivitiesManagement() {
               style={{ ...styles.btn, ...styles.btnPrimary, height: "40px" }}
               onClick={(e) => {
                 e.stopPropagation();
-                navigate(`/hr/activities/${a._id}/staffing`);
+                navigate(`/hr/activities/${a._id}/recommendation`);
               }}
             >
               <FiUsers size={15} />
