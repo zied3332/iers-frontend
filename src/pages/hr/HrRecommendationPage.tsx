@@ -1,15 +1,34 @@
-import { useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import {
+  getActivityById,
+  type ActivityRecord,
+} from "../../services/activities.service";
+import { getCandidates } from "../../services/hrCopilot.service";
 import {
   getFinalRecommendations,
   type RecommendationDecision,
   type RecommendationFinalResponse,
   type RecommendationItem,
 } from "../../services/recommendations.service";
+import {
+  saveHrShortlist,
+  submitHrShortlistToManager,
+} from "../../services/activityReviews.service";
 import "./HrRecommendationPage.css";
 
 type ViewMode = "table" | "cards";
 type FilterMode = "ALL" | RecommendationDecision;
+
+type UiRecommendationItem = RecommendationItem & {
+  reviewEmployeeId?: string;
+};
+
+type UiRecommendationFinalResponse = RecommendationFinalResponse & {
+  primaryCandidates: UiRecommendationItem[];
+  backupCandidates: UiRecommendationItem[];
+  notRecommendedCandidates: UiRecommendationItem[];
+};
 
 const PIPELINE_STEPS = [
   "Activity parsed",
@@ -20,7 +39,7 @@ const PIPELINE_STEPS = [
 ];
 
 function percent(value: number) {
-  return `${Math.round(value * 100)}%`;
+  return `${Math.round((Number(value) || 0) * 100)}%`;
 }
 
 function decisionLabel(decision: RecommendationDecision | "ALL") {
@@ -34,22 +53,119 @@ function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function isMongoId(id: string) {
+  return /^[a-f\d]{24}$/i.test(id);
+}
+
+function getCandidateKey(candidate: UiRecommendationItem) {
+  return String(candidate.reviewEmployeeId || candidate.employeeId);
+}
+
+function getReviewEmployeeId(candidate: UiRecommendationItem) {
+  return String(candidate.reviewEmployeeId || candidate.employeeId);
+}
+
+function normalizeFinalResponse(
+  result: RecommendationFinalResponse,
+  oldRecommendations: any
+): UiRecommendationFinalResponse {
+  const oldPrimary = oldRecommendations?.primaryCandidates || [];
+  const oldBackup = oldRecommendations?.backupCandidates || [];
+
+  const attachPrimary = (
+    candidate: RecommendationItem,
+    index: number
+  ): UiRecommendationItem => {
+    const oldId = String(oldPrimary[index]?.employeeId || "");
+
+    const finalId = isMongoId(oldId) ? oldId : String(candidate.employeeId);
+
+    return {
+      ...candidate,
+      employeeId: finalId,
+      reviewEmployeeId: finalId,
+    };
+  };
+
+  const attachBackup = (
+    candidate: RecommendationItem,
+    index: number
+  ): UiRecommendationItem => {
+    const oldId = String(oldBackup[index]?.employeeId || "");
+
+    const finalId = isMongoId(oldId) ? oldId : String(candidate.employeeId);
+
+    return {
+      ...candidate,
+      employeeId: finalId,
+      reviewEmployeeId: finalId,
+    };
+  };
+
+  const attachNotRecommended = (
+    candidate: RecommendationItem
+  ): UiRecommendationItem => ({
+    ...candidate,
+    reviewEmployeeId: String(candidate.employeeId),
+  });
+
+  return {
+    ...result,
+    primaryCandidates: result.primaryCandidates.map(attachPrimary),
+    backupCandidates: result.backupCandidates.map(attachBackup),
+    notRecommendedCandidates: result.notRecommendedCandidates.map(
+      attachNotRecommended
+    ),
+  };
+}
+
 export default function HrRecommendationPage() {
   const { activityId = "" } = useParams();
+  const navigate = useNavigate();
 
-  const [data, setData] = useState<RecommendationFinalResponse | null>(null);
+  const [activity, setActivity] = useState<ActivityRecord | null>(null);
+  const [activityLoading, setActivityLoading] = useState(false);
+
+  const [data, setData] = useState<UiRecommendationFinalResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sendingToManager, setSendingToManager] = useState(false);
+  const [sentToManager, setSentToManager] = useState(false);
+
   const [showPipeline, setShowPipeline] = useState(false);
   const [activeStep, setActiveStep] = useState(-1);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
   const [filter, setFilter] = useState<FilterMode>("ALL");
   const [view, setView] = useState<ViewMode>("table");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeCandidate, setActiveCandidate] =
-    useState<RecommendationItem | null>(null);
+    useState<UiRecommendationItem | null>(null);
+
+  useEffect(() => {
+    if (!activityId) return;
+
+    async function loadActivity() {
+      try {
+        setActivityLoading(true);
+        setError("");
+        const result = await getActivityById(activityId);
+        setActivity(result);
+      } catch (err: any) {
+        setError(err?.message || "Failed to load activity details.");
+      } finally {
+        setActivityLoading(false);
+      }
+    }
+
+    loadActivity();
+  }, [activityId]);
 
   const allCandidates = useMemo(() => {
     if (!data) return [];
+
     return [
       ...data.primaryCandidates,
       ...data.backupCandidates,
@@ -62,12 +178,21 @@ export default function HrRecommendationPage() {
     return allCandidates.filter((candidate) => candidate.decision === filter);
   }, [allCandidates, filter]);
 
+  const selectedCandidates = useMemo(() => {
+    return allCandidates.filter((candidate) =>
+      selectedIds.includes(getCandidateKey(candidate))
+    );
+  }, [allCandidates, selectedIds]);
+
   async function runRecommendation() {
-    if (!activityId || loading) return;
+    if (!activityId || loading || sendingToManager) return;
 
     try {
       setError("");
+      setSuccess("");
       setData(null);
+      setSelectedIds([]);
+      setSentToManager(false);
       setLoading(true);
       setShowPipeline(true);
       setActiveStep(-1);
@@ -81,17 +206,96 @@ export default function HrRecommendationPage() {
 
       await wait(250);
 
-      const result = await getFinalRecommendations(activityId);
-      setData(result);
+      const [newResult, oldResult] = await Promise.all([
+        getFinalRecommendations(activityId),
+        getCandidates(activityId),
+      ]);
+
+      const fixedResult = normalizeFinalResponse(newResult, oldResult);
+
+      console.log("NEW PRIMARY IDS:", newResult.primaryCandidates.map((c) => c.employeeId));
+      console.log("OLD VALID PRIMARY IDS:", oldResult.primaryCandidates?.map((c: any) => c.employeeId));
+      console.log("FINAL IDS USED:", fixedResult.primaryCandidates.map((c) => c.employeeId));
+
+      setData(fixedResult);
+      setSelectedIds(
+        fixedResult.primaryCandidates.map((candidate) =>
+          getCandidateKey(candidate)
+        )
+      );
+
       setShowPipeline(false);
       setActiveStep(-1);
     } catch (err: any) {
-      setError(
-        err?.response?.data?.message || "Failed to generate recommendations."
-      );
+      setError(err?.message || "Failed to generate recommendations.");
       setShowPipeline(false);
     } finally {
       setLoading(false);
+    }
+  }
+
+  function toggleCandidate(candidateId: string) {
+    if (sentToManager || sendingToManager) return;
+
+    setSelectedIds((prev) =>
+      prev.includes(candidateId)
+        ? prev.filter((id) => id !== candidateId)
+        : [...prev, candidateId]
+    );
+  }
+
+  function selectTopSeats() {
+    if (!data || sentToManager || sendingToManager) return;
+
+    setSelectedIds(
+      data.primaryCandidates
+        .slice(0, data.seats)
+        .map((candidate) => getCandidateKey(candidate))
+    );
+  }
+
+  function clearSelection() {
+    if (sentToManager || sendingToManager) return;
+    setSelectedIds([]);
+  }
+
+  async function handleSendToManager() {
+    if (!activityId || !data || sendingToManager) return;
+
+    if (selectedIds.length === 0) {
+      setError("Select at least one employee before sending to manager.");
+      return;
+    }
+
+    try {
+      setSendingToManager(true);
+      setError("");
+      setSuccess("");
+
+      const employeeIds = selectedIds.filter(isMongoId);
+
+      console.log("========== SEND DEBUG ==========");
+      console.log("EMPLOYEE IDS SENT TO BACKEND:", employeeIds);
+
+      await saveHrShortlist(activityId, {
+        employeeIds,
+        hrNote: `Sent to manager for approval on ${new Date().toLocaleDateString()}`,
+        hrInvitationResponseDays: 3,
+      });
+
+      await submitHrShortlistToManager(activityId);
+
+      setSentToManager(true);
+      setSuccess("Shortlist sent to manager successfully.");
+    } catch (err: any) {
+      console.error("SEND ERROR:", err);
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to send shortlist to manager."
+      );
+    } finally {
+      setSendingToManager(false);
     }
   }
 
@@ -100,7 +304,7 @@ export default function HrRecommendationPage() {
       <div className="hr-rec-topbar">
         <div>
           <div className="hr-rec-eyebrow">HR recommendation engine</div>
-          <h1>Activity Staffing Recommendation</h1>
+          <h1>{activity?.title || "Activity Staffing Recommendation"}</h1>
           <p>
             Generate a shortlist, inspect skill gaps, and prepare staffing seats
             for manager review.
@@ -110,7 +314,7 @@ export default function HrRecommendationPage() {
         <button
           className="hr-rec-btn hr-rec-btn-primary"
           onClick={runRecommendation}
-          disabled={loading}
+          disabled={loading || sendingToManager || activityLoading}
         >
           {loading
             ? "Analyzing..."
@@ -121,50 +325,80 @@ export default function HrRecommendationPage() {
       </div>
 
       {error ? <div className="hr-rec-error">{error}</div> : null}
+      {success ? <div className="hr-rec-success">{success}</div> : null}
 
       <div className="hr-rec-layout">
         <aside className="hr-rec-card">
           <div className="hr-rec-card-body">
             <h2 className="hr-rec-activity-title">
-              React.js Frontend Development
+              {activityLoading
+                ? "Loading activity..."
+                : activity?.title || "Activity details"}
             </h2>
 
             <div className="hr-rec-meta-grid">
               <div>
                 <span>Type</span>
-                <strong>TRAINING</strong>
+                <strong>{activity?.type || "—"}</strong>
               </div>
+
               <div>
                 <span>Context</span>
-                <strong>UPSKILLING</strong>
+                <strong>{activity?.priorityContext || "—"}</strong>
               </div>
+
               <div>
                 <span>Seats</span>
-                <strong>{data?.seats ?? "6"}</strong>
+                <strong>{data?.seats ?? activity?.availableSlots ?? "—"}</strong>
               </div>
+
               <div>
                 <span>Backup</span>
-                <strong>{data?.backupCount ?? "5"}</strong>
+                <strong>{data?.backupCount ?? "—"}</strong>
+              </div>
+
+              <div>
+                <span>Department</span>
+                <strong>{(activity as any)?.departmentName || "—"}</strong>
+              </div>
+
+              <div>
+                <span>Duration</span>
+                <strong>{activity?.duration || "—"}</strong>
               </div>
             </div>
 
             <h3>Required skills</h3>
 
-            <div className="hr-rec-skill">
-              <div>
-                <strong>React</strong>
-                <p>Required level: HIGH</p>
-              </div>
-              <span className="hr-rec-pill">Mandatory</span>
-            </div>
+            {activity?.requiredSkills?.length ? (
+              activity.requiredSkills.map((skill) => (
+                <div
+                  className="hr-rec-skill"
+                  key={`${skill.name}-${skill.desiredLevel}`}
+                >
+                  <div>
+                    <strong>{skill.name}</strong>
+                    <p>Required level: {skill.desiredLevel}</p>
+                  </div>
 
-            <div className="hr-rec-skill">
-              <div>
-                <strong>Communication</strong>
-                <p>Required level: MEDIUM</p>
-              </div>
-              <span className="hr-rec-pill warning">Preferred</span>
-            </div>
+                  <span
+                    className={
+                      skill.desiredLevel === "HIGH"
+                        ? "hr-rec-pill"
+                        : "hr-rec-pill warning"
+                    }
+                  >
+                    {skill.desiredLevel === "HIGH" ? "Mandatory" : "Preferred"}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="hr-rec-muted">
+                {activityLoading
+                  ? "Loading required skills..."
+                  : "No required skills found for this activity."}
+              </p>
+            )}
           </div>
         </aside>
 
@@ -199,27 +433,30 @@ export default function HrRecommendationPage() {
                   <span>Seats</span>
                   <strong>{data.seats}</strong>
                 </div>
+
                 <div>
                   <span>Primary</span>
                   <strong>{data.summary.primaryCount}</strong>
                 </div>
+
                 <div>
                   <span>Backup</span>
                   <strong>{data.summary.backupCount}</strong>
                 </div>
+
                 <div>
-                  <span>Not recommended</span>
-                  <strong>{data.summary.notRecommendedCount}</strong>
+                  <span>Selected</span>
+                  <strong>{selectedIds.length}</strong>
                 </div>
               </div>
 
-              <SeatPlanning data={data} />
+              <SeatPlanning data={data} selectedCandidates={selectedCandidates} />
 
               <div className="hr-rec-card">
                 <div className="hr-rec-tools">
                   <div>
                     <h2>Candidate ranking</h2>
-                    <p>Switch between list view and card view.</p>
+                    <p>Select candidates, then send the shortlist to manager.</p>
                   </div>
 
                   <div className="hr-rec-toggle">
@@ -229,6 +466,7 @@ export default function HrRecommendationPage() {
                     >
                       List view
                     </button>
+
                     <button
                       className={view === "cards" ? "active" : ""}
                       onClick={() => setView("cards")}
@@ -257,6 +495,52 @@ export default function HrRecommendationPage() {
                   </div>
                 </div>
 
+                <div className="hr-rec-shortlist-actions">
+                  <div>
+                    <strong>{selectedIds.length}</strong> selected for manager
+                    review
+                  </div>
+
+                  <div>
+                    <button
+                      className="hr-rec-btn hr-rec-btn-outline"
+                      onClick={selectTopSeats}
+                      disabled={sentToManager || sendingToManager}
+                    >
+                      Select top seats
+                    </button>
+
+                    <button
+                      className="hr-rec-btn hr-rec-btn-outline"
+                      onClick={clearSelection}
+                      disabled={sentToManager || sendingToManager}
+                    >
+                      Clear
+                    </button>
+
+                    {sentToManager ? (
+                      <button
+                        className="hr-rec-btn hr-rec-btn-primary"
+                        onClick={() =>
+                          navigate(
+                            `/hr/activities/${activityId}/manager-decisions`
+                          )
+                        }
+                      >
+                        Open manager list
+                      </button>
+                    ) : (
+                      <button
+                        className="hr-rec-btn hr-rec-btn-primary"
+                        onClick={handleSendToManager}
+                        disabled={sendingToManager || selectedIds.length === 0}
+                      >
+                        {sendingToManager ? "Sending..." : "Send to manager"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 {filteredCandidates.length === 0 ? (
                   <div className="hr-rec-no-results">
                     No candidates match this filter.
@@ -264,14 +548,22 @@ export default function HrRecommendationPage() {
                 ) : view === "table" ? (
                   <CandidateTable
                     candidates={filteredCandidates}
+                    selectedIds={selectedIds}
+                    sentToManager={sentToManager}
+                    sendingToManager={sendingToManager}
+                    onToggle={toggleCandidate}
                     onView={setActiveCandidate}
                   />
                 ) : (
                   <div className="hr-rec-cards-grid">
                     {filteredCandidates.map((candidate) => (
                       <CandidateCard
-                        key={candidate.employeeId}
+                        key={getCandidateKey(candidate)}
                         candidate={candidate}
+                        selected={selectedIds.includes(getCandidateKey(candidate))}
+                        sentToManager={sentToManager}
+                        sendingToManager={sendingToManager}
+                        onToggle={() => toggleCandidate(getCandidateKey(candidate))}
                         onView={() => setActiveCandidate(candidate)}
                       />
                     ))}
@@ -322,9 +614,8 @@ function PipelineCard({
                 }`}
                 key={step}
               >
-                <div className="hr-rec-step-icon">
-                  {done ? "✓" : index + 1}
-                </div>
+                <div className="hr-rec-step-icon">{done ? "✓" : index + 1}</div>
+
                 <div>
                   <strong>{step}</strong>
                   <p>
@@ -344,21 +635,28 @@ function PipelineCard({
   );
 }
 
-function SeatPlanning({ data }: { data: RecommendationFinalResponse }) {
+function SeatPlanning({
+  data,
+  selectedCandidates,
+}: {
+  data: UiRecommendationFinalResponse;
+  selectedCandidates: UiRecommendationItem[];
+}) {
   return (
     <div className="hr-rec-card">
       <div className="hr-rec-card-body">
         <div className="hr-rec-section-header">
           <div>
             <h2>Seat planning</h2>
-            <p>Primary seats prepared from the recommendation result.</p>
+            <p>Selected candidates prepared for manager review.</p>
           </div>
+
           <span className="hr-rec-pill">Manager review ready</span>
         </div>
 
         <div className="hr-rec-seat-map">
           {Array.from({ length: data.seats }).map((_, index) => {
-            const candidate = data.primaryCandidates[index];
+            const candidate = selectedCandidates[index];
 
             return (
               <div
@@ -385,16 +683,25 @@ function SeatPlanning({ data }: { data: RecommendationFinalResponse }) {
 
 function CandidateTable({
   candidates,
+  selectedIds,
+  sentToManager,
+  sendingToManager,
+  onToggle,
   onView,
 }: {
-  candidates: RecommendationItem[];
-  onView: (candidate: RecommendationItem) => void;
+  candidates: UiRecommendationItem[];
+  selectedIds: string[];
+  sentToManager: boolean;
+  sendingToManager: boolean;
+  onToggle: (candidateId: string) => void;
+  onView: (candidate: UiRecommendationItem) => void;
 }) {
   return (
     <div className="hr-rec-table-scroll">
       <table>
         <thead>
           <tr>
+            <th>Select</th>
             <th>Rank</th>
             <th>Employee</th>
             <th>Score</th>
@@ -403,29 +710,48 @@ function CandidateTable({
             <th>Action</th>
           </tr>
         </thead>
+
         <tbody>
-          {candidates.map((candidate) => (
-            <tr key={candidate.employeeId}>
-              <td>#{candidate.rank}</td>
-              <td>
-                <strong>{candidate.fullName}</strong>
-                <p>{candidate.email}</p>
-              </td>
-              <td className="hr-rec-score">{percent(candidate.finalScore)}</td>
-              <td>
-                <DecisionPill decision={candidate.decision} />
-              </td>
-              <td>{candidate.selectionGroup}</td>
-              <td>
-                <button
-                  className="hr-rec-btn hr-rec-btn-outline"
-                  onClick={() => onView(candidate)}
-                >
-                  View details
-                </button>
-              </td>
-            </tr>
-          ))}
+          {candidates.map((candidate) => {
+            const key = getCandidateKey(candidate);
+
+            return (
+              <tr key={key}>
+                <td>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(key)}
+                    disabled={sentToManager || sendingToManager}
+                    onChange={() => onToggle(key)}
+                  />
+                </td>
+
+                <td>#{candidate.rank}</td>
+
+                <td>
+                  <strong>{candidate.fullName}</strong>
+                  <p>{candidate.email}</p>
+                </td>
+
+                <td className="hr-rec-score">{percent(candidate.finalScore)}</td>
+
+                <td>
+                  <DecisionPill decision={candidate.decision} />
+                </td>
+
+                <td>{candidate.selectionGroup}</td>
+
+                <td>
+                  <button
+                    className="hr-rec-btn hr-rec-btn-outline"
+                    onClick={() => onView(candidate)}
+                  >
+                    View details
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -445,16 +771,25 @@ function DecisionPill({ decision }: { decision: RecommendationDecision }) {
 
 function CandidateCard({
   candidate,
+  selected,
+  sentToManager,
+  sendingToManager,
+  onToggle,
   onView,
 }: {
-  candidate: RecommendationItem;
+  candidate: UiRecommendationItem;
+  selected: boolean;
+  sentToManager: boolean;
+  sendingToManager: boolean;
+  onToggle: () => void;
   onView: () => void;
 }) {
   return (
-    <div className="hr-rec-candidate-card">
+    <div className={`hr-rec-candidate-card ${selected ? "selected" : ""}`}>
       <div className="hr-rec-candidate-top">
         <div className="hr-rec-candidate-left">
           <div className="hr-rec-rank">#{candidate.rank}</div>
+
           <div>
             <h3>{candidate.fullName}</h3>
             <p>{candidate.email}</p>
@@ -488,8 +823,18 @@ function CandidateCard({
         <button className="hr-rec-btn hr-rec-btn-outline" onClick={onView}>
           View details
         </button>
-        <button className="hr-rec-btn hr-rec-btn-primary">Add to shortlist</button>
-        <button className="hr-rec-btn">Replace</button>
+
+        <button
+          className={selected ? "hr-rec-btn" : "hr-rec-btn hr-rec-btn-primary"}
+          onClick={onToggle}
+          disabled={sentToManager || sendingToManager}
+        >
+          {selected ? "Remove" : "Add to shortlist"}
+        </button>
+
+        <button className="hr-rec-btn" disabled={sentToManager || sendingToManager}>
+          Replace
+        </button>
       </div>
     </div>
   );
@@ -499,9 +844,11 @@ function Bar({ label, value }: { label: string; value: number }) {
   return (
     <div className="hr-rec-bar-row">
       <span>{label}</span>
+
       <div>
-        <i style={{ width: `${Math.round(value * 100)}%` }} />
+        <i style={{ width: `${Math.round((Number(value) || 0) * 100)}%` }} />
       </div>
+
       <strong>{percent(value)}</strong>
     </div>
   );
@@ -511,7 +858,7 @@ function CandidateDrawer({
   candidate,
   onClose,
 }: {
-  candidate: RecommendationItem;
+  candidate: UiRecommendationItem;
   onClose: () => void;
 }) {
   return (

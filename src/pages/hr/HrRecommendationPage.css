@@ -667,3 +667,33 @@
     grid-template-columns: 92px 1fr 38px;
   }
 }
+.hr-rec-success {
+  background: #e9f6ef;
+  color: #247247;
+  border: 1px solid #b9dfc8;
+  padding: 14px 16px;
+  border-radius: 15px;
+  margin-bottom: 18px;
+  font-weight: 700;
+}
+
+.hr-rec-shortlist-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 16px 18px 0;
+}
+
+.hr-rec-shortlist-actions > div:last-child {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hr-rec-candidate-card.selected {
+  border-color: #b9dfc8;
+  background: #fbfffd;
+  box-shadow: 0 14px 32px rgba(47, 143, 91, 0.1);
+}
