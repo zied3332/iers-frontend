@@ -12,6 +12,7 @@ import {
   type RecommendationItem,
 } from "../../services/recommendations.service";
 import {
+  getActivityReview,
   saveHrShortlist,
   submitHrShortlistToManager,
 } from "../../services/activityReviews.service";
@@ -61,10 +62,6 @@ function getCandidateKey(candidate: UiRecommendationItem) {
   return String(candidate.reviewEmployeeId || candidate.employeeId);
 }
 
-function getReviewEmployeeId(candidate: UiRecommendationItem) {
-  return String(candidate.reviewEmployeeId || candidate.employeeId);
-}
-
 function normalizeFinalResponse(
   result: RecommendationFinalResponse,
   oldRecommendations: any
@@ -77,7 +74,6 @@ function normalizeFinalResponse(
     index: number
   ): UiRecommendationItem => {
     const oldId = String(oldPrimary[index]?.employeeId || "");
-
     const finalId = isMongoId(oldId) ? oldId : String(candidate.employeeId);
 
     return {
@@ -92,7 +88,6 @@ function normalizeFinalResponse(
     index: number
   ): UiRecommendationItem => {
     const oldId = String(oldBackup[index]?.employeeId || "");
-
     const finalId = isMongoId(oldId) ? oldId : String(candidate.employeeId);
 
     return {
@@ -130,6 +125,7 @@ export default function HrRecommendationPage() {
   const [loading, setLoading] = useState(false);
   const [sendingToManager, setSendingToManager] = useState(false);
   const [sentToManager, setSentToManager] = useState(false);
+  const [reviewStatus, setReviewStatus] = useState<string>("");
 
   const [showPipeline, setShowPipeline] = useState(false);
   const [activeStep, setActiveStep] = useState(-1);
@@ -144,15 +140,47 @@ export default function HrRecommendationPage() {
   const [activeCandidate, setActiveCandidate] =
     useState<UiRecommendationItem | null>(null);
 
+  const managerApproved = reviewStatus === "APPROVED_BY_MANAGER";
+  const reviewAlreadySent =
+    reviewStatus === "SUBMITTED_TO_MANAGER" ||
+    reviewStatus === "APPROVED_BY_MANAGER";
+
   useEffect(() => {
     if (!activityId) return;
 
-    async function loadActivity() {
+    async function loadInitialData() {
       try {
         setActivityLoading(true);
         setError("");
-        const result = await getActivityById(activityId);
-        setActivity(result);
+
+        const [activityResult, reviewResult] = await Promise.allSettled([
+          getActivityById(activityId),
+          getActivityReview(activityId),
+        ]);
+
+        if (activityResult.status === "fulfilled") {
+          setActivity(activityResult.value);
+        }
+
+        if (reviewResult.status === "fulfilled" && reviewResult.value) {
+          const status = String(reviewResult.value.status || "");
+          setReviewStatus(status);
+
+          if (
+            status === "SUBMITTED_TO_MANAGER" ||
+            status === "APPROVED_BY_MANAGER"
+          ) {
+            setSentToManager(true);
+          }
+
+          if (status === "APPROVED_BY_MANAGER") {
+            setSuccess(
+              "Manager approved this shortlist. Waiting for HR final acceptance."
+            );
+          } else if (status === "SUBMITTED_TO_MANAGER") {
+            setSuccess("Shortlist sent. Waiting for manager review.");
+          }
+        }
       } catch (err: any) {
         setError(err?.message || "Failed to load activity details.");
       } finally {
@@ -160,7 +188,7 @@ export default function HrRecommendationPage() {
       }
     }
 
-    loadActivity();
+    loadInitialData();
   }, [activityId]);
 
   const allCandidates = useMemo(() => {
@@ -185,7 +213,15 @@ export default function HrRecommendationPage() {
   }, [allCandidates, selectedIds]);
 
   async function runRecommendation() {
-    if (!activityId || loading || sendingToManager) return;
+    if (
+      !activityId ||
+      loading ||
+      sendingToManager ||
+      sentToManager ||
+      reviewAlreadySent
+    ) {
+      return;
+    }
 
     try {
       setError("");
@@ -213,10 +249,6 @@ export default function HrRecommendationPage() {
 
       const fixedResult = normalizeFinalResponse(newResult, oldResult);
 
-      console.log("NEW PRIMARY IDS:", newResult.primaryCandidates.map((c) => c.employeeId));
-      console.log("OLD VALID PRIMARY IDS:", oldResult.primaryCandidates?.map((c: any) => c.employeeId));
-      console.log("FINAL IDS USED:", fixedResult.primaryCandidates.map((c) => c.employeeId));
-
       setData(fixedResult);
       setSelectedIds(
         fixedResult.primaryCandidates.map((candidate) =>
@@ -235,7 +267,7 @@ export default function HrRecommendationPage() {
   }
 
   function toggleCandidate(candidateId: string) {
-    if (sentToManager || sendingToManager) return;
+    if (sentToManager || sendingToManager || reviewAlreadySent) return;
 
     setSelectedIds((prev) =>
       prev.includes(candidateId)
@@ -245,7 +277,7 @@ export default function HrRecommendationPage() {
   }
 
   function selectTopSeats() {
-    if (!data || sentToManager || sendingToManager) return;
+    if (!data || sentToManager || sendingToManager || reviewAlreadySent) return;
 
     setSelectedIds(
       data.primaryCandidates
@@ -255,12 +287,16 @@ export default function HrRecommendationPage() {
   }
 
   function clearSelection() {
-    if (sentToManager || sendingToManager) return;
+    if (sentToManager || sendingToManager || reviewAlreadySent) return;
     setSelectedIds([]);
   }
 
+  function goToManagerList() {
+    navigate(`/hr/activities/${activityId}/manager-decisions`);
+  }
+
   async function handleSendToManager() {
-    if (!activityId || !data || sendingToManager) return;
+    if (!activityId || !data || sendingToManager || reviewAlreadySent) return;
 
     if (selectedIds.length === 0) {
       setError("Select at least one employee before sending to manager.");
@@ -274,19 +310,19 @@ export default function HrRecommendationPage() {
 
       const employeeIds = selectedIds.filter(isMongoId);
 
-      console.log("========== SEND DEBUG ==========");
-      console.log("EMPLOYEE IDS SENT TO BACKEND:", employeeIds);
-
       await saveHrShortlist(activityId, {
         employeeIds,
         hrNote: `Sent to manager for approval on ${new Date().toLocaleDateString()}`,
         hrInvitationResponseDays: 3,
       });
 
-      await submitHrShortlistToManager(activityId);
+      const submitResult = await submitHrShortlistToManager(activityId);
 
       setSentToManager(true);
-      setSuccess("Shortlist sent to manager successfully.");
+      setReviewStatus(
+        submitResult?.review?.status || "SUBMITTED_TO_MANAGER"
+      );
+      setSuccess("Shortlist sent to manager. Waiting for manager review.");
     } catch (err: any) {
       console.error("SEND ERROR:", err);
       setError(
@@ -306,26 +342,56 @@ export default function HrRecommendationPage() {
           <div className="hr-rec-eyebrow">HR recommendation engine</div>
           <h1>{activity?.title || "Activity Staffing Recommendation"}</h1>
           <p>
-            Generate a shortlist, inspect skill gaps, and prepare staffing seats
-            for manager review.
+            {managerApproved
+              ? "Manager approved this shortlist. HR can now review the manager list."
+              : sentToManager
+              ? "Shortlist is locked and waiting for manager review."
+              : "Generate a shortlist, inspect skill gaps, and prepare staffing seats for manager review."}
           </p>
         </div>
 
-        <button
-          className="hr-rec-btn hr-rec-btn-primary"
-          onClick={runRecommendation}
-          disabled={loading || sendingToManager || activityLoading}
-        >
-          {loading
-            ? "Analyzing..."
-            : data
-            ? "Regenerate Recommendation"
-            : "Generate Recommendation"}
-        </button>
+        {reviewAlreadySent ? (
+          <button
+            className="hr-rec-btn hr-rec-btn-primary"
+            onClick={goToManagerList}
+          >
+            See manager list
+          </button>
+        ) : (
+          <button
+            className="hr-rec-btn hr-rec-btn-primary"
+            onClick={runRecommendation}
+            disabled={
+              loading ||
+              sendingToManager ||
+              activityLoading ||
+              sentToManager ||
+              reviewAlreadySent
+            }
+          >
+            {loading
+              ? "Analyzing..."
+              : data
+              ? "Regenerate Recommendation"
+              : "Generate Recommendation"}
+          </button>
+        )}
       </div>
 
       {error ? <div className="hr-rec-error">{error}</div> : null}
       {success ? <div className="hr-rec-success">{success}</div> : null}
+
+      {managerApproved ? (
+        <div className="hr-rec-warning pending">
+          Manager approved the shortlist. The recommendation engine is locked.
+          Open the manager list to continue HR final validation.
+        </div>
+      ) : sentToManager ? (
+        <div className="hr-rec-warning pending">
+          Shortlist has been sent to manager. The recommendation engine is
+          disabled until the manager decision is complete.
+        </div>
+      ) : null}
 
       <div className="hr-rec-layout">
         <aside className="hr-rec-card">
@@ -353,8 +419,14 @@ export default function HrRecommendationPage() {
               </div>
 
               <div>
-                <span>Backup</span>
-                <strong>{data?.backupCount ?? "—"}</strong>
+                <span>Status</span>
+                <strong>
+                  {managerApproved
+                    ? "Approved by manager"
+                    : sentToManager
+                    ? "Waiting manager review"
+                    : "Draft shortlist"}
+                </strong>
               </div>
 
               <div>
@@ -407,8 +479,25 @@ export default function HrRecommendationPage() {
             <div className="hr-rec-card hr-rec-empty">
               <div>
                 <div className="hr-rec-empty-icon">◎</div>
-                <h2>No recommendation generated yet</h2>
-                <p>Click “Generate Recommendation” to run staffing analysis.</p>
+                <h2>
+                  {reviewAlreadySent
+                    ? "Recommendation is locked"
+                    : "No recommendation generated yet"}
+                </h2>
+                <p>
+                  {reviewAlreadySent
+                    ? "The shortlist has already entered the manager review flow."
+                    : "Click “Generate Recommendation” to run staffing analysis."}
+                </p>
+
+                {reviewAlreadySent ? (
+                  <button
+                    className="hr-rec-btn hr-rec-btn-primary"
+                    onClick={goToManagerList}
+                  >
+                    See manager list
+                  </button>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -422,8 +511,16 @@ export default function HrRecommendationPage() {
 
           {data ? (
             <div className="hr-rec-results">
-              <div className="hr-rec-warning">
-                {data.summary.primaryCount < data.seats
+              <div
+                className={
+                  reviewAlreadySent ? "hr-rec-warning pending" : "hr-rec-warning"
+                }
+              >
+                {managerApproved
+                  ? "Manager approved this shortlist. Open the manager list for HR final validation."
+                  : sentToManager
+                  ? "Shortlist has been sent. Seats are waiting for manager review."
+                  : data.summary.primaryCount < data.seats
                   ? `Only ${data.summary.primaryCount} of ${data.seats} seats can be safely filled.`
                   : "Shortlist coverage is ready for manager review."}
               </div>
@@ -445,18 +542,35 @@ export default function HrRecommendationPage() {
                 </div>
 
                 <div>
-                  <span>Selected</span>
+                  <span>
+                    {managerApproved
+                      ? "Approved"
+                      : sentToManager
+                      ? "Waiting"
+                      : "Selected"}
+                  </span>
                   <strong>{selectedIds.length}</strong>
                 </div>
               </div>
 
-              <SeatPlanning data={data} selectedCandidates={selectedCandidates} />
+              <SeatPlanning
+                data={data}
+                selectedCandidates={selectedCandidates}
+                sentToManager={sentToManager}
+                managerApproved={managerApproved}
+              />
 
               <div className="hr-rec-card">
                 <div className="hr-rec-tools">
                   <div>
                     <h2>Candidate ranking</h2>
-                    <p>Select candidates, then send the shortlist to manager.</p>
+                    <p>
+                      {managerApproved
+                        ? "Manager approved the shortlist. Candidate changes are locked."
+                        : sentToManager
+                        ? "Shortlist is locked while waiting for manager review."
+                        : "Select candidates, then send the shortlist to manager."}
+                    </p>
                   </div>
 
                   <div className="hr-rec-toggle">
@@ -497,15 +611,19 @@ export default function HrRecommendationPage() {
 
                 <div className="hr-rec-shortlist-actions">
                   <div>
-                    <strong>{selectedIds.length}</strong> selected for manager
-                    review
+                    <strong>{selectedIds.length}</strong>{" "}
+                    {managerApproved
+                      ? "approved by manager"
+                      : sentToManager
+                      ? "waiting for manager review"
+                      : "selected for manager review"}
                   </div>
 
                   <div>
                     <button
                       className="hr-rec-btn hr-rec-btn-outline"
                       onClick={selectTopSeats}
-                      disabled={sentToManager || sendingToManager}
+                      disabled={reviewAlreadySent || sendingToManager}
                     >
                       Select top seats
                     </button>
@@ -513,21 +631,17 @@ export default function HrRecommendationPage() {
                     <button
                       className="hr-rec-btn hr-rec-btn-outline"
                       onClick={clearSelection}
-                      disabled={sentToManager || sendingToManager}
+                      disabled={reviewAlreadySent || sendingToManager}
                     >
                       Clear
                     </button>
 
-                    {sentToManager ? (
+                    {reviewAlreadySent ? (
                       <button
                         className="hr-rec-btn hr-rec-btn-primary"
-                        onClick={() =>
-                          navigate(
-                            `/hr/activities/${activityId}/manager-decisions`
-                          )
-                        }
+                        onClick={goToManagerList}
                       >
-                        Open manager list
+                        See manager list
                       </button>
                     ) : (
                       <button
@@ -549,7 +663,7 @@ export default function HrRecommendationPage() {
                   <CandidateTable
                     candidates={filteredCandidates}
                     selectedIds={selectedIds}
-                    sentToManager={sentToManager}
+                    sentToManager={reviewAlreadySent}
                     sendingToManager={sendingToManager}
                     onToggle={toggleCandidate}
                     onView={setActiveCandidate}
@@ -561,7 +675,7 @@ export default function HrRecommendationPage() {
                         key={getCandidateKey(candidate)}
                         candidate={candidate}
                         selected={selectedIds.includes(getCandidateKey(candidate))}
-                        sentToManager={sentToManager}
+                        sentToManager={reviewAlreadySent}
                         sendingToManager={sendingToManager}
                         onToggle={() => toggleCandidate(getCandidateKey(candidate))}
                         onView={() => setActiveCandidate(candidate)}
@@ -638,9 +752,13 @@ function PipelineCard({
 function SeatPlanning({
   data,
   selectedCandidates,
+  sentToManager,
+  managerApproved,
 }: {
   data: UiRecommendationFinalResponse;
   selectedCandidates: UiRecommendationItem[];
+  sentToManager: boolean;
+  managerApproved: boolean;
 }) {
   return (
     <div className="hr-rec-card">
@@ -648,10 +766,30 @@ function SeatPlanning({
         <div className="hr-rec-section-header">
           <div>
             <h2>Seat planning</h2>
-            <p>Selected candidates prepared for manager review.</p>
+            <p>
+              {managerApproved
+                ? "Selected seats have been approved by the manager."
+                : sentToManager
+                ? "Selected seats are waiting for manager validation."
+                : "Selected candidates prepared for manager review."}
+            </p>
           </div>
 
-          <span className="hr-rec-pill">Manager review ready</span>
+          <span
+            className={
+              managerApproved
+                ? "hr-rec-pill"
+                : sentToManager
+                ? "hr-rec-pill warning"
+                : "hr-rec-pill"
+            }
+          >
+            {managerApproved
+              ? "Approved by manager"
+              : sentToManager
+              ? "Waiting manager review"
+              : "Manager review ready"}
+          </span>
         </div>
 
         <div className="hr-rec-seat-map">
@@ -661,15 +799,25 @@ function SeatPlanning({
             return (
               <div
                 key={index}
-                className={`hr-rec-seat ${candidate ? "filled" : ""}`}
+                className={`hr-rec-seat ${
+                  candidate
+                    ? managerApproved
+                      ? "filled"
+                      : sentToManager
+                      ? "pending"
+                      : "filled"
+                    : ""
+                }`}
               >
                 <div>Seat {index + 1}</div>
                 <strong>{candidate?.fullName ?? "Open"}</strong>
                 <p>
                   {candidate
-                    ? `${percent(candidate.finalScore)} · ${decisionLabel(
-                        candidate.decision
-                      )}`
+                    ? managerApproved
+                      ? "Approved by manager"
+                      : sentToManager
+                      ? "Waiting manager review"
+                      : `${percent(candidate.finalScore)} · ${decisionLabel(candidate.decision)}`
                     : "Needs HR decision"}
                 </p>
               </div>
@@ -680,6 +828,9 @@ function SeatPlanning({
     </div>
   );
 }
+
+/* keep the rest of your CandidateTable, CandidateCard, Bar, CandidateDrawer,
+DrawerSection, and List functions exactly as they are */
 
 function CandidateTable({
   candidates,
