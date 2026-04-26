@@ -1,6 +1,7 @@
 // src/pages/hr/users/UsersManagementPage.tsx
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import * as XLSX from "xlsx";
 import {
   createUser,
   deleteUser,
@@ -82,6 +83,16 @@ function toIsoDateForApi(raw?: string) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return undefined;
   return parsed.toISOString();
+}
+
+function toExportDate(raw?: string | Date | null): string {
+  if (!raw) return "";
+  const dt = typeof raw === "string" ? new Date(raw) : raw;
+  if (Number.isNaN(dt.getTime())) return "";
+  const y = dt.getUTCFullYear();
+  const m = String(dt.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(dt.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 /* =======================
@@ -377,7 +388,6 @@ type EditableUser = Pick<
   manager_id?: string;
   status?: string;
   isActive?: boolean;
-  emailVerified?: boolean;
 };
 
 type NewUserForm = {
@@ -405,7 +415,6 @@ function toEditable(u: any): EditableUser {
     manager_id: u.manager_id,
     status: u.status,
     isActive: u.isActive,
-    emailVerified: u.emailVerified,
   };
 }
 
@@ -458,6 +467,8 @@ export default function UsersManagement() {
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [excelMenuOpen, setExcelMenuOpen] = useState(false);
+  const excelMenuRef = useRef<HTMLDivElement | null>(null);
 
   const openAdd = useCallback(() => {
     setAddErr("");
@@ -836,6 +847,48 @@ export default function UsersManagement() {
     }
   }, [addForm, closeAdd]);
 
+  const exportUsers = useCallback(() => {
+    const rows = filtered.map((u: any) => {
+      const departmentId = getUserDepartmentValue(u);
+      return {
+        name: String(u.name || ""),
+        email: String(u.email || ""),
+        role: normalizeRole(u.role),
+        department: getDepartmentLabel(departmentId),
+        matricule: String(u.matricule || ""),
+        telephone: String(u.telephone || ""),
+        date_embauche: toExportDate(u.date_embauche),
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows, {
+      header: [
+        "name",
+        "email",
+        "role",
+        "department",
+        "matricule",
+        "telephone",
+        "date_embauche",
+      ],
+    });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "users");
+    XLSX.writeFile(wb, "users_export.xlsx");
+  }, [filtered, getDepartmentLabel]);
+
+  useEffect(() => {
+    if (!excelMenuOpen) return;
+    const onDocClick = (event: MouseEvent) => {
+      if (!excelMenuRef.current) return;
+      if (!excelMenuRef.current.contains(event.target as Node)) {
+        setExcelMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [excelMenuOpen]);
+
   return (
     <div style={S.pageContainer}>
       <div style={S.statsRow}>
@@ -921,14 +974,73 @@ export default function UsersManagement() {
           </div>
 
           <div style={S.headerActions}>
-            <button
-              className="btn"
-              onClick={() => setImportOpen(true)}
-              disabled={loading}
-              style={S.simpleBtn}
-            >
-              Import Excel
-            </button>
+            <div style={{ position: "relative" }} ref={excelMenuRef}>
+              <button
+                className="btn"
+                onClick={() => setExcelMenuOpen((prev) => !prev)}
+                disabled={loading}
+                style={S.simpleBtn}
+              >
+                Excel Options ▾
+              </button>
+              {excelMenuOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 6px)",
+                    right: 0,
+                    minWidth: 180,
+                    border: "1px solid var(--border)",
+                    borderRadius: 12,
+                    background: "var(--surface)",
+                    boxShadow: "0 12px 24px rgba(15, 23, 42, 0.12)",
+                    overflow: "hidden",
+                    zIndex: 20,
+                  }}
+                >
+                  <button
+                    type="button"
+                    style={{
+                      width: "100%",
+                      border: "none",
+                      background: "transparent",
+                      padding: "10px 12px",
+                      textAlign: "left",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      color: "var(--text)",
+                    }}
+                    onClick={() => {
+                      setExcelMenuOpen(false);
+                      setImportOpen(true);
+                    }}
+                  >
+                    Import Excel
+                  </button>
+                  <button
+                    type="button"
+                    style={{
+                      width: "100%",
+                      border: "none",
+                      borderTop: "1px solid var(--border)",
+                      background: "transparent",
+                      padding: "10px 12px",
+                      textAlign: "left",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      color: "var(--text)",
+                    }}
+                    onClick={() => {
+                      setExcelMenuOpen(false);
+                      exportUsers();
+                    }}
+                    disabled={loading || filtered.length === 0}
+                  >
+                    Export Excel
+                  </button>
+                </div>
+              )}
+            </div>
 
             <button
               className="btn btn-primary"

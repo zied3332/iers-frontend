@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiPlus, FiSearch, FiX } from 'react-icons/fi';
+import * as XLSX from 'xlsx';
 import {
   createSkill,
   deleteSkill,
   getAllSkills,
   updateSkill,
 } from '../../../services/skills.service';
-import { getAllDomains, type Domain } from '../../../services/domains.service';
+import { createDomain, getAllDomains, type Domain } from '../../../services/domains.service';
 
 type SkillCategory = 'KNOWLEDGE' | 'KNOW_HOW' | 'SOFT';
 
@@ -456,6 +457,9 @@ export default function SkillsManagementPage() {
   /** Per-skill "Add domain…" select value in the skills table (key = skill._id) */
   const [tableDomainPicker, setTableDomainPicker] = useState<Record<string, string>>({});
   const [tableDomainSavingId, setTableDomainSavingId] = useState<string | null>(null);
+  const [importingExcel, setImportingExcel] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
+  const importFileRef = useRef<HTMLInputElement | null>(null);
 
   const loadSkills = async () => {
     try {
@@ -650,6 +654,196 @@ export default function SkillsManagementPage() {
       setError('Failed to update domains for this skill.');
     } finally {
       setTableDomainSavingId(null);
+    }
+  };
+
+  const normalizeText = (value: unknown) => String(value ?? '').trim();
+
+  const normalizeCategory = (value: unknown): SkillCategory => {
+    const normalized = normalizeText(value).toUpperCase().replace(/[\s-]+/g, '_');
+    if (normalized === 'KNOW_HOW') return 'KNOW_HOW';
+    if (normalized === 'SOFT' || normalized === 'SOFT_SKILL' || normalized === 'SOFTSKILL') return 'SOFT';
+    return 'KNOWLEDGE';
+  };
+
+  const parseExcelFile = async (file: File) => {
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: 'array' });
+    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+    if (!firstSheet) return [];
+    return XLSX.utils.sheet_to_json<Record<string, unknown>>(firstSheet, { defval: '' });
+  };
+
+  const handleExportDomainsSkills = async () => {
+    try {
+      setExportingExcel(true);
+
+      const rows: Array<Record<string, string>> = [];
+
+      domains.forEach((domain) => {
+        const linkedSkills = skills.filter((skill) =>
+          getSkillDomainIds(skill).some((id) => sameMongoId(id, domain._id)),
+        );
+
+        if (linkedSkills.length === 0) {
+          rows.push({
+            Domain_Name: domain.name || '',
+            Domain_Description: domain.description || '',
+            Skill_Name: '',
+            Skill_Category: '',
+            Skill_Description: '',
+          });
+          return;
+        }
+
+        linkedSkills.forEach((skill) => {
+          rows.push({
+            Domain_Name: domain.name || '',
+            Domain_Description: domain.description || '',
+            Skill_Name: skill.name || '',
+            Skill_Category: skill.category || '',
+            Skill_Description: skill.description || '',
+          });
+        });
+      });
+
+      const skillsWithoutDomain = skills.filter((skill) => getSkillDomainIds(skill).length === 0);
+      skillsWithoutDomain.forEach((skill) => {
+        rows.push({
+          Domain_Name: '',
+          Domain_Description: '',
+          Skill_Name: skill.name || '',
+          Skill_Category: skill.category || '',
+          Skill_Description: skill.description || '',
+        });
+      });
+
+      if (rows.length === 0) {
+        rows.push({
+          Domain_Name: '',
+          Domain_Description: '',
+          Skill_Name: '',
+          Skill_Category: '',
+          Skill_Description: '',
+        });
+      }
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'DomainsAndSkills');
+      XLSX.writeFile(workbook, 'domains-skills.xlsx');
+    } catch (err) {
+      setError((err as Error)?.message || 'Failed to export domains and skills.');
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
+  const handleImportClick = () => importFileRef.current?.click();
+
+  const handleImportDomainsSkills = async (file: File) => {
+    try {
+      setImportingExcel(true);
+      setError('');
+      const rows = await parseExcelFile(file);
+      if (!rows.length) {
+        setError('Excel file is empty.');
+        return;
+      }
+
+      const latestDomains = await getAllDomains();
+      const latestSkills = (await getAllSkills()) as Skill[];
+      const domainByName = new Map(
+        latestDomains.map((d) => [normalizeText(d.name).toLowerCase(), d]),
+      );
+      const skillByName = new Map(
+        latestSkills.map((s) => [normalizeText(s.name).toLowerCase(), s]),
+      );
+
+      let domainsCreated = 0;
+      let skillsCreated = 0;
+      let skillsUpdated = 0;
+      let skipped = 0;
+
+      for (const row of rows) {
+        const domainName = normalizeText(row.Domain_Name ?? row.domain_name ?? row.domain);
+        const domainDescription = normalizeText(
+          row.Domain_Description ?? row.domain_description ?? row.domain_desc,
+        );
+        const skillName = normalizeText(row.Skill_Name ?? row.skill_name ?? row.skill);
+        const skillDescription = normalizeText(
+          row.Skill_Description ?? row.skill_description ?? row.description,
+        );
+        const category = normalizeCategory(
+          row.Skill_Category ?? row.skill_category ?? row.category,
+        );
+
+        if (!domainName && !skillName) {
+          skipped += 1;
+          continue;
+        }
+
+        let domainId = '';
+        if (domainName) {
+          const existingDomain = domainByName.get(domainName.toLowerCase());
+          if (existingDomain) {
+            domainId = String(existingDomain._id);
+          } else {
+            const createdDomain = await createDomain({
+              name: domainName,
+              description: domainDescription || undefined,
+            });
+            domainByName.set(domainName.toLowerCase(), createdDomain);
+            domainId = String(createdDomain._id);
+            domainsCreated += 1;
+          }
+        }
+
+        if (!skillName) continue;
+
+        const existingSkill = skillByName.get(skillName.toLowerCase());
+        if (existingSkill) {
+          const currentDomainIds = getSkillDomainIds(existingSkill);
+          const nextDomainIds =
+            domainId && !currentDomainIds.some((id) => sameMongoId(id, domainId))
+              ? [...currentDomainIds, domainId]
+              : currentDomainIds;
+
+          await updateSkill(existingSkill._id, {
+            category,
+            description: skillDescription || existingSkill.description || '',
+            domainIds: nextDomainIds,
+          });
+          skillsUpdated += 1;
+
+          skillByName.set(skillName.toLowerCase(), {
+            ...existingSkill,
+            category,
+            description: skillDescription || existingSkill.description,
+            domainIds: nextDomainIds,
+          });
+        } else {
+          const createdSkill = await createSkill({
+            name: skillName,
+            category,
+            description: skillDescription || undefined,
+            domainIds: domainId ? [domainId] : [],
+          });
+          skillsCreated += 1;
+          skillByName.set(skillName.toLowerCase(), createdSkill as Skill);
+        }
+      }
+
+      await Promise.all([loadDomains(), loadSkills()]);
+      window.alert(
+        `Import completed.\nDomains created: ${domainsCreated}\nSkills created: ${skillsCreated}\nSkills updated: ${skillsUpdated}\nSkipped rows: ${skipped}`,
+      );
+    } catch (err) {
+      console.error(err);
+      setError((err as Error)?.message || 'Failed to import domains and skills.');
+    } finally {
+      setImportingExcel(false);
+      if (importFileRef.current) importFileRef.current.value = '';
     }
   };
 
@@ -889,6 +1083,47 @@ export default function SkillsManagementPage() {
                     Cancel edit
                   </button>
                 )}
+                <div style={{ marginLeft: 'auto', display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    style={{
+                      ...styles.btn,
+                      border: '1px solid var(--primary-border)',
+                      background: 'var(--primary-weak)',
+                      color: 'var(--primary-soft-text)',
+                      boxShadow: '0 8px 18px rgba(15, 23, 42, 0.12)',
+                    }}
+                    onClick={handleImportClick}
+                    disabled={importingExcel}
+                  >
+                    {importingExcel ? 'Importing...' : 'Import Domains + Skills (Excel)'}
+                  </button>
+                  <button
+                    type="button"
+                    style={{
+                      ...styles.btn,
+                      border: '1px solid var(--primary-border)',
+                      background: 'var(--primary-weak)',
+                      color: 'var(--primary-soft-text)',
+                      boxShadow: '0 8px 18px rgba(15, 23, 42, 0.12)',
+                    }}
+                    onClick={handleExportDomainsSkills}
+                    disabled={exportingExcel}
+                  >
+                    {exportingExcel ? 'Exporting...' : 'Export Domains + Skills (Excel)'}
+                  </button>
+                  <input
+                    ref={importFileRef}
+                    type="file"
+                    accept=".xlsx,.xls"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      void handleImportDomainsSkills(file);
+                    }}
+                  />
+                </div>
               </div>
             </form>
           </div>

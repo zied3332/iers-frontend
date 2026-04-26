@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import * as XLSX from "xlsx";
 import {
   deleteEmployeeById,
   getAllEmployees,
@@ -443,8 +444,6 @@ export default function HrEmployees() {
   const [error, setError] = useState("");
 
   const [q, setQ] = useState("");
-  const [filterRole, setFilterRole] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
   const [filterDepartment, setFilterDepartment] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 10;
@@ -459,6 +458,10 @@ export default function HrEmployees() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editExperienceSegments, setEditExperienceSegments] = useState<ExperienceSegmentInput[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [excelMenuOpen, setExcelMenuOpen] = useState(false);
+  const excelMenuRef = useRef<HTMLDivElement | null>(null);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -550,17 +553,12 @@ export default function HrEmployees() {
           employee.matricule,
         ].some((v) => v.toLowerCase().includes(search));
 
-      const matchesRole = !filterRole || employee.role === filterRole;
-      const matchesStatus =
-        !filterStatus ||
-        (filterStatus === "online" && employee.isOnline) ||
-        (filterStatus === "offline" && !employee.isOnline);
       const matchesDepartment =
         !filterDepartment || employee.departmentId === filterDepartment;
 
-      return matchesSearch && matchesRole && matchesStatus && matchesDepartment;
+      return matchesSearch && matchesDepartment;
     });
-  }, [records, departmentNameById, q, filterRole, filterStatus, filterDepartment]);
+  }, [records, departmentNameById, q, filterDepartment]);
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(employees.length / pageSize)),
@@ -574,7 +572,7 @@ export default function HrEmployees() {
 
   useEffect(() => {
     setPage(1);
-  }, [q, filterRole, filterStatus, filterDepartment]);
+  }, [q, filterDepartment]);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -590,16 +588,6 @@ export default function HrEmployees() {
       .filter((d) => d.id && d.name)
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [departments]);
-
-  const roleOptions = useMemo(() => {
-    return Array.from(
-      new Set(
-        employees
-          .map((e) => String(e.role || "").trim())
-          .filter(Boolean)
-      )
-    ).sort((a, b) => a.localeCompare(b));
-  }, [employees]);
 
   const totalUsers = employees.length;
   const onlineUsers = employees.filter((e) => e.isOnline).length;
@@ -676,6 +664,121 @@ export default function HrEmployees() {
       setDeletingId(null);
     }
   };
+
+  const exportEmployees = () => {
+    const rows = employees.map((employee) => ({
+      name: employee.name,
+      email: employee.email,
+      matricule: employee.matricule,
+      role: employee.role,
+      department: employee.department,
+      jobTitle: employee.jobTitle,
+      seniority: employee.seniority,
+      experienceYears: employee.experienceYears,
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows, {
+      header: [
+        "name",
+        "email",
+        "matricule",
+        "role",
+        "department",
+        "jobTitle",
+        "seniority",
+        "experienceYears",
+      ],
+    });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "employees");
+    XLSX.writeFile(wb, "employees_export.xlsx");
+  };
+
+  const importEmployees = async (file: File | null) => {
+    if (!file) return;
+    setImporting(true);
+    setError("");
+
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const sheetName = wb.SheetNames?.[0];
+      if (!sheetName) throw new Error("No sheet found in the selected file.");
+      const ws = wb.Sheets[sheetName];
+      const rawRows = XLSX.utils.sheet_to_json(ws, { defval: "", raw: false }) as any[];
+      if (!rawRows.length) throw new Error("The selected file is empty.");
+
+      const byMatricule = new Map<string, EmployeeRecord>();
+      records.forEach((record) => {
+        const user = typeof record.user_id === "object" ? record.user_id : null;
+        const matricule = String(user?.matricule || "").trim().toLowerCase();
+        if (matricule) byMatricule.set(matricule, record);
+      });
+
+      let updatedCount = 0;
+      let skippedCount = 0;
+
+      for (const row of rawRows) {
+        const matricule = String(row.matricule || row.Matricule || "")
+          .trim()
+          .toLowerCase();
+        if (!matricule) {
+          skippedCount++;
+          continue;
+        }
+
+        const target = byMatricule.get(matricule);
+        if (!target) {
+          skippedCount++;
+          continue;
+        }
+
+        const jobTitle = String(row.jobTitle || row.JobTitle || target.jobTitle || "Not Assigned").trim();
+        const seniority = normalizeSeniority(
+          String(row.seniority || row.Seniority || target.seniorityLevel || "JUNIOR")
+        );
+        const yearsValue =
+          row.experienceYears ??
+          row.ExperienceYears ??
+          row.experience_years ??
+          target.experienceYears ??
+          0;
+        const experienceYears = Number(yearsValue);
+        if (!Number.isFinite(experienceYears) || experienceYears < 0) {
+          skippedCount++;
+          continue;
+        }
+
+        await patchEmployeeById(String(target._id), {
+          jobTitle: jobTitle || "Not Assigned",
+          seniorityLevel: seniority,
+          experienceYears,
+        });
+        updatedCount++;
+      }
+
+      await loadData();
+      setError(
+        `Import finished: ${updatedCount} updated, ${skippedCount} skipped (missing/unknown matricule or invalid values).`
+      );
+    } catch (e: any) {
+      setError(e?.message || "Failed to import employees.");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!excelMenuOpen) return;
+    const onDocClick = (event: MouseEvent) => {
+      if (!excelMenuRef.current) return;
+      if (!excelMenuRef.current.contains(event.target as Node)) {
+        setExcelMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [excelMenuOpen]);
 
   const renderAvatar = (employee: Emp) => {
     if (employee.avatarUrl) {
@@ -892,29 +995,6 @@ export default function HrEmployees() {
               }}
             >
               <select
-                style={{ ...filterSelect, minWidth: 180 }}
-                value={filterRole}
-                onChange={(e) => setFilterRole(e.target.value)}
-              >
-                <option value="">All Roles</option>
-                {roleOptions.map((role) => (
-                  <option key={role} value={role}>
-                    {role}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                style={{ ...filterSelect, minWidth: 120 }}
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-              >
-                <option value="">All Status</option>
-                <option value="online">Online</option>
-                <option value="offline">Offline</option>
-              </select>
-
-              <select
                 style={{ ...filterSelect, minWidth: 236 }}
                 value={filterDepartment}
                 onChange={(e) => setFilterDepartment(e.target.value)}
@@ -926,6 +1006,86 @@ export default function HrEmployees() {
                   </option>
                 ))}
               </select>
+              <div style={{ position: "relative" }} ref={excelMenuRef}>
+                <button
+                  type="button"
+                  style={baseButton}
+                  onClick={() => setExcelMenuOpen((prev) => !prev)}
+                  disabled={loading}
+                >
+                  {importing ? "Importing..." : "Excel Options ▾"}
+                </button>
+                {excelMenuOpen && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "calc(100% + 6px)",
+                      right: 0,
+                      minWidth: 180,
+                      border: "1px solid var(--border)",
+                      borderRadius: 12,
+                      background: "var(--surface)",
+                      boxShadow: "0 12px 24px rgba(15, 23, 42, 0.12)",
+                      overflow: "hidden",
+                      zIndex: 20,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      style={{
+                        width: "100%",
+                        border: "none",
+                        background: "transparent",
+                        padding: "10px 12px",
+                        textAlign: "left",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        color: "var(--text)",
+                      }}
+                      onClick={() => {
+                        setExcelMenuOpen(false);
+                        importInputRef.current?.click();
+                      }}
+                      disabled={importing}
+                    >
+                      {importing ? "Importing..." : "Import Excel"}
+                    </button>
+                    <button
+                      type="button"
+                      style={{
+                        width: "100%",
+                        border: "none",
+                        borderTop: "1px solid var(--border)",
+                        background: "transparent",
+                        padding: "10px 12px",
+                        textAlign: "left",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        color: "var(--text)",
+                      }}
+                      onClick={() => {
+                        setExcelMenuOpen(false);
+                        exportEmployees();
+                      }}
+                      disabled={loading || employees.length === 0}
+                    >
+                      Export Excel
+                    </button>
+                  </div>
+                )}
+                <input
+                  ref={importInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={(e) => {
+                    const selected = e.target.files?.[0] || null;
+                    void importEmployees(selected);
+                    e.currentTarget.value = "";
+                  }}
+                  style={{ display: "none" }}
+                  disabled={importing}
+                />
+              </div>
             </div>
           </div>
         </section>
