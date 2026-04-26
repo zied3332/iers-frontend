@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { FiArrowRight, FiCalendar, FiSearch, FiSlash, FiUsers } from "react-icons/fi";
+import { FiArrowRight, FiCalendar, FiSearch, FiSlash, FiTrash2, FiUsers } from "react-icons/fi";
 import {
   listActivities,
   cancelActivityById,
+  deleteActivityById,
   type ActivityRecord,
   type ListActivitiesQuery,
 } from "../../services/activities.service";
@@ -116,6 +117,16 @@ function resolvePipelinePhase(activity: ActivityRecord): PipelinePhase {
   return "PRIMARY_SENT_TO_MANAGER";
 }
 
+function canCancelPipelineActivity(activity: ActivityRecord): boolean {
+  if (activity.status === "COMPLETED" || activity.status === "CANCELLED") return false;
+  const phase = resolvePipelinePhase(activity);
+  return phase === "PRIMARY_SENT_TO_MANAGER" || phase === "MANAGER_SENT_TO_HR";
+}
+
+function canDeleteArchivedActivity(activity: ActivityRecord): boolean {
+  return activity.status === "COMPLETED" || activity.status === "CANCELLED";
+}
+
 function HrFilteredActivitiesInner({
   mode,
 }: {
@@ -128,6 +139,8 @@ function HrFilteredActivitiesInner({
   const [error, setError] = useState("");
   const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [search, setSearch] = useState("");
   const [groupMode, setGroupMode] = useState<GroupMode>("department");
@@ -408,7 +421,7 @@ function HrFilteredActivitiesInner({
           marginLeft: "auto",
         }}
       >
-        {showCancelOnRow && a.status === "IN_PROGRESS" ? (
+        {showCancelOnRow && canCancelPipelineActivity(a) ? (
           <button
             type="button"
             onClick={(e) => {
@@ -431,6 +444,31 @@ function HrFilteredActivitiesInner({
             }}
           >
             <FiSlash size={14} /> Cancel
+          </button>
+        ) : null}
+        {mode === "completed" && canDeleteArchivedActivity(a) ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setDeleteConfirmId(a._id);
+            }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "10px 14px",
+              borderRadius: "12px",
+              border: "1px solid color-mix(in srgb, var(--border) 72%, #ef4444)",
+              background: "color-mix(in srgb, var(--surface-2) 86%, #ef4444)",
+              color: "var(--text)",
+              fontWeight: 800,
+              fontSize: "13px",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <FiTrash2 size={14} /> Delete
           </button>
         ) : null}
 
@@ -592,6 +630,21 @@ function HrFilteredActivitiesInner({
       setError(e instanceof Error ? e.message : "Could not cancel activity.");
     } finally {
       setCancelling(false);
+    }
+  };
+
+  const onConfirmDelete = async () => {
+    if (!deleteConfirmId) return;
+    setDeleting(true);
+    setError("");
+    try {
+      await deleteActivityById(deleteConfirmId);
+      setDeleteConfirmId(null);
+      await reload();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Could not delete activity.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -891,6 +944,90 @@ function HrFilteredActivitiesInner({
                 }}
               >
                 {cancelling ? "Cancelling…" : "Confirm cancel"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {deleteConfirmId ? (
+        <div
+          onClick={() => !deleting && setDeleteConfirmId(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(2,6,23,0.5)",
+            backdropFilter: "blur(4px)",
+            zIndex: 110,
+            display: "grid",
+            placeItems: "center",
+            padding: "20px",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "min(440px, 96vw)",
+              background: "var(--card)",
+              border: "1px solid var(--border)",
+              borderRadius: "16px",
+              padding: "24px",
+              borderLeft: "4px solid #ef4444",
+              boxShadow: "0 18px 40px rgba(15, 23, 42, 0.12)",
+            }}
+          >
+            <div
+              style={{
+                fontWeight: 800,
+                fontSize: "18px",
+                color: "var(--text)",
+                marginBottom: "12px",
+              }}
+            >
+              Delete activity?
+            </div>
+
+            <div
+              style={{
+                color: "var(--muted)",
+                marginBottom: "20px",
+                lineHeight: 1.5,
+              }}
+            >
+              This removes the activity from the archive. This action cannot be undone.
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmId(null)}
+                disabled={deleting}
+                style={{
+                  padding: "10px 16px",
+                  borderRadius: "12px",
+                  border: "1px solid var(--border)",
+                  background: "var(--surface-2)",
+                  fontWeight: 700,
+                  cursor: deleting ? "not-allowed" : "pointer",
+                }}
+              >
+                Back
+              </button>
+
+              <button
+                type="button"
+                onClick={() => void onConfirmDelete()}
+                disabled={deleting}
+                style={{
+                  padding: "10px 16px",
+                  borderRadius: "12px",
+                  border: "none",
+                  background: "#ef4444",
+                  color: "#fff",
+                  fontWeight: 800,
+                  cursor: deleting ? "not-allowed" : "pointer",
+                }}
+              >
+                {deleting ? "Deleting…" : "Confirm delete"}
               </button>
             </div>
           </div>

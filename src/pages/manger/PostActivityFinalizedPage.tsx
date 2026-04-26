@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSearch } from "react-icons/fi";
+import { FiSearch, FiTrash2 } from "react-icons/fi";
 import {
   getFinalizedActivitiesForEvaluation,
   type ActivityEvalProgress,
 } from "../../services/post-activity-evaluations.service";
+import { deleteActivityById } from "../../services/activities.service";
 
 type Role = "MANAGER" | "HR" | "SUPER_MANAGER" | "EMPLOYEE" | null;
 
@@ -39,6 +40,8 @@ export default function PostActivityFinalizedPage() {
     "all" | "TRAINING" | "CERTIFICATION" | "PROJECT" | "MISSION" | "AUDIT"
   >("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const ITEMS_PER_PAGE = 8;
 
   useEffect(() => {
@@ -120,6 +123,21 @@ export default function PostActivityFinalizedPage() {
   const startItem =
     filteredSorted.length === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1;
   const endItem = Math.min(safePage * ITEMS_PER_PAGE, filteredSorted.length);
+
+  const onConfirmDelete = async () => {
+    if (!deleteConfirmId) return;
+    setDeleting(true);
+    setError("");
+    try {
+      await deleteActivityById(deleteConfirmId);
+      setItems((prev) => prev.filter((item) => item.activity._id !== deleteConfirmId));
+      setDeleteConfirmId(null);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to delete activity.");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -247,29 +265,65 @@ export default function PostActivityFinalizedPage() {
         ) : (
           <div style={{ display: "grid", gap: 12 }}>
             {paginated.map((item) => (
-              <button
+              <div
                 key={item.activity._id}
-                type="button"
-                onClick={() => navigate(`${prefix}/activities/${item.activity._id}/evaluated`)}
                 style={{
-                  textAlign: "left",
                   padding: 16,
                   borderRadius: 14,
                   border: "1px solid var(--border)",
                   background: "var(--card)",
-                  cursor: "pointer",
                 }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                  <div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => navigate(`${prefix}/activities/${item.activity._id}/evaluated`)}
+                    style={{
+                      textAlign: "left",
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      padding: 0,
+                      color: "var(--text)",
+                    }}
+                  >
                     <div style={{ fontSize: 18, fontWeight: 900 }}>{item.activity.title}</div>
                     <div style={{ color: "var(--muted)", marginTop: 4, fontSize: 13 }}>
                       {item.activity.type} · {item.reviewedCount}/{item.totalParticipants} evaluated
                     </div>
+                  </button>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    <span className="badge">Finalized</span>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmId(item.activity._id)}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        padding: "8px 10px",
+                        borderRadius: 10,
+                        border: "1px solid color-mix(in srgb, var(--border) 72%, #ef4444)",
+                        background: "color-mix(in srgb, var(--surface) 90%, #ef4444)",
+                        color: "var(--text)",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <FiTrash2 size={14} />
+                      Delete
+                    </button>
                   </div>
-                  <span className="badge">Finalized</span>
                 </div>
-              </button>
+              </div>
             ))}
 
             <div
@@ -332,6 +386,60 @@ export default function PostActivityFinalizedPage() {
           </div>
         )}
       </div>
+      {deleteConfirmId ? (
+        <div
+          onClick={() => !deleting && setDeleteConfirmId(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(2,6,23,0.5)",
+            backdropFilter: "blur(4px)",
+            zIndex: 110,
+            display: "grid",
+            placeItems: "center",
+            padding: "20px",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "min(440px, 96vw)",
+              background: "var(--card)",
+              border: "1px solid var(--border)",
+              borderRadius: "16px",
+              padding: "24px",
+              borderLeft: "4px solid #ef4444",
+              boxShadow: "0 18px 40px rgba(15, 23, 42, 0.12)",
+            }}
+          >
+            <div style={{ fontWeight: 800, fontSize: "18px", color: "var(--text)", marginBottom: "12px" }}>
+              Delete evaluated activity?
+            </div>
+            <div style={{ color: "var(--muted)", marginBottom: "20px", lineHeight: 1.5 }}>
+              This will permanently remove this evaluated activity.
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmId(null)}
+                disabled={deleting}
+                className="btn btn-ghost btn-small"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => void onConfirmDelete()}
+                disabled={deleting}
+                className="btn btn-primary btn-small"
+                style={{ background: "#ef4444", borderColor: "#ef4444" }}
+              >
+                {deleting ? "Deleting..." : "Confirm delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
