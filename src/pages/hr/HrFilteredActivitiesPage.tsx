@@ -27,6 +27,10 @@ const META: Record<
     subtitle:
       "Activities that ran and passed their end date. Read-only archive for reference.",
   },
+  cancelled: {
+    title: "Cancelled activities",
+    subtitle: "Activities cancelled after entering the recommendation pipeline.",
+  },
 };
 
 function formatLabel(v: string) {
@@ -118,9 +122,10 @@ function resolvePipelinePhase(activity: ActivityRecord): PipelinePhase {
 }
 
 function canCancelPipelineActivity(activity: ActivityRecord): boolean {
-  if (activity.status === "COMPLETED" || activity.status === "CANCELLED") return false;
-  const phase = resolvePipelinePhase(activity);
-  return phase === "PRIMARY_SENT_TO_MANAGER" || phase === "MANAGER_SENT_TO_HR";
+  const workflow = String(activity.workflowStatus || "").toUpperCase();
+  const hasStartedPipeline = workflow !== "DRAFT" && workflow !== "HR_SHORTLIST_READY";
+  const allowedStatus = activity.status === "PLANNED" || activity.status === "IN_PROGRESS";
+  return hasStartedPipeline && allowedStatus;
 }
 
 function canDeleteArchivedActivity(activity: ActivityRecord): boolean {
@@ -275,10 +280,15 @@ function HrFilteredActivitiesInner({
 
   const page = META[mode];
   const showCancelOnRow = mode === "pipeline";
-  const detailsPathFor = (activityId: string) =>
-    mode === "completed"
-      ? `/hr/activities/${activityId}/completed-details`
-      : `/hr/activities/${activityId}/staffing`;
+  const detailsPathFor = (activityId: string) => {
+    if (mode === "completed") {
+      return `/hr/activities/${activityId}/completed-details?source=completed`;
+    }
+    if (mode === "cancelled") {
+      return `/hr/activities/${activityId}/completed-details?source=cancelled`;
+    }
+    return `/hr/activities/${activityId}/staffing`;
+  };
 
   const groupedByDepartment = useMemo(() => {
     return availableDepartments.map(([departmentId, departmentName]) => {
@@ -446,7 +456,7 @@ function HrFilteredActivitiesInner({
             <FiSlash size={14} /> Cancel
           </button>
         ) : null}
-        {mode === "completed" && canDeleteArchivedActivity(a) ? (
+        {(mode === "completed" || mode === "cancelled") && canDeleteArchivedActivity(a) ? (
           <button
             type="button"
             onClick={(e) => {
@@ -908,8 +918,8 @@ function HrFilteredActivitiesInner({
                 lineHeight: 1.5,
               }}
             >
-              This marks the activity as cancelled. Use for in-progress activities
-              that should not continue.
+              This marks the activity as cancelled for any activity that already started
+              the recommendation pipeline.
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
@@ -1043,4 +1053,8 @@ export function HrStaffingPipelinePage() {
 
 export function HrCompletedActivitiesPage() {
   return <HrFilteredActivitiesInner mode="completed" />;
+}
+
+export function HrCancelledActivitiesPage() {
+  return <HrFilteredActivitiesInner mode="cancelled" />;
 }

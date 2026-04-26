@@ -30,6 +30,7 @@ import ManagerDecisionsPage from "../pages/hr/ManagerDecisionsPage";
 import {
   HrStaffingPipelinePage,
   HrCompletedActivitiesPage,
+  HrCancelledActivitiesPage,
 } from "../pages/hr/HrFilteredActivitiesPage";
 import HrCompletedActivityDetailsPage from "../pages/hr/HrCompletedActivityDetailsPage";
 
@@ -158,6 +159,7 @@ export const router = createBrowserRouter([
           { path: "activities", element: <HrActivitiesManagement /> },
           { path: "activities/pipeline", element: <HrStaffingPipelinePage /> },
           { path: "activities/archive", element: <HrCompletedActivitiesPage /> },
+          { path: "activities/cancelled", element: <HrCancelledActivitiesPage /> },
           { path: "activities/:activityId/completed-details", element: <HrCompletedActivityDetailsPage /> },
           { path: "activities/:activityId/staffing", element: <ActivityStaffingPage /> },
           { path: "activities/:activityId/manager-decisions", element: <ManagerDecisionsPage /> },

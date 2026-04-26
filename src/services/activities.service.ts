@@ -188,7 +188,7 @@ function mapApiActivity(raw: any): ActivityRecord {
 
 export type ListActivitiesQuery = {
   /** Drafts: planned + workflow DRAFT (before IA/staffing). Pipeline / completed: HR lists */
-  hrView?: "drafts" | "pipeline" | "completed";
+  hrView?: "drafts" | "pipeline" | "completed" | "cancelled";
   /** Manager: activities in progress after HR launch vs completed/cancelled archive */
   managerView?: "running" | "past";
 };

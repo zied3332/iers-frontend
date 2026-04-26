@@ -71,11 +71,18 @@ export default function HrLayout() {
         icon: "pipeline",
       },
       {
+        to: "/hr/activities/cancelled",
+        label: "Cancelled activities",
+        group: "Operations",
+        icon: "archive",
+      },
+      {
         to: "/hr/activities/archive",
         label: "Completed activities",
         group: "Operations",
         icon: "archive",
       },
+      
       {
         to: "/hr/activities/evaluated",
         label: "Post-activity evaluations",

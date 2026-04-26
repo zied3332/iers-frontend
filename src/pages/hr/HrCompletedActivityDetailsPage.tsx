@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { FiArrowLeft, FiCalendar, FiClock, FiFileText, FiMapPin, FiTarget, FiUser, FiUsers } from "react-icons/fi";
 import { getActivityById, type ActivityRecord } from "../../services/activities.service";
 import { getActivityInvitations } from "../../services/activityInvitations.service";
@@ -73,7 +73,12 @@ function statusPillStyle(value: string) {
 
 export default function HrCompletedActivityDetailsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { activityId = "" } = useParams();
+  const source = new URLSearchParams(location.search).get("source");
+  const isCancelledSource = source === "cancelled";
+  const backPath = isCancelledSource ? "/hr/activities/cancelled" : "/hr/activities/archive";
+  const backLabel = isCancelledSource ? "Back to cancelled activities" : "Back to completed activities";
 
   const [activity, setActivity] = useState<ActivityRecord | null>(null);
   const [participants, setParticipants] = useState<ParticipantRow[]>([]);
@@ -153,8 +158,8 @@ export default function HrCompletedActivityDetailsPage() {
           <div style={{ color: "color-mix(in srgb, var(--text) 76%, #b91c1c)", marginBottom: 14 }}>
             {error || "Activity not found."}
           </div>
-          <button type="button" className="btn btn-ghost" onClick={() => navigate("/hr/activities/archive")}>
-            <FiArrowLeft /> Back to completed activities
+          <button type="button" className="btn btn-ghost" onClick={() => navigate(backPath)}>
+            <FiArrowLeft /> {backLabel}
           </button>
         </div>
       </div>
@@ -165,8 +170,8 @@ export default function HrCompletedActivityDetailsPage() {
     <div className="page">
       <div className="container" style={{ display: "grid", gap: 16 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <button type="button" className="btn btn-ghost" onClick={() => navigate("/hr/activities/archive")}>
-            <FiArrowLeft /> Back to completed activities
+          <button type="button" className="btn btn-ghost" onClick={() => navigate(backPath)}>
+            <FiArrowLeft /> {backLabel}
           </button>
           <span className="badge">Completed details</span>
         </div>
