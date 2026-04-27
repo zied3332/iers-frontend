@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import * as XLSX from "xlsx";
 import {
   FiEdit2,
   FiEye,
@@ -390,6 +391,35 @@ const INITIAL_FORM: FormState = {
   targetLevel: "MEDIUM",
 };
 
+const normalizeExcelHeader = (value: unknown) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+
+const asString = (value: unknown) => String(value || "").trim();
+
+const toActivityType = (value: unknown): ActivityType | null => {
+  const normalized = asString(value).toUpperCase().replace(/\s+/g, "_");
+  const allowed: ActivityType[] = ["TRAINING", "CERTIFICATION", "PROJECT", "MISSION", "AUDIT"];
+  return allowed.includes(normalized as ActivityType) ? (normalized as ActivityType) : null;
+};
+
+const toPriorityContext = (value: unknown): PriorityContext | null => {
+  const normalized = asString(value).toUpperCase().replace(/\s+/g, "_");
+  const allowed: PriorityContext[] = ["UPSKILLING", "EXPERTISE", "DEVELOPMENT"];
+  return allowed.includes(normalized as PriorityContext) ? (normalized as PriorityContext) : null;
+};
+
+const toTargetLevel = (value: unknown): DesiredLevel | null => {
+  const normalized = asString(value).toUpperCase().replace(/\s+/g, "_");
+  const allowed: DesiredLevel[] = ["LOW", "MEDIUM", "HIGH"];
+  return allowed.includes(normalized as DesiredLevel) ? (normalized as DesiredLevel) : null;
+};
+
 export default function ActivitiesManagement() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -423,6 +453,7 @@ export default function ActivitiesManagement() {
   });
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [calculatedDuration, setCalculatedDuration] = useState<number>(0);
+  const excelImportInputRef = useRef<HTMLInputElement | null>(null);
 
   const sectionGroupByParam = searchParams.get("sectionGroupBy");
   const sectionKeyParam = searchParams.get("sectionKey");
@@ -995,6 +1026,105 @@ export default function ActivitiesManagement() {
     );
   };
 
+  const importActivityFromExcel = async (file: File) => {
+    const buf = await file.arrayBuffer();
+    const workbook = XLSX.read(buf, { type: "array" });
+    const firstSheetName = workbook.SheetNames[0];
+    if (!firstSheetName) {
+      throw new Error("Le fichier Excel est vide.");
+    }
+
+    const sheet = workbook.Sheets[firstSheetName];
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+      defval: "",
+      raw: false,
+    });
+
+    if (!rows.length) {
+      throw new Error("Aucune ligne de donnees trouvee dans le fichier.");
+    }
+
+    const firstRow = rows[0];
+    const normalizedRow = new Map<string, unknown>();
+    Object.entries(firstRow).forEach(([key, value]) => {
+      normalizedRow.set(normalizeExcelHeader(key), value);
+    });
+
+    const read = (...keys: string[]) => {
+      for (const key of keys) {
+        const value = normalizedRow.get(normalizeExcelHeader(key));
+        if (asString(value)) return asString(value);
+      }
+      return "";
+    };
+
+    const title = read("title", "activity title", "nom activite");
+    const description = read("description", "details", "activity description");
+    const location = read("location", "lieu");
+    const startDate = read("start date", "start", "date debut");
+    const endDate = read("end date", "end", "date fin");
+    const duration = read("duration", "duree");
+    const seatsRaw = read("seats", "available slots", "places", "nb seats");
+    const typeRaw = read("type", "activity type");
+    const contextRaw = read("context", "priority context", "prioritization context");
+    const levelRaw = read("target level", "level", "priority level");
+
+    if (!title) {
+      throw new Error("Colonne Title manquante (ou vide) dans le fichier Excel.");
+    }
+
+    const seats = Number(seatsRaw);
+    const nextType = toActivityType(typeRaw) ?? "TRAINING";
+    const nextContext = toPriorityContext(contextRaw) ?? "UPSKILLING";
+    const nextLevel = toTargetLevel(levelRaw) ?? "MEDIUM";
+    const nextDuration =
+      duration ||
+      (startDate && endDate
+        ? `${Math.max(0, calculateWorkingDays(startDate, endDate))} days`
+        : "");
+
+    setForm((prev) => ({
+      ...prev,
+      title,
+      type: nextType,
+      availableSlots: Number.isFinite(seats) && seats > 0 ? Math.round(seats) : prev.availableSlots,
+      description,
+      location,
+      startDate,
+      endDate,
+      duration: nextDuration,
+      // Toujours vides: c'est toi qui les remplis a la main.
+      departmentId: "",
+      responsibleManagerId: "",
+      priorityContext: nextContext,
+      targetLevel: nextLevel,
+    }));
+
+    if (startDate && endDate) {
+      setCalculatedDuration(calculateWorkingDays(startDate, endDate));
+    } else {
+      setCalculatedDuration(0);
+    }
+  };
+
+  const onPickExcelFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setError("");
+    setSuccess("");
+    try {
+      await importActivityFromExcel(file);
+      setSuccess(
+        "Fichier importe. Complete maintenant Department et Responsible manager manuellement."
+      );
+    } catch (err: any) {
+      setError(err?.message || "Impossible d'importer ce fichier Excel.");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
   return (
     <div style={styles.page}>
       <div style={styles.container}>
@@ -1232,13 +1362,35 @@ export default function ActivitiesManagement() {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  style={{ ...styles.btn, width: "42px", padding: 0 }}
-                  onClick={() => !saving && (setCreateOpen(false), setSelectedActivity(null))}
-                >
-                  <FiX size={16} />
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  {!selectedActivity ? (
+                    <>
+                      <input
+                        ref={excelImportInputRef}
+                        type="file"
+                        accept=".xlsx,.xls"
+                        onChange={onPickExcelFile}
+                        style={{ display: "none" }}
+                      />
+                      <button
+                        type="button"
+                        style={{ ...styles.btn, ...styles.btnSecondary }}
+                        onClick={() => excelImportInputRef.current?.click()}
+                        title="Importer une activite depuis Excel"
+                      >
+                        Import Excel
+                      </button>
+                    </>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    style={{ ...styles.btn, width: "42px", padding: 0 }}
+                    onClick={() => !saving && (setCreateOpen(false), setSelectedActivity(null))}
+                  >
+                    <FiX size={16} />
+                  </button>
+                </div>
               </div>
 
               <div style={{ marginBottom: "24px" }}>
@@ -1252,6 +1404,12 @@ export default function ActivitiesManagement() {
                 >
                   Basic Information
                 </div>
+                {!selectedActivity ? (
+                  <div style={{ ...styles.muted, fontSize: "13px", marginBottom: "12px" }}>
+                    Excel attendu (1ere ligne): Title, Description, Type, Seats, Location, Start Date, End Date, Duration, Context, Target Level.
+                    Department et Responsible manager restent a remplir manuellement.
+                  </div>
+                ) : null}
 
                 <div style={styles.grid2}>
                   <div>
