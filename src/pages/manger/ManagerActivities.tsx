@@ -326,7 +326,13 @@ export default function ManagerActivities() {
         <div className="page-header" style={{ marginBottom: 24 }}>
           <div>
             <h1 className="page-title">My activities</h1>
-            <p className="page-subtitle" style={{ maxWidth: 720 }}>
+            <p
+              className="page-subtitle"
+              style={{
+                maxWidth: 720,
+                color: "color-mix(in srgb, var(--text) 72%, var(--muted))",
+              }}
+            >
               Activities move page-to-page by phase. This page shows only manager workflow phases
               before HR final launch.
             </p>

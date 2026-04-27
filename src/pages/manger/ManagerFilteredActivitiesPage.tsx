@@ -246,7 +246,11 @@ function ManagerFilteredActivitiesInner({
           </h1>
           <p
             className="page-subtitle"
-            style={{ maxWidth: "720px", marginTop: "8px" }}
+            style={{
+              maxWidth: "720px",
+              marginTop: "8px",
+              color: "color-mix(in srgb, var(--text) 86%, var(--muted))",
+            }}
           >
             {page.subtitle}
           </p>
@@ -377,9 +381,9 @@ function ManagerFilteredActivitiesInner({
             >
               <span
                 style={{
-                  color: "var(--muted)",
+                  color: "color-mix(in srgb, var(--text) 70%, var(--muted))",
                   fontSize: "13px",
-                  fontWeight: 600,
+                  fontWeight: 700,
                 }}
               >
                 Showing {startItem} to {endItem} of {filteredSorted.length}
