@@ -121,10 +121,10 @@ const styles = {
   } as React.CSSProperties,
 
   btnPrimary: {
-    background: "var(--primary)",
+    background: "#065f46",
     color: "var(--primary-on)",
-    border: "1px solid var(--primary)",
-    boxShadow: "0 10px 24px var(--primary-border)",
+    border: "1px solid #065f46",
+    boxShadow: "0 10px 24px rgba(6, 95, 70, 0.28)",
   } as React.CSSProperties,
 
   btnSecondary: {
@@ -174,8 +174,8 @@ const styles = {
     }) as React.CSSProperties,
 
   muted: {
-    color: "var(--muted)",
-    fontWeight: 500,
+    color: "#334155",
+    fontWeight: 600,
   } as React.CSSProperties,
 
   subheading: {

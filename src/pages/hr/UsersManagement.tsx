@@ -941,6 +941,7 @@ export default function UsersManagement() {
               value={filterRole}
               onChange={(e) => setFilterRole(e.target.value)}
               style={S.roleSelect}
+              aria-label="Filter users by role"
             >
               <option value="">All Roles</option>
               <option value="EMPLOYEE">Employee</option>
@@ -953,6 +954,7 @@ export default function UsersManagement() {
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
               style={S.roleSelect}
+              aria-label="Filter users by status"
             >
               <option value="">All Status</option>
               <option value="online">Online</option>
@@ -963,6 +965,7 @@ export default function UsersManagement() {
               value={filterDepartment}
               onChange={(e) => setFilterDepartment(e.target.value)}
               style={S.roleSelect}
+              aria-label="Filter users by department"
             >
               <option value="">All Departments</option>
               {departmentOptions.map((dept) => (
@@ -1116,6 +1119,7 @@ export default function UsersManagement() {
                       onChangeRole(u._id, normalizeRole(e.target.value))
                     }
                     style={S.tableSelect}
+                    aria-label={`Role for ${u.name}`}
                   >
                     <option value="EMPLOYEE">Employee</option>
                     <option value="MANAGER">Manager</option>
@@ -1130,6 +1134,7 @@ export default function UsersManagement() {
                     value={getUserDepartmentValue(u)}
                     onChange={(e) => onChangeDepartment(u._id, e.target.value)}
                     style={S.tableSelect}
+                    aria-label={`Department for ${u.name}`}
                   >
                     <option value="">No dept</option>
                     {departmentOptions.map((dept) => (
@@ -1727,7 +1732,7 @@ const S: Record<string, React.CSSProperties> = {
   pageSubtitle: {
     fontSize: 21,
     fontWeight: 700,
-    color: "var(--muted)",
+    color: "#334155",
     marginTop: 8,
     lineHeight: 1.3,
   },
@@ -1775,9 +1780,9 @@ const S: Record<string, React.CSSProperties> = {
     fontWeight: 800,
     fontSize: 16,
     padding: "12px 16px",
-    background: "var(--primary)",
-    border: "1px solid var(--primary)",
-    color: "var(--primary-on)",
+    background: "#065f46",
+    border: "1px solid #065f46",
+    color: "#ffffff",
   },
 
   searchWrap: {

@@ -515,6 +515,13 @@ export default function HrEmployees() {
   const employees = useMemo(() => {
     const mapped = (records || []).map((r) => {
       const user = typeof r.user_id === "object" ? r.user_id : null;
+      const userWithAvatar = user as
+        | ({
+            avatar?: string;
+            profilePicture?: string;
+            image?: string;
+          } & typeof user)
+        | null;
       const depId = getDepartmentId(user?.departement_id);
       const roleValue = String(user?.role || "Not Assigned")
         .trim()
@@ -536,7 +543,12 @@ export default function HrEmployees() {
         seniority: normalizeSeniority(r.seniorityLevel),
         experienceYears: Number(r.experienceYears || 0),
         experienceSegments: mapApiSegmentsToInput(r.experienceSegments),
-        avatarUrl: String(user?.avatar || user?.profilePicture || user?.image || ""),
+        avatarUrl: String(
+          userWithAvatar?.avatar ||
+            userWithAvatar?.profilePicture ||
+            userWithAvatar?.image ||
+            ""
+        ),
         isOnline: inferOnlineStatus(user),
       } as Emp;
     });

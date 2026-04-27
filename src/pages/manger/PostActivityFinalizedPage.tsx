@@ -156,7 +156,13 @@ export default function PostActivityFinalizedPage() {
           <h1 className="page-title" style={{ margin: 0 }}>
             Finalized post-activity evaluations
           </h1>
-          <p className="page-subtitle" style={{ marginTop: 8 }}>
+          <p
+            className="page-subtitle"
+            style={{
+              marginTop: 8,
+              color: "color-mix(in srgb, var(--text) 72%, var(--muted))",
+            }}
+          >
             Activities finalized by managers. Open one to view evaluation details in read-only mode.
           </p>
         </div>
@@ -338,9 +344,9 @@ export default function PostActivityFinalizedPage() {
             >
               <span
                 style={{
-                  color: "var(--muted)",
+                  color: "color-mix(in srgb, var(--text) 70%, var(--muted))",
                   fontSize: "13px",
-                  fontWeight: 600,
+                  fontWeight: 700,
                 }}
               >
                 Showing {startItem} to {endItem} of {filteredSorted.length}

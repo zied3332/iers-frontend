@@ -61,14 +61,16 @@ export type User = {
 
 /**
  * ✅ Get the currently logged-in user
- * Backend recommended endpoint: GET /auth/me
- * If your backend uses /users/me instead, just change it here.
+ * Backend endpoint in this project: POST /auth/profile
  */
 export async function getCurrentUser(): Promise<User> {
   const token = getToken();
   if (!token) throw new Error("No token found. Please login.");
 
-  const res = await fetch(`${BASE}/auth/me`, { headers: authHeaders() });
+  const res = await fetch(`${BASE}/auth/profile`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
 
   // If token expired/invalid -> logout
   if (res.status === 401) logout();

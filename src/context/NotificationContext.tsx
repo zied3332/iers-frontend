@@ -7,7 +7,6 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { io, type Socket } from 'socket.io-client';
 import type { AppNotification } from '../types/notification';
 import {
   deleteNotification,
@@ -16,8 +15,6 @@ import {
   markAllNotificationsAsRead,
   markNotificationAsRead,
 } from '../services/notifications.service';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 function getAuthToken() {
   return (localStorage.getItem('token') || localStorage.getItem('access_token') || '')
@@ -88,6 +85,18 @@ export function NotificationProvider({ children }: Props) {
     }
   }, []);
 
+  useEffect(() => {
+    const onPageShow = () => {
+      void refreshNotifications();
+    };
+
+    window.addEventListener('pageshow', onPageShow);
+
+    return () => {
+      window.removeEventListener('pageshow', onPageShow);
+    };
+  }, [refreshNotifications]);
+
   const markOneAsRead = useCallback(async (notificationId: string) => {
     setNotifications((prev) =>
       prev.map((item) =>
@@ -149,32 +158,6 @@ export function NotificationProvider({ children }: Props) {
 
     return () => clearInterval(interval);
   }, [refreshNotifications]);
-
-  useEffect(() => {
-    const token = getAuthToken();
-    if (!token) return;
-
-    const socket: Socket = io(`${API_URL}/notifications`, {
-      transports: ['websocket'],
-      auth: { token },
-      withCredentials: true,
-    });
-
-    const onNewNotification = (payload: AppNotification) => {
-      setNotifications((prev) => {
-        const exists = prev.some((item) => item._id === payload._id);
-        if (exists) return prev;
-        return [payload, ...prev];
-      });
-    };
-
-    socket.on('notification:new', onNewNotification);
-
-    return () => {
-      socket.off('notification:new', onNewNotification);
-      socket.disconnect();
-    };
-  }, []);
 
   const unreadCount = useMemo(() => {
     return notifications.filter((item) => !item.isRead).length;

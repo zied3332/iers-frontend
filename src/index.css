@@ -767,8 +767,7 @@ a { color: inherit; }
   font-size: 0.92rem;
 }
 
-.sidebar-search input,
-.topbar-search input {
+.search-placeholder {
   border: none;
   outline: none;
   background: transparent;
@@ -981,9 +980,9 @@ a { color: inherit; }
 
 .logout-btn {
   width: 100%;
-  border: 1px solid rgba(239, 68, 68, 0.28);
-  color: #ef4444;
-  background: var(--surface);
+  border: 1px solid rgba(185, 28, 28, 0.35);
+  color: #991b1b;
+  background: color-mix(in srgb, var(--surface) 90%, #fee2e2);
   border-radius: 12px;
   padding: 13px 14px;
   font-size: 1.08rem;
@@ -992,7 +991,7 @@ a { color: inherit; }
 }
 
 .logout-btn:hover {
-  background: rgba(239, 68, 68, 0.08);
+  background: color-mix(in srgb, var(--surface) 84%, #fecaca);
 }
 
 .side-footer{
@@ -1061,7 +1060,7 @@ a { color: inherit; }
   background: var(--surface);
 }
 
-.topbar-search input {
+.topbar-search .search-placeholder {
   font-size: 1.08rem;
 }
 

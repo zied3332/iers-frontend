@@ -743,6 +743,7 @@ function HrFilteredActivitiesInner({
             <select
               value={groupMode}
               onChange={(e) => setGroupMode(e.target.value as GroupMode)}
+              aria-label="Group activities by"
               style={{
                 height: "42px",
                 minWidth: "240px",
@@ -764,6 +765,7 @@ function HrFilteredActivitiesInner({
             <select
               value={createdSortOrder}
               onChange={(e) => setCreatedSortOrder(e.target.value as CreatedSortOrder)}
+              aria-label="Sort activities by created date"
               style={{
                 height: "42px",
                 minWidth: "220px",
@@ -780,7 +782,7 @@ function HrFilteredActivitiesInner({
             </select>
           </div>
         </div>
-        <div style={{ marginBottom: "14px", color: "var(--muted)", fontSize: "13px", fontWeight: 600 }}>
+        <div style={{ marginBottom: "14px", color: "#334155", fontSize: "13px", fontWeight: 700 }}>
           Showing {sorted.length} activity{sorted.length === 1 ? "" : "ies"}
           {search.trim() ? " after search" : ""}
         </div>

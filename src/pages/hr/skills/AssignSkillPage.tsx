@@ -252,7 +252,7 @@ const SearchCombobox = ({
 
 const LevelSelector = ({ value, onChange }: { value: SkillLevel; onChange: (l: SkillLevel) => void }) => {
   const levels: { val: SkillLevel; label: string; color: string; desc: string }[] = [
-    { val: 'LOW', label: 'Beginner', color: '#94a3b8', desc: 'Basic awareness' },
+    { val: 'LOW', label: 'Beginner', color: '#475569', desc: 'Basic awareness' },
     { val: 'MEDIUM', label: 'Intermediate', color: '#3b82f6', desc: 'Works independently' },
     { val: 'HIGH', label: 'Advanced', color: '#8b5cf6', desc: 'Can mentor others' },
     { val: 'EXPERT', label: 'Expert', color: '#ec4899', desc: 'Subject authority' },
@@ -271,7 +271,7 @@ const LevelSelector = ({ value, onChange }: { value: SkillLevel; onChange: (l: S
               padding: '16px 12px', borderRadius: theme.radius.sm,
               border: '2px solid ' + (active ? lvl.color : theme.colors.border),
               background: active ? lvl.color + '12' : theme.colors.surface,
-              color: active ? lvl.color : theme.colors.muted,
+              color: active ? 'color-mix(in srgb, var(--text) 82%, ' + lvl.color + ')' : 'var(--text)',
               fontWeight: 700, fontSize: '14px', cursor: 'pointer',
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
               transition: theme.transition,
@@ -482,7 +482,7 @@ export default function AssignSkillPage() {
         <div className="page-header" style={{ marginBottom: '36px' }}>
           <div>
             <h1 className="page-title">Skill Assignment</h1>
-            <p className="page-subtitle" style={{ color: theme.colors.muted }}>
+            <p className="page-subtitle" style={{ color: 'color-mix(in srgb, var(--text) 72%, var(--muted))' }}>
               Match competencies with precision and context.
             </p>
           </div>
@@ -522,6 +522,7 @@ export default function AssignSkillPage() {
                 <select
                   value={departmentFilter}
                   onChange={(e) => setDepartmentFilter(e.target.value)}
+                  aria-label="Filter employees by department"
                   style={{
                     width: '100%',
                     padding: '14px 16px',
@@ -571,6 +572,7 @@ export default function AssignSkillPage() {
                 <select
                   value={skillCategoryFilter}
                   onChange={(e) => setSkillCategoryFilter(e.target.value as '' | Skill['category'])}
+                  aria-label="Filter skills by category"
                   style={{
                     width: '100%',
                     padding: '14px 16px',
@@ -593,6 +595,7 @@ export default function AssignSkillPage() {
                 <select
                   value={skillDomainFilter}
                   onChange={(e) => setSkillDomainFilter(e.target.value)}
+                  aria-label="Filter skills by domain"
                   style={{
                     width: '100%',
                     padding: '14px 16px',
@@ -636,16 +639,17 @@ export default function AssignSkillPage() {
             <div style={{ padding: '32px', background: theme.colors.surface, borderRadius: theme.radius.lg, border: '1px solid ' + theme.colors.border, boxShadow: theme.shadow.sm }}>
               <div style={{ fontWeight: 700, fontSize: '23px', marginBottom: '20px' }}>Proficiency & Priority</div>
               <div style={{ marginBottom: '22px' }}>
-                <div style={{ fontSize: '16px', fontWeight: 700, color: theme.colors.muted, marginBottom: '10px' }}>Target Level</div>
+                <div style={{ fontSize: '16px', fontWeight: 700, color: 'color-mix(in srgb, var(--text) 70%, var(--muted))', marginBottom: '10px' }}>Target Level</div>
                 <LevelSelector value={form.level} onChange={(l) => setForm(f => ({ ...f, level: l }))} />
               </div>
               <div>
-                <div style={{ fontSize: '16px', fontWeight: 700, color: theme.colors.muted, marginBottom: '10px' }}>Dynamic Score (0-100)</div>
+                <div style={{ fontSize: '16px', fontWeight: 700, color: 'color-mix(in srgb, var(--text) 70%, var(--muted))', marginBottom: '10px' }}>Dynamic Score (0-100)</div>
                 <input
                   type="number"
                   min="0"
                   max="100"
                   value={form.dynamicScore}
+                  aria-label="Dynamic score from zero to one hundred"
                   onChange={(e) => setForm(f => ({ ...f, dynamicScore: Math.max(0, Math.min(100, Number(e.target.value) || 0)) }))}
                   style={{
                     width: '100%', padding: '14px 16px', borderRadius: theme.radius.sm,

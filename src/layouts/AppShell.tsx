@@ -238,7 +238,7 @@ export default function AppShell({
 
           <div className="sidebar-search" aria-hidden="true">
             <span className="search-icon"></span>
-            <input type="text" placeholder="Search" />
+            <span className="search-placeholder">Search</span>
             <span className="search-shortcut">/</span>
           </div>
         </div>
@@ -372,7 +372,7 @@ export default function AppShell({
             {!hideTopbarSearch ? (
               <div className="topbar-search" aria-hidden="true">
                 <span className="search-icon"></span>
-                <input type="text" placeholder="Search workspace..." />
+                <span className="search-placeholder">Search workspace...</span>
               </div>
             ) : null}
 
