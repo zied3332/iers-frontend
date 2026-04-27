@@ -10,7 +10,11 @@ import { getAllDepartments } from "../../services/departments.service";
 type AccountApprovalStatus = "PENDING" | "APPROVED" | "REJECTED" | "UNKNOWN";
 
 function normalizeApprovalStatus(value: unknown): AccountApprovalStatus {
-  const v = String(value || "").trim().toUpperCase();
+  const normalizedValue =
+    typeof value === "string" || typeof value === "number" || typeof value === "boolean"
+      ? String(value)
+      : "";
+  const v = normalizedValue.trim().toUpperCase();
   if (v === "PENDING") return "PENDING";
   if (v === "APPROVED") return "APPROVED";
   if (v === "REJECTED") return "REJECTED";
@@ -55,7 +59,7 @@ function initialsFromName(name?: string) {
     .toUpperCase();
 }
 
-function StatusPill({ status }: { status: AccountApprovalStatus }) {
+function StatusPill({ status }: Readonly<{ status: AccountApprovalStatus }>) {
   const map = {
     PENDING: { bg: "rgba(245,158,11,0.14)", fg: "#b45309" },
     APPROVED: { bg: "var(--primary-weak)", fg: "var(--primary-soft-text)" },
@@ -80,7 +84,7 @@ function StatusPill({ status }: { status: AccountApprovalStatus }) {
   );
 }
 
-function DetailsRow({ label, value }: { label: string; value?: string }) {
+function DetailsRow({ label, value }: Readonly<{ label: string; value?: string }>) {
   return (
     <div style={{ display: "grid", gap: 2 }}>
       <span className="muted" style={{ fontSize: 12 }}>{label}</span>
@@ -93,22 +97,25 @@ function AccountDetailsModal({
   user,
   departmentName,
   onClose,
-}: {
+}: Readonly<{
   user: User;
   departmentName: string;
   onClose: () => void;
-}) {
+}>) {
   const status = normalizeApprovalStatus(user.approvalStatus);
   return (
     <div
       className="modal-overlay"
-      onClick={onClose}
-      role="presentation"
       style={{ zIndex: 80 }}
     >
+      <button
+        type="button"
+        aria-label="Close account details"
+        onClick={onClose}
+        style={{ position: "absolute", inset: 0, border: "none", background: "transparent", cursor: "pointer" }}
+      />
       <div
         className="modal-card"
-        onClick={(e) => e.stopPropagation()}
         style={{ width: "min(760px, 95vw)" }}
       >
         <div className="modal-header">
@@ -199,13 +206,13 @@ function RequestCard({
   onReject,
   onOpenDetails,
   processing,
-}: {
+}: Readonly<{
   user: User;
   onApprove: (userId: string) => void;
   onReject: (userId: string) => void;
   onOpenDetails: (user: User) => void;
   processing: boolean;
-}) {
+}>) {
   const status = normalizeApprovalStatus(user.approvalStatus);
   const canDecide = status === "PENDING";
 
@@ -309,7 +316,7 @@ function Section({
   onReject,
   onOpenDetails,
   processingUserId,
-}: {
+}: Readonly<{
   sectionKey: string;
   title: string;
   subtitle: string;
@@ -321,7 +328,7 @@ function Section({
   onReject: (userId: string) => void;
   onOpenDetails: (user: User) => void;
   processingUserId: string;
-}) {
+}>) {
   const visibleUsers = expanded ? users : users.slice(0, 3);
   const hasOverflow = users.length > 3;
 
@@ -439,7 +446,7 @@ export default function AccountManagementPage() {
 
   const runDecision = useCallback(
     async (userId: string, decision: "APPROVED" | "REJECTED") => {
-      const confirmed = window.confirm(
+      const confirmed = globalThis.confirm(
         decision === "APPROVED"
           ? "Approve this account request?"
           : "Reject this account request?"
@@ -461,7 +468,7 @@ export default function AccountManagementPage() {
           )
         );
         setSelectedUser((prev) =>
-          prev && prev._id === userId ? { ...prev, approvalStatus: decision } : prev
+          prev?._id === userId ? { ...prev, approvalStatus: decision } : prev
         );
       } catch (e: any) {
         setError(e?.message || "Failed to apply account decision.");
