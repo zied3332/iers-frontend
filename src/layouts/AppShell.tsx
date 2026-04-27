@@ -66,7 +66,7 @@ function SidebarAvatar({
           display: "grid",
           placeItems: "center",
           fontWeight: 900,
-          fontSize: 16,
+          fontSize: "var(--fz-16)",
         }}
         title={name}
       >
@@ -328,10 +328,10 @@ export default function AppShell({
             transition: "all 0.2s ease",
           }}
         >
-          <span style={{ fontSize: 17, lineHeight: 1 }}>→</span>
+          <span style={{ fontSize: "var(--fz-17)", lineHeight: 1 }}>→</span>
           <span
             style={{
-              fontSize: 10,
+              fontSize: "var(--fz-10)",
               letterSpacing: "0.04em",
               writingMode: "vertical-rl",
               textOrientation: "mixed",

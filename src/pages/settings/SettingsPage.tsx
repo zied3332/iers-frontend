@@ -28,11 +28,11 @@ import {
   readStoredThemeMode,
   THEME_COLOR_OPTIONS,
 } from "../../utils/themePreferences";
+import { applyFontPreferences, readStoredFontScale } from "../../utils/fontPreferences";
 import { useTranslate } from '../../context/TranslateContext';
 
 type ThemeMode = "light" | "dark";
 type LayoutDensity = "comfortable" | "compact";
-type FontSize = "small" | "medium" | "large";
 type Language = "English" | "Français" | "العربية";
 type DateFormat = "DD/MM/YYYY" | "MM/DD/YYYY";
 type TimeZone = "GMT +01:00 — Tunis" | "GMT +00:00 — London" | "GMT +02:00 — Cairo";
@@ -60,7 +60,7 @@ type SettingsState = {
   themeMode: ThemeMode;
   themeColor: string;
   layoutDensity: LayoutDensity;
-  fontSize: FontSize;
+  fontScale: number;
   language: Language;
   dateFormat: DateFormat;
   timeZone: TimeZone;
@@ -73,7 +73,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   themeMode: "light",
   themeColor: DEFAULT_THEME_COLOR,
   layoutDensity: "comfortable",
-  fontSize: "medium",
+  fontScale: 1,
   language: "English",
   dateFormat: "DD/MM/YYYY",
   timeZone: "GMT +01:00 — Tunis",
@@ -155,10 +155,13 @@ export default function SettingsPage() {
   const [twoFactorSuccess, setTwoFactorSuccess] = useState("");
   const { isFrench, setIsFrench } = useTranslate();
 
+  const fz = (px: number) => `var(--fz-${px})`;
+
   useEffect(() => {
     const stored = readStoredSettings();
     const storedMode = readStoredThemeMode();
     const storedColor = readStoredThemeColor();
+    const storedFontScale = readStoredFontScale();
     const domThemeAttr = String(document.documentElement.getAttribute("data-theme") || "").toLowerCase();
     const activeDomMode: ThemeMode =
       domThemeAttr === "dark" || domThemeAttr === "light"
@@ -175,6 +178,7 @@ export default function SettingsPage() {
       ...stored,
       themeMode: activeDomMode,
       themeColor: activeDomColor || storedColor || stored.themeColor || DEFAULT_THEME_COLOR,
+      fontScale: Number.isFinite(storedFontScale) ? storedFontScale : (stored as any).fontScale ?? 1,
     });
     setSettingsReady(true);
   }, []);
@@ -247,6 +251,11 @@ export default function SettingsPage() {
     });
   }, [settings.themeMode, settings.themeColor, settingsReady]);
 
+  useEffect(() => {
+    if (!settingsReady) return;
+    applyFontPreferences({ scale: settings.fontScale, persist: true });
+  }, [settings.fontScale, settingsReady]);
+
   const isEmployee = String(currentUser?.role || "").toUpperCase() === "EMPLOYEE";
   const accountEmail = String(currentUser?.email || "").trim();
 
@@ -256,10 +265,9 @@ export default function SettingsPage() {
   );
 
   const previewFontSize = useMemo(() => {
-    if (settings.fontSize === "small") return 13;
-    if (settings.fontSize === "large") return 17;
-    return 15;
-  }, [settings.fontSize]);
+    const scale = Math.min(1.3, Math.max(0.8, Number(settings.fontScale) || 1));
+    return 15 * scale;
+  }, [settings.fontScale]);
 
   const previewCardPadding = settings.layoutDensity === "compact" ? 10 : 14;
 
@@ -281,6 +289,7 @@ export default function SettingsPage() {
         color: settings.themeColor,
         persist: true,
       });
+      applyFontPreferences({ scale: settings.fontScale, persist: true });
       setSavedAt(new Date().toLocaleTimeString());
     } catch {
       // ignore storage issues
@@ -296,6 +305,7 @@ export default function SettingsPage() {
         color: DEFAULT_SETTINGS.themeColor,
         persist: true,
       });
+      applyFontPreferences({ scale: DEFAULT_SETTINGS.fontScale, persist: true });
     } catch {
       // ignore storage issues
     }
@@ -529,7 +539,7 @@ export default function SettingsPage() {
   };
 
   const eyebrowStyle: CSSProperties = {
-    fontSize: 12,
+    fontSize: fz(12),
     fontWeight: 800,
     letterSpacing: "0.14em",
     textTransform: "uppercase",
@@ -539,7 +549,7 @@ export default function SettingsPage() {
 
   const titleStyle: CSSProperties = {
     margin: 0,
-    fontSize: 42,
+    fontSize: fz(42),
     lineHeight: 1.05,
     fontWeight: 900,
     color: "var(--text, #0f172a)",
@@ -548,7 +558,7 @@ export default function SettingsPage() {
   const descStyle: CSSProperties = {
     margin: "12px 0 0",
     maxWidth: 760,
-    fontSize: 16,
+    fontSize: fz(16),
     lineHeight: 1.7,
     color: "var(--muted, #64748b)",
   };
@@ -560,7 +570,7 @@ export default function SettingsPage() {
     borderRadius: 12,
     padding: "11px 16px",
     fontWeight: 700,
-    fontSize: 14,
+    fontSize: fz(14),
     cursor: "pointer",
   };
 
@@ -587,7 +597,7 @@ export default function SettingsPage() {
     borderRadius: 12,
     padding: "10px 14px",
     fontWeight: 700,
-    fontSize: 14,
+    fontSize: fz(14),
     cursor: "pointer",
   };
 
@@ -625,7 +635,7 @@ export default function SettingsPage() {
 
   const sectionTitleStyle: CSSProperties = {
     margin: 0,
-    fontSize: 30,
+    fontSize: fz(30),
     fontWeight: 900,
     color: "var(--text, #0f172a)",
     letterSpacing: "-0.02em",
@@ -633,7 +643,7 @@ export default function SettingsPage() {
 
   const sectionTextStyle: CSSProperties = {
     margin: "8px 0 0",
-    fontSize: 15,
+    fontSize: fz(15),
     lineHeight: 1.65,
     color: "var(--muted, #64748b)",
     maxWidth: 760,
@@ -665,13 +675,13 @@ export default function SettingsPage() {
   };
 
   const rowTitle: CSSProperties = {
-    fontSize: 15,
+    fontSize: fz(15),
     fontWeight: 800,
     color: "var(--text, #0f172a)",
   };
 
   const rowHint: CSSProperties = {
-    fontSize: 14,
+    fontSize: fz(14),
     lineHeight: 1.55,
     color: "var(--muted, #64748b)",
   };
@@ -709,6 +719,51 @@ export default function SettingsPage() {
     boxShadow: "0 1px 2px rgba(15, 23, 42, 0.08)",
   });
 
+  const sliderWrap: CSSProperties = {
+    display: "grid",
+    gap: 8,
+    minWidth: 280,
+    maxWidth: 360,
+    width: "100%",
+    justifyItems: "end",
+  };
+
+  const sliderTrackShell: CSSProperties = {
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 16,
+    border:
+      settings.themeMode === "dark"
+        ? "1px solid rgba(255,255,255,0.12)"
+        : "1px solid #e2e8f0",
+    background: settings.themeMode === "dark" ? "#0f172a" : "#f1f5f9",
+  };
+
+  const sliderHintRow: CSSProperties = {
+    display: "flex",
+    justifyContent: "space-between",
+    width: "100%",
+    fontSize: 12,
+    fontWeight: 800,
+    color: "var(--muted, #64748b)",
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+  };
+
+  const rangeBase: CSSProperties = {
+    width: "100%",
+    appearance: "none",
+    height: 10,
+    borderRadius: 999,
+    outline: "none",
+    background: (() => {
+      const pct = Math.max(80, Math.min(130, Math.round((Number(settings.fontScale) || 1) * 100)));
+      const fill = ((pct - 80) / 50) * 100;
+      const rest = settings.themeMode === "dark" ? "#334155" : "#dbe5ef";
+      return `linear-gradient(90deg, ${previewAccent} 0%, ${previewAccent} ${fill}%, ${rest} ${fill}%, ${rest} 100%)`;
+    })(),
+  };
+
   const themeModeChoicesWrap: CSSProperties = {
     display: "grid",
     gridTemplateColumns: "repeat(2, minmax(130px, 1fr))",
@@ -736,7 +791,7 @@ export default function SettingsPage() {
     display: "inline-flex",
     alignItems: "center",
     gap: 8,
-    fontSize: 12,
+    fontSize: fz(12),
     fontWeight: 700,
     color: "var(--muted, #64748b)",
   };
@@ -794,14 +849,14 @@ export default function SettingsPage() {
 
   const sideCardTitle: CSSProperties = {
     margin: 0,
-    fontSize: 24,
+    fontSize: fz(24),
     fontWeight: 900,
     color: "var(--text, #0f172a)",
   };
 
   const sideCardText: CSSProperties = {
     margin: "8px 0 0",
-    fontSize: 14,
+    fontSize: fz(14),
     lineHeight: 1.65,
     color: "var(--muted, #64748b)",
   };
@@ -831,7 +886,7 @@ export default function SettingsPage() {
     background:
       settings.themeMode === "dark" ? "rgba(255,255,255,0.08)" : "#eef6f2",
     color: settings.themeMode === "dark" ? "#ffffff" : previewAccent,
-    fontSize: 12,
+    fontSize: fz(12),
     fontWeight: 800,
   };
 
@@ -902,7 +957,7 @@ export default function SettingsPage() {
 
   const modalTitleStyle: CSSProperties = {
     margin: 0,
-    fontSize: 24,
+    fontSize: fz(24),
     fontWeight: 900,
     color: "var(--text, #0f172a)",
     letterSpacing: "-0.02em",
@@ -911,7 +966,7 @@ export default function SettingsPage() {
   const modalSubtitleStyle: CSSProperties = {
     margin: "2px 0 0",
     color: "var(--muted, #64748b)",
-    fontSize: 14,
+    fontSize: fz(14),
     lineHeight: 1.55,
   };
 
@@ -1094,20 +1149,57 @@ export default function SettingsPage() {
                       </span>
                     </div>
 
-                    <div style={segmentedWrap}>
-                      {(["small", "medium", "large"] as FontSize[]).map((size) => (
-                        <button
-                          key={size}
-                          style={
-                            settings.fontSize === size
-                              ? segmentedBtnActive(previewAccent)
-                              : segmentedBtn
-                          }
-                          onClick={() => updateSetting("fontSize", size)}
-                        >
-                          {size.charAt(0).toUpperCase() + size.slice(1)}
-                        </button>
-                      ))}
+                    <div style={sliderWrap}>
+                      <div style={sliderTrackShell}>
+                        <input
+                          aria-label="Font size"
+                          type="range"
+                          min={80}
+                          max={130}
+                          step={1}
+                          value={Math.round((Number(settings.fontScale) || 1) * 100)}
+                          onChange={(e) => {
+                            const pct = Math.max(80, Math.min(130, Number(e.target.value)));
+                            updateSetting("fontScale", pct / 100);
+                          }}
+                          style={rangeBase}
+                        />
+                        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10 }}>
+                          {(() => {
+                            const pct = Math.max(
+                              80,
+                              Math.min(130, Math.round((Number(settings.fontScale) || 1) * 100)),
+                            );
+                            const activeIdx = pct < 92 ? 0 : pct < 115 ? 1 : 2;
+                            return [0, 1, 2].map((i) => (
+                            <span
+                              key={i}
+                              style={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: 999,
+                                background:
+                                  i === activeIdx
+                                    ? previewAccent
+                                    : settings.themeMode === "dark"
+                                      ? "#334155"
+                                      : "#cbd5e1",
+                                boxShadow:
+                                  i === activeIdx
+                                    ? `0 0 0 4px ${previewAccent}22`
+                                    : "none",
+                              }}
+                            />
+                            ));
+                          })()}
+                        </div>
+                      </div>
+
+                      <div style={sliderHintRow}>
+                        <span>80%</span>
+                        <span>100%</span>
+                        <span>130%</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1541,7 +1633,7 @@ export default function SettingsPage() {
                   ["Theme", settings.themeMode],
                   ["Theme color", themeColorLabel],
                   ["Density", settings.layoutDensity],
-                  ["Font size", settings.fontSize],
+                  ["Font size", `${Math.round((Number(settings.fontScale) || 1) * 100)}%`],
                   ["Language", settings.language],
                   ["Date format", settings.dateFormat],
                   ["Time zone", settings.timeZone],

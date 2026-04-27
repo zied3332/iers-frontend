@@ -4,6 +4,31 @@
    1) THEME TOKENS (CSS Variables)
    ========================================================= */
 :root {
+  --app-font-scale: 1;
+  --fz-10: 10px;
+  --fz-11: 11px;
+  --fz-12: 12px;
+  --fz-13: 13px;
+  --fz-14: 14px;
+  --fz-15: 15px;
+  --fz-16: 16px;
+  --fz-17: 17px;
+  --fz-18: 18px;
+  --fz-19: 19px;
+  --fz-20: 20px;
+  --fz-21: 21px;
+  --fz-22: 22px;
+  --fz-24: 24px;
+  --fz-26: 26px;
+  --fz-28: 28px;
+  --fz-30: 30px;
+  --fz-31: 31px;
+  --fz-32: 32px;
+  --fz-34: 34px;
+  --fz-38: 38px;
+  --fz-42: 42px;
+  --fz-44: 44px;
+  --fz-46: 46px;
   --bg: #f6f8fb;
   --card: #ffffff;
   --surface: #ffffff;
@@ -91,7 +116,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 18px;
+  font-size: var(--fz-18);
   line-height: 1.68;
   transition: background-color 0.25s ease, color 0.25s ease;
 }
@@ -122,7 +147,7 @@ a { color: inherit; }
 .stack { display: grid; gap: 10px; margin-top: 10px; }
 .muted {
   color: var(--muted);
-  font-size: 15px;
+  font-size: var(--fz-15);
   line-height: 1.68;
   margin: 8px 0 0;
 }
@@ -145,7 +170,7 @@ a { color: inherit; }
 
 .page-title {
   margin: 0;
-  font-size: 34px;
+  font-size: var(--fz-34);
   font-weight: 800;
   line-height: 1.2;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -155,19 +180,19 @@ a { color: inherit; }
   margin-top: 4px;
   color: var(--muted);
   font-weight: 600;
-  font-size: 18px;
+  font-size: var(--fz-18);
   font-family: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 /* Enforce consistent page heading scale across all routes/components. */
 .page-title,
 .header-title {
-  font-size: 34px !important;
+  font-size: var(--fz-34) !important;
 }
 
 .page-subtitle,
 .header-sub {
-  font-size: 18px !important;
+  font-size: var(--fz-18) !important;
 }
 
 .content-card {
@@ -206,7 +231,7 @@ a { color: inherit; }
   border-radius: 10px;
   padding: 12px 14px;
   font-weight: 700;
-  font-size: 13px;
+  font-size: var(--fz-13);
 }
 
 .alert-error {
@@ -229,7 +254,7 @@ a { color: inherit; }
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--fz-13);
 }
 
 .data-table th {
@@ -309,7 +334,7 @@ a { color: inherit; }
 
 .section-title {
   font-weight: 800;
-  font-size: 16px;
+  font-size: var(--fz-16);
   letter-spacing: 0.2px;
 }
 
@@ -340,7 +365,7 @@ a { color: inherit; }
 }
 
 .header-title {
-  font-size: 34px;
+  font-size: var(--fz-34);
   font-weight: 800;
   line-height: 1.2;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -350,7 +375,7 @@ a { color: inherit; }
   margin-top: 2px;
   color: var(--muted);
   font-weight: 600;
-  font-size: 18px;
+  font-size: var(--fz-18);
   font-family: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
@@ -388,12 +413,12 @@ a { color: inherit; }
 }
 
 .score-value {
-  font-size: 26px;
+  font-size: var(--fz-26);
   font-weight: 900;
   color: var(--primary);
 }
 
-.score-sub { font-size: 15px; color: var(--muted); margin-top: 2px; }
+.score-sub { font-size: var(--fz-15); color: var(--muted); margin-top: 2px; }
 .score-up { color: var(--success); font-weight: 800; }
 
 /* =========================================================
@@ -412,7 +437,7 @@ a { color: inherit; }
   background: #fff;
   color: #334155;
   font-weight: 800;
-  font-size: 12px;
+  font-size: var(--fz-12);
   padding: 8px 10px;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -466,7 +491,7 @@ a { color: inherit; }
 }
 
 .bar-name {
-  font-size: 13px;
+  font-size: var(--fz-13);
   font-weight: 800;
   color: var(--text);
 }
@@ -489,7 +514,7 @@ a { color: inherit; }
    11) BADGES + TAGS
    ========================================================= */
 .badge {
-  font-size: 14px;
+  font-size: var(--fz-14);
   font-weight: 800;
   border-radius: 999px;
   padding: 7px 11px;
@@ -511,7 +536,7 @@ a { color: inherit; }
 }
 
 .tag {
-  font-size: 14px;
+  font-size: var(--fz-14);
   font-weight: 700;
   color: #334155;
   background: #f1f5f9;
@@ -537,7 +562,7 @@ a { color: inherit; }
 }
 
 .history-title { font-size: 16px; font-weight: 900; }
-.history-date { font-size: 14px; color: var(--muted); margin-top: 2px; font-weight: 600; }
+.history-date { font-size: var(--fz-14); color: var(--muted); margin-top: 2px; font-weight: 600; }
 .history-gain { font-weight: 900; color: var(--primary); }
 
 /* =========================================================
@@ -549,7 +574,7 @@ a { color: inherit; }
   border-radius: 6px;
   padding: 11px 15px;
   font-weight: 600;
-  font-size: 16px;
+  font-size: var(--fz-16);
   color: var(--text);
   outline: none;
 }
@@ -568,7 +593,7 @@ a { color: inherit; }
   border: 1px solid var(--input-border);
   background: var(--surface-2);
   font-weight: 600;
-  font-size: 16px;
+  font-size: var(--fz-16);
   color: var(--text);
   cursor: pointer;
   transition: background 120ms ease, border-color 120ms ease, transform 60ms ease;
@@ -606,7 +631,7 @@ a { color: inherit; }
 .btn-small {
   padding: 8px 12px;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: var(--fz-14);
   font-weight: 600;
 }
 
@@ -616,7 +641,7 @@ a { color: inherit; }
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 16px;
+  font-size: var(--fz-16);
 }
 
 .table th {
@@ -3170,7 +3195,7 @@ a { color: inherit; }
   border-radius: 14px;
   text-decoration: none;
   font-weight: 700;
-  font-size: 17px;
+  font-size: var(--fz-17);
   color: var(--sidebar-link);
   position: relative;
   transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
