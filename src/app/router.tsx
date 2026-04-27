@@ -1,72 +1,84 @@
+import { Suspense, lazy, type ReactNode } from "react";
 import { createBrowserRouter, Navigate, Outlet, useParams } from "react-router-dom";
 
-import LandingPage from "../pages/LandingPage";
 import AuthLayout from "../pages/auth/AuthLayout";
-import Login from "../pages/auth/Login";
-import Signup from "../pages/auth/Signup";
-import ForgotPassword from "../pages/auth/ForgotPassword";
-import ResetPassword from "../pages/auth/ResetPassword";
-import HrRecommendationPage from "../pages/hr/HrRecommendationPage";
 import HrLayout from "../layouts/HrLayout";
 import SuperManagerLayout from "../layouts/SuperManagerLayout";
 import ManagerLayout from "../layouts/ManagerLayout";
 import EmployeeLayout from "../layouts/EmployeeLayout";
 
-// HR pages
-import HrEmployees from "../pages/hr/Employees";
-import UsersManagement from "../pages/hr/UsersManagement";
-import HrDepartments from "../pages/hr/Departments";
-import HrActivitiesManagement from "../pages/hr/ActivitiesManagement.tsx";
-import HrSkillsDashboard from "../pages/hr/HrSkillsDashboard";
-import AccountManagementPage from "../pages/hr/AccountManagementPage";
-import SkillsManagementPage from "../pages/hr/skills/SkillsManagementPage";
-import AssignSkillPage from "../pages/hr/skills/AssignSkillPage";
-import DomainManagementPage from "../pages/hr/domains/DomainManagementPage";
-import HrCopilotPage from "../pages/hr/HrCopilotPage";
-import HrStatsDashboard from "../pages/hr/HrStatsDashboard";
-import HrCalendarPage from "../pages/hr/HrCalendarPage.tsx";
-import ActivityStaffingPage from "../pages/hr/ActivityStaffingPage";
-import ManagerDecisionsPage from "../pages/hr/ManagerDecisionsPage";
-import {
-  HrStaffingPipelinePage,
-  HrCompletedActivitiesPage,
-  HrCancelledActivitiesPage,
-} from "../pages/hr/HrFilteredActivitiesPage";
-import HrCompletedActivityDetailsPage from "../pages/hr/HrCompletedActivityDetailsPage";
+const LandingPage = lazy(() => import("../pages/LandingPage"));
+const Login = lazy(() => import("../pages/auth/Login"));
+const Signup = lazy(() => import("../pages/auth/Signup"));
+const ForgotPassword = lazy(() => import("../pages/auth/ForgotPassword"));
+const ResetPassword = lazy(() => import("../pages/auth/ResetPassword"));
+const CompleteProfile = lazy(() => import("../pages/auth/CompleteProfile"));
+const AccountPending = lazy(() => import("../pages/auth/AccountPending"));
 
-// Manager pages
-import ManagerTeam from "../pages/manger/ManagerTeam";
-import ManagerActivities from "../pages/manger/ManagerActivities.tsx";
-import ManagerDashboard from "../pages/manger/ManagerDashboard";
-import ManagerActivityReviewPage from "../pages/manger/ManagerActivityReviewPage";
-import {
-  ManagerRunningActivitiesPage,
-  ManagerPastActivitiesPage,
-} from "../pages/manger/ManagerFilteredActivitiesPage";
-import ManagerInProgressActivityPage from "../pages/hr/ManagerInProgressActivityPage";
-import ManagerPastActivitiesEvalPage from "../pages/manger/ManagerPastActivitiesPage";
-// AI pages
-import TextCorrectionPage from "../pages/ai/TextCorrectionPage";
+const HrRecommendationPage = lazy(() => import("../pages/hr/HrRecommendationPage"));
+const HrEmployees = lazy(() => import("../pages/hr/Employees"));
+const UsersManagement = lazy(() => import("../pages/hr/UsersManagement"));
+const HrDepartments = lazy(() => import("../pages/hr/Departments"));
+const HrActivitiesManagement = lazy(() => import("../pages/hr/ActivitiesManagement"));
+const HrSkillsDashboard = lazy(() => import("../pages/hr/HrSkillsDashboard"));
+const AccountManagementPage = lazy(() => import("../pages/hr/AccountManagementPage"));
+const SkillsManagementPage = lazy(() => import("../pages/hr/skills/SkillsManagementPage"));
+const AssignSkillPage = lazy(() => import("../pages/hr/skills/AssignSkillPage"));
+const DomainManagementPage = lazy(() => import("../pages/hr/domains/DomainManagementPage"));
+const HrCopilotPage = lazy(() => import("../pages/hr/HrCopilotPage"));
+const HrStatsDashboard = lazy(() => import("../pages/hr/HrStatsDashboard"));
+const HrCalendarPage = lazy(() => import("../pages/hr/HrCalendarPage"));
+const ActivityStaffingPage = lazy(() => import("../pages/hr/ActivityStaffingPage"));
+const ManagerDecisionsPage = lazy(() => import("../pages/hr/ManagerDecisionsPage"));
+const HrStaffingPipelinePage = lazy(() =>
+  import("../pages/hr/HrFilteredActivitiesPage").then((m) => ({ default: m.HrStaffingPipelinePage }))
+);
+const HrCompletedActivitiesPage = lazy(() =>
+  import("../pages/hr/HrFilteredActivitiesPage").then((m) => ({ default: m.HrCompletedActivitiesPage }))
+);
+const HrCancelledActivitiesPage = lazy(() =>
+  import("../pages/hr/HrFilteredActivitiesPage").then((m) => ({ default: m.HrCancelledActivitiesPage }))
+);
+const HrCompletedActivityDetailsPage = lazy(() => import("../pages/hr/HrCompletedActivityDetailsPage"));
 
-// Employee pages
-import CvUpload from "../pages/employee/CvUpload";
-import MySkillsPage from "../pages/employee/skills/MySkillsPage";
-import EmployeeActivityInvitationsPage from "../pages/employee/EmployeeActivityInvitationsPage";
-import EmployeeActivityArchivePage from "../pages/employee/EmployeeActivityArchivePage";
-import EmployeeActivityInvitationDetailPage from "../pages/employee/EmployeeActivityInvitationDetailPage";
-import AuditHistoryPage from "../pages/audit/AuditHistoryPage";
+const ManagerTeam = lazy(() => import("../pages/manger/ManagerTeam"));
+const ManagerActivities = lazy(() => import("../pages/manger/ManagerActivities"));
+const ManagerDashboard = lazy(() => import("../pages/manger/ManagerDashboard"));
+const ManagerActivityReviewPage = lazy(() => import("../pages/manger/ManagerActivityReviewPage"));
+const ManagerRunningActivitiesPage = lazy(() =>
+  import("../pages/manger/ManagerFilteredActivitiesPage").then((m) => ({ default: m.ManagerRunningActivitiesPage }))
+);
+const ManagerPastActivitiesPage = lazy(() =>
+  import("../pages/manger/ManagerFilteredActivitiesPage").then((m) => ({ default: m.ManagerPastActivitiesPage }))
+);
+const ManagerInProgressActivityPage = lazy(() => import("../pages/hr/ManagerInProgressActivityPage"));
+const ManagerPastActivitiesEvalPage = lazy(() => import("../pages/manger/ManagerPastActivitiesPage"));
+const TextCorrectionPage = lazy(() => import("../pages/ai/TextCorrectionPage"));
 
-import Profile from "../pages/profile/Profile";
-import NotificationsPage from "../pages/notifications/NotificationsPage";
-import HrDashboard from "../pages/hr/Dashboard.tsx";
-import CompleteProfile from "../pages/auth/CompleteProfile";
-import AccountPending from "../pages/auth/AccountPending";
-import SettingsPage from "../pages/settings/SettingsPage";
-import ManagerEvaluateActivityPage from "../pages/manger/ManagerEvaluateActivityPage";
-import PostActivityFinalizedPage from "../pages/manger/PostActivityFinalizedPage";
-import PostActivityEvaluationReadOnlyPage from "../pages/manger/PostActivityEvaluationReadOnlyPage";
-import HrEmployeeDetails from "../pages/hr/EmployeeDetails";
-import AppearanceSettingsPage from "../pages/settings/AppearanceSettingsPage";
+const CvUpload = lazy(() => import("../pages/employee/CvUpload"));
+const MySkillsPage = lazy(() => import("../pages/employee/skills/MySkillsPage"));
+const EmployeeActivityInvitationsPage = lazy(() => import("../pages/employee/EmployeeActivityInvitationsPage"));
+const EmployeeActivityArchivePage = lazy(() => import("../pages/employee/EmployeeActivityArchivePage"));
+const EmployeeActivityInvitationDetailPage = lazy(() => import("../pages/employee/EmployeeActivityInvitationDetailPage"));
+const AuditHistoryPage = lazy(() => import("../pages/audit/AuditHistoryPage"));
+
+const Profile = lazy(() => import("../pages/profile/Profile"));
+const NotificationsPage = lazy(() => import("../pages/notifications/NotificationsPage"));
+const HrDashboard = lazy(() => import("../pages/hr/Dashboard"));
+const SettingsPage = lazy(() => import("../pages/settings/SettingsPage"));
+const ManagerEvaluateActivityPage = lazy(() => import("../pages/manger/ManagerEvaluateActivityPage"));
+const PostActivityFinalizedPage = lazy(() => import("../pages/manger/PostActivityFinalizedPage"));
+const PostActivityEvaluationReadOnlyPage = lazy(() => import("../pages/manger/PostActivityEvaluationReadOnlyPage"));
+const HrEmployeeDetails = lazy(() => import("../pages/hr/EmployeeDetails"));
+const AppearanceSettingsPage = lazy(() => import("../pages/settings/AppearanceSettingsPage"));
+
+function withSuspense(node: ReactNode) {
+  return (
+    <Suspense fallback={<div style={{ padding: 20 }}>Loading...</div>}>
+      {node}
+    </Suspense>
+  );
+}
 type Role = "HR" | "SUPER_MANAGER" | "MANAGER" | "EMPLOYEE";
 
 function getRole(): Role | null {
@@ -127,19 +139,19 @@ function ManagerStaffingToReviewRedirect() {
 }
 
 export const router = createBrowserRouter([
-  { path: "/", element: <LandingPage /> },
+  { path: "/", element: withSuspense(<LandingPage />) },
   { path: "/403", element: <Forbidden /> },
 
   {
     path: "/auth",
     element: <AuthLayout />,
     children: [
-      { index: true, element: <Login /> },
-      { path: "login", element: <Login /> },
-      { path: "signup", element: <Signup /> },
-      { path: "forgot-password", element: <ForgotPassword /> },
-      { path: "reset-password", element: <ResetPassword /> },
-      { path: "account-pending", element: <AccountPending /> },
+      { index: true, element: withSuspense(<Login />) },
+      { path: "login", element: withSuspense(<Login />) },
+      { path: "signup", element: withSuspense(<Signup />) },
+      { path: "forgot-password", element: withSuspense(<ForgotPassword />) },
+      { path: "reset-password", element: withSuspense(<ResetPassword />) },
+      { path: "account-pending", element: withSuspense(<AccountPending />) },
     ],
   },
 
@@ -150,37 +162,37 @@ export const router = createBrowserRouter([
         path: "/hr",
         element: <HrLayout />,
         children: [
-          { path: "dashboard", element: <HrStatsDashboard /> },
-          { path: "employees", element: <HrEmployees /> },
-          { path: "users", element: <UsersManagement /> },
-          { path: "pending-users", element: <AccountManagementPage /> },
-          { path: "account-management", element: <AccountManagementPage /> },
-          { path: "departments", element: <HrDepartments /> },
-          { path: "activities", element: <HrActivitiesManagement /> },
-          { path: "activities/pipeline", element: <HrStaffingPipelinePage /> },
-          { path: "activities/archive", element: <HrCompletedActivitiesPage /> },
-          { path: "activities/cancelled", element: <HrCancelledActivitiesPage /> },
-          { path: "activities/:activityId/completed-details", element: <HrCompletedActivityDetailsPage /> },
-          { path: "activities/:activityId/staffing", element: <ActivityStaffingPage /> },
-          { path: "activities/:activityId/manager-decisions", element: <ManagerDecisionsPage /> },
+          { path: "dashboard", element: withSuspense(<HrStatsDashboard />) },
+          { path: "employees", element: withSuspense(<HrEmployees />) },
+          { path: "users", element: withSuspense(<UsersManagement />) },
+          { path: "pending-users", element: withSuspense(<AccountManagementPage />) },
+          { path: "account-management", element: withSuspense(<AccountManagementPage />) },
+          { path: "departments", element: withSuspense(<HrDepartments />) },
+          { path: "activities", element: withSuspense(<HrActivitiesManagement />) },
+          { path: "activities/pipeline", element: withSuspense(<HrStaffingPipelinePage />) },
+          { path: "activities/archive", element: withSuspense(<HrCompletedActivitiesPage />) },
+          { path: "activities/cancelled", element: withSuspense(<HrCancelledActivitiesPage />) },
+          { path: "activities/:activityId/completed-details", element: withSuspense(<HrCompletedActivityDetailsPage />) },
+          { path: "activities/:activityId/staffing", element: withSuspense(<ActivityStaffingPage />) },
+          { path: "activities/:activityId/manager-decisions", element: withSuspense(<ManagerDecisionsPage />) },
           // path: "activities/archive", element: <ManagerPastActivitiesPage /> },
-          { path: "activities/:activityId/evaluate", element: <ManagerEvaluateActivityPage /> },
-          { path: "activities/:activityId/evaluated", element: <PostActivityEvaluationReadOnlyPage /> },
-          { path: "activities/evaluated", element: <PostActivityFinalizedPage /> },
-          { path: "skills-dashboard", element: <HrSkillsDashboard /> },
-          { path: "copilot", element: <HrCopilotPage /> },
-          { path: "skills", element: <SkillsManagementPage /> },
-          { path: "domains", element: <DomainManagementPage /> },
-          { path: "skills/assign", element: <AssignSkillPage /> },
-          { path: "ai/text-correction", element: <TextCorrectionPage /> },
-          { path: "profile", element: <Profile /> },
-          { path: "history", element: <AuditHistoryPage /> },
-          { path: "notifications", element: <NotificationsPage /> },
-          { path: "notifications/:side", element: <NotificationsPage /> },
-          { path: "settings", element: <SettingsPage /> },
-          { path: "employees/:id", element: <Profile /> },
-          { path: "calendar", element: <HrCalendarPage /> },
-          { path: "activities/:activityId/recommendation", element: <HrRecommendationPage /> },
+          { path: "activities/:activityId/evaluate", element: withSuspense(<ManagerEvaluateActivityPage />) },
+          { path: "activities/:activityId/evaluated", element: withSuspense(<PostActivityEvaluationReadOnlyPage />) },
+          { path: "activities/evaluated", element: withSuspense(<PostActivityFinalizedPage />) },
+          { path: "skills-dashboard", element: withSuspense(<HrSkillsDashboard />) },
+          { path: "copilot", element: withSuspense(<HrCopilotPage />) },
+          { path: "skills", element: withSuspense(<SkillsManagementPage />) },
+          { path: "domains", element: withSuspense(<DomainManagementPage />) },
+          { path: "skills/assign", element: withSuspense(<AssignSkillPage />) },
+          { path: "ai/text-correction", element: withSuspense(<TextCorrectionPage />) },
+          { path: "profile", element: withSuspense(<Profile />) },
+          { path: "history", element: withSuspense(<AuditHistoryPage />) },
+          { path: "notifications", element: withSuspense(<NotificationsPage />) },
+          { path: "notifications/:side", element: withSuspense(<NotificationsPage />) },
+          { path: "settings", element: withSuspense(<SettingsPage />) },
+          { path: "employees/:id", element: withSuspense(<Profile />) },
+          { path: "calendar", element: withSuspense(<HrCalendarPage />) },
+          { path: "activities/:activityId/recommendation", element: withSuspense(<HrRecommendationPage />) },
         ],
       },
     ],
@@ -193,25 +205,25 @@ export const router = createBrowserRouter([
         path: "/super-manager",
         element: <SuperManagerLayout />,
         children: [
-          { path: "dashboard", element: <HrDashboard /> },
-          { path: "employees", element: <HrEmployees /> },
-          { path: "users", element: <UsersManagement /> },
-          { path: "departments", element: <HrDepartments /> },
-          { path: "activities", element: <HrActivitiesManagement /> },
-          { path: "skills-dashboard", element: <HrSkillsDashboard /> },
-          { path: "skills", element: <SkillsManagementPage /> },
-          { path: "domains", element: <DomainManagementPage /> },
-          { path: "skills/assign", element: <AssignSkillPage /> },
-          { path: "profile", element: <Profile /> },
-          { path: "history", element: <AuditHistoryPage /> },
-          { path: "notifications", element: <NotificationsPage /> },
-          { path: "notifications/:side", element: <NotificationsPage /> },
-          { path: "settings", element: <SettingsPage /> },
-          { path: "employees/:id", element: <Profile /> },
-          { path: "activities/:activityId/evaluate", element: <ManagerEvaluateActivityPage /> },
-          { path: "activities/:activityId/evaluated", element: <PostActivityEvaluationReadOnlyPage /> },
-          { path: "activities/evaluated", element: <PostActivityFinalizedPage /> },
-          { path: "calendar", element: <HrCalendarPage /> },
+          { path: "dashboard", element: withSuspense(<HrDashboard />) },
+          { path: "employees", element: withSuspense(<HrEmployees />) },
+          { path: "users", element: withSuspense(<UsersManagement />) },
+          { path: "departments", element: withSuspense(<HrDepartments />) },
+          { path: "activities", element: withSuspense(<HrActivitiesManagement />) },
+          { path: "skills-dashboard", element: withSuspense(<HrSkillsDashboard />) },
+          { path: "skills", element: withSuspense(<SkillsManagementPage />) },
+          { path: "domains", element: withSuspense(<DomainManagementPage />) },
+          { path: "skills/assign", element: withSuspense(<AssignSkillPage />) },
+          { path: "profile", element: withSuspense(<Profile />) },
+          { path: "history", element: withSuspense(<AuditHistoryPage />) },
+          { path: "notifications", element: withSuspense(<NotificationsPage />) },
+          { path: "notifications/:side", element: withSuspense(<NotificationsPage />) },
+          { path: "settings", element: withSuspense(<SettingsPage />) },
+          { path: "employees/:id", element: withSuspense(<Profile />) },
+          { path: "activities/:activityId/evaluate", element: withSuspense(<ManagerEvaluateActivityPage />) },
+          { path: "activities/:activityId/evaluated", element: withSuspense(<PostActivityEvaluationReadOnlyPage />) },
+          { path: "activities/evaluated", element: withSuspense(<PostActivityFinalizedPage />) },
+          { path: "calendar", element: withSuspense(<HrCalendarPage />) },
         ],
       },
     ],
@@ -224,29 +236,29 @@ export const router = createBrowserRouter([
         path: "/manager",
         element: <ManagerLayout />,
         children: [
-          { index: true, element: <ManagerDashboard /> },
-          { path: "dashboard", element: <ManagerDashboard /> },
-          { path: "team", element: <ManagerTeam /> },
-          { path: "activities", element: <ManagerActivities /> },
-          { path: "activities/running", element: <ManagerRunningActivitiesPage /> },
-          { path: "activities/archive", element: <ManagerPastActivitiesPage /> },
-          { path: "activities/:activityId/review", element: <ManagerActivityReviewPage /> },
+          { index: true, element: withSuspense(<ManagerDashboard />) },
+          { path: "dashboard", element: withSuspense(<ManagerDashboard />) },
+          { path: "team", element: withSuspense(<ManagerTeam />) },
+          { path: "activities", element: withSuspense(<ManagerActivities />) },
+          { path: "activities/running", element: withSuspense(<ManagerRunningActivitiesPage />) },
+          { path: "activities/archive", element: withSuspense(<ManagerPastActivitiesPage />) },
+          { path: "activities/:activityId/review", element: withSuspense(<ManagerActivityReviewPage />) },
           { path: "activities/:activityId/staffing", element: <ManagerStaffingToReviewRedirect /> },
-          { path: "skills", element: <SkillsManagementPage /> },
-          { path: "domains", element: <DomainManagementPage /> },
-          { path: "skills/assign", element: <AssignSkillPage /> },
-          { path: "profile", element: <Profile /> },
-          { path: "history", element: <AuditHistoryPage /> },
-          { path: "notifications", element: <NotificationsPage /> },
-          { path: "notifications/:side", element: <NotificationsPage /> },
-          { path: "settings", element: <SettingsPage /> },
-          { path: "employees/:id", element: <Profile /> },
-          { path: "activities/:activityId/monitor", element: <ManagerInProgressActivityPage /> },
-          { path: "activities/evaluations", element: <ManagerPastActivitiesEvalPage /> },
-          { path: "activities/evaluated", element: <PostActivityFinalizedPage /> },
-          { path: "activities/:activityId/evaluate", element: <ManagerEvaluateActivityPage /> },
-          { path: "activities/:activityId/evaluated", element: <PostActivityEvaluationReadOnlyPage /> },
-          { path: "calendar", element: <HrCalendarPage /> },
+          { path: "skills", element: withSuspense(<SkillsManagementPage />) },
+          { path: "domains", element: withSuspense(<DomainManagementPage />) },
+          { path: "skills/assign", element: withSuspense(<AssignSkillPage />) },
+          { path: "profile", element: withSuspense(<Profile />) },
+          { path: "history", element: withSuspense(<AuditHistoryPage />) },
+          { path: "notifications", element: withSuspense(<NotificationsPage />) },
+          { path: "notifications/:side", element: withSuspense(<NotificationsPage />) },
+          { path: "settings", element: withSuspense(<SettingsPage />) },
+          { path: "employees/:id", element: withSuspense(<Profile />) },
+          { path: "activities/:activityId/monitor", element: withSuspense(<ManagerInProgressActivityPage />) },
+          { path: "activities/evaluations", element: withSuspense(<ManagerPastActivitiesEvalPage />) },
+          { path: "activities/evaluated", element: withSuspense(<PostActivityFinalizedPage />) },
+          { path: "activities/:activityId/evaluate", element: withSuspense(<ManagerEvaluateActivityPage />) },
+          { path: "activities/:activityId/evaluated", element: withSuspense(<PostActivityEvaluationReadOnlyPage />) },
+          { path: "calendar", element: withSuspense(<HrCalendarPage />) },
         ],
       },
     ],
@@ -259,19 +271,19 @@ export const router = createBrowserRouter([
         path: "/me",
         element: <EmployeeLayout />,
         children: [
-          { path: "profile", element: <Profile /> },
-          { path: "history", element: <AuditHistoryPage /> },
-          { path: "cv", element: <CvUpload /> },
-          { path: "skills", element: <MySkillsPage /> },
-          { path: "activity-invitations", element: <EmployeeActivityInvitationsPage /> },
-          { path: "activities/archive", element: <EmployeeActivityArchivePage /> },
+          { path: "profile", element: withSuspense(<Profile />) },
+          { path: "history", element: withSuspense(<AuditHistoryPage />) },
+          { path: "cv", element: withSuspense(<CvUpload />) },
+          { path: "skills", element: withSuspense(<MySkillsPage />) },
+          { path: "activity-invitations", element: withSuspense(<EmployeeActivityInvitationsPage />) },
+          { path: "activities/archive", element: withSuspense(<EmployeeActivityArchivePage />) },
           {
             path: "activity-invitations/:invitationId",
-            element: <EmployeeActivityInvitationDetailPage />,
+            element: withSuspense(<EmployeeActivityInvitationDetailPage />),
           },
-          { path: "notifications", element: <NotificationsPage /> },
-          { path: "notifications/:side", element: <NotificationsPage /> },
-          { path: "settings", element: <SettingsPage /> },
+          { path: "notifications", element: withSuspense(<NotificationsPage />) },
+          { path: "notifications/:side", element: withSuspense(<NotificationsPage />) },
+          { path: "settings", element: withSuspense(<SettingsPage />) },
         ],
       },
     ],
@@ -286,9 +298,9 @@ export const router = createBrowserRouter([
     element: <NotificationsRedirect />,
   },
 
-  { path: "/complete-profile", element: <CompleteProfile /> },
+  { path: "/complete-profile", element: withSuspense(<CompleteProfile />) },
   // Temporary debug routes for currently unlinked legacy pages.
-  { path: "/dev/hr-employee-details/:id", element: <HrEmployeeDetails /> },
-  { path: "/dev/settings-appearance", element: <AppearanceSettingsPage /> },
+  { path: "/dev/hr-employee-details/:id", element: withSuspense(<HrEmployeeDetails />) },
+  { path: "/dev/settings-appearance", element: withSuspense(<AppearanceSettingsPage />) },
   { path: "*", element: <Navigate to="/" replace /> },
 ]);

@@ -5,8 +5,6 @@ import { signOut } from "../utils/auth";
 import "../index.css";
 import NotificationBell from "../components/notifications/NotificationBell";
 
-const logoSrc = "/images/logo.png";
-
 type NavItem = {
   to: string;
   label: string;
@@ -205,8 +203,12 @@ export default function AppShell({
               <div className="dash-logo-wrap">
                 <img
                   className="dash-logo-img"
-                  src={logoSrc}
+                  src="/images/logo-64.webp"
                   alt="IntelliHR logo"
+                  width={54}
+                  height={54}
+                  loading="eager"
+                  decoding="async"
                 />
               </div>
 

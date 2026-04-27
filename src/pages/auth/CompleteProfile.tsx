@@ -6,7 +6,7 @@ import SiteNav from "../../components/SiteNav";
 import AuthFooter from "../../components/AuthFooter";
 import "../../auth-pages.css";
 
-const logoSrc = "/images/logo.png";
+const logoSrc = "/images/logo-160.webp";
 
 interface Department {
   _id: string;
@@ -79,7 +79,7 @@ export default function CompleteProfile() {
     <div className="auth-hero-shell">
       <div
         className="auth-bg-layer active"
-        style={{ backgroundImage: "url(/images/bg1.png)" }}
+        style={{ backgroundImage: "url(/images/bg1.webp)" }}
       />
       <div className="auth-overlay" />
 

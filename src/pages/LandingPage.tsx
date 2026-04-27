@@ -8,7 +8,7 @@ const features = [
     id: '01',
     title: 'Employee Profiles',
     description: 'Manage employee records, role details, departments, and personal workspace data.',
-    image: '/images/feature-1.png',
+    image: '/images/feature-1.webp',
     alt: 'Employee dashboard',
     featured: true,
   },
@@ -16,21 +16,21 @@ const features = [
     id: '02',
     title: 'Skills Tracking',
     description: 'Follow employee capabilities, levels, and growth over time.',
-    image: '/images/feature-2.png',
+    image: '/images/feature-2.webp',
     alt: 'Skills tracking',
   },
   {
     id: '03',
     title: 'Activities',
     description: 'Organize training, certifications, assignments, and requests.',
-    image: '/images/bg3.png',
+    image: '/images/bg3.webp',
     alt: 'Activities and training',
   },
   {
     id: '04',
     title: 'Notifications',
     description: 'Keep users updated with approvals, alerts, reminders, and changes.',
-    image: '/images/bg4.png',
+    image: '/images/bg4.webp',
     alt: 'Notifications system',
   },
 ];
@@ -39,26 +39,26 @@ const roles = [
   {
     title: 'HR Team',
     description: 'Manage access, employee data, skills, and internal workflows.',
-    image: '/images/hr.png',
+    image: '/images/hr.webp',
     alt: 'HR team',
   },
   {
     title: 'Managers',
     description: 'Follow team activities, workforce progress, and internal requests.',
-    image: '/images/manager.png',
+    image: '/images/manager.webp',
     alt: 'Manager',
     highlighted: true,
   },
   {
     title: 'Employees',
     description: 'Access your profile, activities, skills, notifications, and workspace.',
-    image: '/images/employee.png',
+    image: '/images/employee.webp',
     alt: 'Employee',
   },
 ];
 
 export default function LandingPage() {
-  const heroImages = ['/images/bg1.png', '/images/bg2.png', '/images/bg3.png', '/images/bg4.png'];
+  const heroImages = ['/images/bg1.webp', '/images/bg2.webp', '/images/bg3.webp', '/images/bg4.webp'];
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
@@ -123,7 +123,7 @@ export default function LandingPage() {
 
             <div className="landing-hero-right">
               <div className="landing-hero-image-card">
-                <img src="/images/hero-team.png" alt="Team working together" />
+                <img src="/images/hero-team.webp" alt="Team working together" />
                 <div className="landing-hero-overlay-card">
                   <span>Company workspace</span>
                   <strong>Secure, modern, internal</strong>

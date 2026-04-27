@@ -7,7 +7,7 @@ import SiteNav from "../../components/SiteNav";
 import AuthFooter from "../../components/AuthFooter";
 import "../../auth-pages.css";
 
-const logoSrc = "/images/logo.png";
+const logoSrc = "/images/logo-160.webp";
 
 interface Department {
   _id: string;
@@ -20,10 +20,10 @@ interface Department {
 export default function Signup() {
   const nav = useNavigate();
   const heroImages = [
-    "/images/bg1.png",
-    "/images/bg2.png",
-    "/images/bg3.png",
-    "/images/bg4.png",
+    "/images/bg1.webp",
+    "/images/bg2.webp",
+    "/images/bg3.webp",
+    "/images/bg4.webp",
   ];
 
   const [fullName, setFullName] = useState("");
