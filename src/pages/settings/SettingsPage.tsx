@@ -33,7 +33,7 @@ import { useTranslate } from '../../context/TranslateContext';
 
 type ThemeMode = "light" | "dark";
 type LayoutDensity = "comfortable" | "compact";
-type Language = "English" | "Français" | "العربية";
+type Language = "English" | "Français";
 type DateFormat = "DD/MM/YYYY" | "MM/DD/YYYY";
 type TimeZone = "GMT +01:00 — Tunis" | "GMT +00:00 — London" | "GMT +02:00 — Cairo";
 type Currency = "TND — Tunisian Dinar" | "EUR — Euro" | "USD — US Dollar";
@@ -1037,7 +1037,7 @@ export default function SettingsPage() {
 
       <div style={layoutStyle}>
         <div style={{ display: "grid", gap: 24 }}>
-          {(activeTab === "Appearance" || activeTab === "Language & Region") && (
+          {activeTab === "Appearance" && (
             <>
               <section style={sectionCardStyle}>
                 <div style={sectionHeaderStyle}>
@@ -1204,7 +1204,11 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </section>
+            </>
+          )}
 
+          {activeTab === "Language & Region" && (
+            <>
               <section style={sectionCardStyle}>
                 <div style={sectionHeaderStyle}>
                   <h2 style={sectionTitleStyle}>Language &amp; Region</h2>
@@ -1227,11 +1231,7 @@ export default function SettingsPage() {
   {/* Bouton English — texte fixe, jamais traduit */}
   <button
     data-notranslate="true"
-    style={
-      !isFrench && settings.language !== "العربية"
-        ? segmentedBtnActive(previewAccent)
-        : segmentedBtn
-    }
+    style={!isFrench ? segmentedBtnActive(previewAccent) : segmentedBtn}
     onClick={() => {
       updateSetting("language", "English");
       setIsFrench(false);
@@ -1256,21 +1256,6 @@ export default function SettingsPage() {
     🇫🇷 Français
   </button>
 
-  {/* Bouton العربية */}
-  <button
-    data-notranslate="true"
-    style={
-      settings.language === "العربية" && !isFrench
-        ? segmentedBtnActive(previewAccent)
-        : segmentedBtn
-    }
-    onClick={() => {
-      updateSetting("language", "العربية");
-      setIsFrench(false);
-    }}
-  >
-    🇹🇳 العربية
-  </button>
 </div>
 </div>
 
