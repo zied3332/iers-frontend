@@ -78,7 +78,7 @@ export default function ManagerLayout() {
         icon: "skills",
       },
       {
-        to: "/manager/skills/assign",
+        to: "/manager/skills/assign-table",
         label: "Assign Skills",
         end: true,
         group: "Skills",

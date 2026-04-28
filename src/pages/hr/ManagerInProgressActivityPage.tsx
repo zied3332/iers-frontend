@@ -244,9 +244,6 @@ export default function ManagerInProgressActivityPage() {
           >
             {error || "Activity not found."}
           </p>
-          <button className="btn btn-ghost" type="button" onClick={() => navigate("/manager/activities/running")}>
-            <FiArrowLeft /> Back
-          </button>
         </div>
       </div>
     );
@@ -256,9 +253,6 @@ export default function ManagerInProgressActivityPage() {
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", padding: 24 }}>
       <div style={{ maxWidth: 1280, margin: "0 auto", display: "grid", gap: 18 }}>
         <section style={{ ...cardStyle(), padding: 22, display: "grid", gap: 14 }}>
-          <button type="button" className="btn btn-ghost" style={{ width: "fit-content" }} onClick={() => navigate("/manager/activities/running")}>
-            <FiArrowLeft /> Back to activities
-          </button>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
             <div>
               <div

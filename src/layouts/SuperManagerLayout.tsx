@@ -78,7 +78,7 @@ export default function SuperManagerLayout() {
         icon: "skills",
       },
       {
-        to: "/super-manager/skills/assign",
+        to: "/super-manager/skills/assign-table",
         label: "Assign Skills",
         end: true,
         group: "Skills",

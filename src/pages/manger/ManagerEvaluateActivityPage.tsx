@@ -474,9 +474,6 @@ export default function ManagerEvaluateActivityPage() {
           <p style={{ color: "color-mix(in srgb, var(--text) 78%, #b91c1c)" }}>
             {pageError || "Activity not found or not accessible."}
           </p>
-          <button onClick={() => navigate(-1)} style={{ marginTop: 16, cursor: "pointer" }}>
-            ← Go back
-          </button>
         </div>
       </div>
     );
@@ -486,21 +483,6 @@ export default function ManagerEvaluateActivityPage() {
     <div className="page">
       <div className="container">
         <div style={{ marginBottom: 20 }}>
-          <button
-            onClick={() => navigate(-1)}
-            style={{
-              background: "none",
-              border: "none",
-              color: "var(--muted)",
-              cursor: "pointer",
-              fontSize: 14,
-              fontWeight: 700,
-              marginBottom: 12,
-              padding: 0,
-            }}
-          >
-            ← Back to activities
-          </button>
           <h1 className="page-title" style={{ marginBottom: 4 }}>
             {activity?.title}
           </h1>

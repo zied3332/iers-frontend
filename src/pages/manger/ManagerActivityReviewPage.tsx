@@ -711,9 +711,6 @@ export default function ManagerActivityReviewPage() {
       <main className="manager-modern-page">
         <div className="manager-modern-loading error">
           <p>{error || "Activity not found"}</p>
-          <button type="button" onClick={() => navigate(-1)}>
-            Go back
-          </button>
         </div>
       </main>
     );
@@ -732,10 +729,6 @@ export default function ManagerActivityReviewPage() {
         </div>
 
         <div className="manager-modern-top-actions">
-          <button type="button" className="manager-modern-btn" onClick={() => navigate(-1)}>
-            Back
-          </button>
-
           <button
             type="button"
             className="manager-modern-btn primary"

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { 
   FiSearch, FiCheck, FiX, FiAlertCircle, FiInfo
 } from 'react-icons/fi';
@@ -11,7 +12,13 @@ import {
   HiOutlineSparkles,
   HiOutlineUserCircle,
 } from 'react-icons/hi2';
-import { assignSkill, getAllSkills, getEmployeeSkills } from '../../../services/skills.service';
+import {
+  assignSkill,
+  deleteEmployeeSkill,
+  getAllSkills,
+  getEmployeeSkills,
+  updateEmployeeSkillLevel,
+} from '../../../services/skills.service';
 import { getUsers } from '../../../services/users.service';
 import { getAllDepartments, type Department } from '../../../services/departments.service';
 import { getAllDomains, type Domain } from '../../../services/domains.service';
@@ -296,21 +303,24 @@ const LevelSelector = ({ value, onChange }: { value: SkillLevel; onChange: (l: S
 // 🚀 Main Component
 // ─────────────────────────────────────────────────────────────
 export default function AssignSkillPage() {
+  const [searchParams] = useSearchParams();
   const [skills, setSkills] = useState<Skill[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [departmentFilter, setDepartmentFilter] = useState('');
   const [skillCategoryFilter, setSkillCategoryFilter] = useState<'' | Skill['category']>('');
   const [skillDomainFilter, setSkillDomainFilter] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [searchEmployee, setSearchEmployee] = useState('');
   const [searchSkill, setSearchSkill] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [selectedEmployeeSkills, setSelectedEmployeeSkills] = useState<EmployeeAssignedSkill[]>([]);
   const [employeeSkillsLoading, setEmployeeSkillsLoading] = useState(false);
   const [employeeSkillsError, setEmployeeSkillsError] = useState('');
+  const [editingEmployeeSkillId, setEditingEmployeeSkillId] = useState('');
+  const [editingLevel, setEditingLevel] = useState<SkillLevel>('LOW');
+  const [editingScore, setEditingScore] = useState<number>(0);
+  const [savingEmployeeSkill, setSavingEmployeeSkill] = useState(false);
 
   const [form, setForm] = useState<{
     employeeId: string;
@@ -354,20 +364,6 @@ export default function AssignSkillPage() {
     load();
   }, []);
 
-  const filteredEmployees = useMemo(() => {
-    const q = searchEmployee.trim().toLowerCase();
-    return employees.filter((e) => {
-      const matchesDepartment = !departmentFilter || (e.department || '') === departmentFilter;
-      if (!matchesDepartment) return false;
-      if (!q) return true;
-      return (
-        (e.name || '').toLowerCase().includes(q) ||
-        (e.email || '').toLowerCase().includes(q) ||
-        (e.department || '').toLowerCase().includes(q)
-      );
-    });
-  }, [employees, searchEmployee, departmentFilter]);
-
   const filteredSkills = useMemo(() => {
     const q = searchSkill.trim().toLowerCase();
     return skills.filter((s) => {
@@ -391,18 +387,38 @@ export default function AssignSkillPage() {
     });
   }, [skills, searchSkill, skillCategoryFilter, skillDomainFilter]);
 
-  const departmentOptions = useMemo(() => {
-    const unique = new Set<string>();
-    employees.forEach((e) => {
-      const name = String(e.department || '').trim();
-      if (name) unique.add(name);
-    });
-    return Array.from(unique).sort((a, b) => a.localeCompare(b));
-  }, [employees]);
-
   const selectedEmployee = employees.find(e => e._id === form.employeeId);
   const selectedSkill = skills.find(s => s._id === form.skillId);
   const isValid = form.employeeId && form.skillId && form.dynamicScore >= 0;
+
+  useEffect(() => {
+    const preselectedEmployeeId = String(searchParams.get('employeeId') || '').trim();
+    if (!preselectedEmployeeId || employees.length === 0) return;
+    if (!employees.some((e) => e._id === preselectedEmployeeId)) return;
+
+    setForm((prev) => (prev.employeeId === preselectedEmployeeId ? prev : { ...prev, employeeId: preselectedEmployeeId }));
+  }, [searchParams, employees]);
+
+  const refreshEmployeeSkills = async (employeeId: string) => {
+    setEmployeeSkillsLoading(true);
+    setEmployeeSkillsError('');
+    try {
+      const rows = await getEmployeeSkills(employeeId);
+      const mapped = (Array.isArray(rows) ? rows : []).map((row: any) => ({
+        id: String(row?._id || ''),
+        name: String(row?.skill?.name || 'Unknown skill'),
+        category: String(row?.skill?.category || '-'),
+        level: String(row?.level || '-'),
+        dynamicScore: typeof row?.dynamicScore === 'number' ? row.dynamicScore : undefined,
+      }));
+      setSelectedEmployeeSkills(mapped);
+    } catch (e: any) {
+      setSelectedEmployeeSkills([]);
+      setEmployeeSkillsError(String(e?.message || 'Failed to load employee skills.'));
+    } finally {
+      setEmployeeSkillsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!form.employeeId) {
@@ -411,36 +427,7 @@ export default function AssignSkillPage() {
       setEmployeeSkillsError('');
       return;
     }
-
-    let active = true;
-    const loadEmployeeSkills = async () => {
-      setEmployeeSkillsLoading(true);
-      setEmployeeSkillsError('');
-      try {
-        const rows = await getEmployeeSkills(form.employeeId);
-        if (!active) return;
-        const mapped = (Array.isArray(rows) ? rows : []).map((row: any) => ({
-          id: String(row?._id || ''),
-          name: String(row?.skill?.name || 'Unknown skill'),
-          category: String(row?.skill?.category || '-'),
-          level: String(row?.level || '-'),
-          dynamicScore: typeof row?.dynamicScore === 'number' ? row.dynamicScore : undefined,
-        }));
-        setSelectedEmployeeSkills(mapped);
-      } catch (e: any) {
-        if (!active) return;
-        setSelectedEmployeeSkills([]);
-        setEmployeeSkillsError(String(e?.message || 'Failed to load employee skills.'));
-      } finally {
-        if (!active) return;
-        setEmployeeSkillsLoading(false);
-      }
-    };
-    void loadEmployeeSkills();
-
-    return () => {
-      active = false;
-    };
+    void refreshEmployeeSkills(form.employeeId);
   }, [form.employeeId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -449,16 +436,8 @@ export default function AssignSkillPage() {
     try {
       setSubmitting(true); setError(''); setSuccess('');
       await assignSkill(form as any);
-      const refreshedSkills = await getEmployeeSkills(form.employeeId);
-      const refreshedMapped = (Array.isArray(refreshedSkills) ? refreshedSkills : []).map((row: any) => ({
-        id: String(row?._id || ''),
-        name: String(row?.skill?.name || 'Unknown skill'),
-        category: String(row?.skill?.category || '-'),
-        level: String(row?.level || '-'),
-        dynamicScore: typeof row?.dynamicScore === 'number' ? row.dynamicScore : undefined,
-      }));
-      setSelectedEmployeeSkills(refreshedMapped);
-      setForm({ employeeId: '', skillId: '', level: 'LOW', dynamicScore: 0 });
+      await refreshEmployeeSkills(form.employeeId);
+      setForm((prev) => ({ ...prev, skillId: '', level: 'LOW', dynamicScore: 0 }));
       setSuccess('Skill assigned successfully.');
       setTimeout(() => setSuccess(''), 4000);
     } catch (err: any) {
@@ -469,6 +448,58 @@ export default function AssignSkillPage() {
         setError('Failed to assign skill.');
       }
     } finally { setSubmitting(false); }
+  };
+
+  const startEditEmployeeSkill = (skill: EmployeeAssignedSkill) => {
+    setEditingEmployeeSkillId(skill.id);
+    setEditingLevel((String(skill.level || 'LOW').toUpperCase() as SkillLevel) || 'LOW');
+    setEditingScore(Number(skill.dynamicScore ?? 0));
+    setError('');
+  };
+
+  const cancelEditEmployeeSkill = () => {
+    setEditingEmployeeSkillId('');
+  };
+
+  const saveEmployeeSkillChanges = async (skill: EmployeeAssignedSkill) => {
+    if (!form.employeeId) return;
+    try {
+      setSavingEmployeeSkill(true);
+      setError('');
+      const currentScore = Number(skill.dynamicScore ?? 0);
+      const nextScore = Number(editingScore);
+      const scoreDelta = Number.isFinite(nextScore) ? nextScore - currentScore : 0;
+      await updateEmployeeSkillLevel(skill.id, {
+        newLevel: editingLevel,
+        scoreDelta,
+      });
+      await refreshEmployeeSkills(form.employeeId);
+      setEditingEmployeeSkillId('');
+      setSuccess('Skill updated successfully.');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (e: any) {
+      setError(String(e?.response?.data?.message || e?.message || 'Failed to update skill.'));
+    } finally {
+      setSavingEmployeeSkill(false);
+    }
+  };
+
+  const handleDeleteEmployeeSkill = async (skill: EmployeeAssignedSkill) => {
+    if (!form.employeeId) return;
+    const ok = window.confirm(`Remove "${skill.name}" from this employee?`);
+    if (!ok) return;
+    try {
+      setSavingEmployeeSkill(true);
+      setError('');
+      await deleteEmployeeSkill(skill.id);
+      await refreshEmployeeSkills(form.employeeId);
+      setSuccess('Skill removed successfully.');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (e: any) {
+      setError(String(e?.response?.data?.message || e?.message || 'Failed to delete skill.'));
+    } finally {
+      setSavingEmployeeSkill(false);
+    }
   };
 
   // ─────────────────────────────────────────────────────────
@@ -510,56 +541,6 @@ export default function AssignSkillPage() {
           
           {/* Form Section */}
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-            {/* Employee */}
-            <div style={{ padding: '32px', background: theme.colors.surface, borderRadius: theme.radius.lg, border: '1px solid ' + theme.colors.border, boxShadow: theme.shadow.sm }}>
-              <div style={{ fontWeight: 700, fontSize: '23px', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ width: '34px', height: '34px', borderRadius: '50%', background: theme.colors.primaryBg, color: theme.colors.primary, display: 'inline-grid', placeItems: 'center' }}>
-                  <HiOutlineUserCircle size={20} />
-                </span>
-                Select Employee
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '0.7fr 1.3fr', gap: '12px' }}>
-                <select
-                  value={departmentFilter}
-                  onChange={(e) => setDepartmentFilter(e.target.value)}
-                  aria-label="Filter employees by department"
-                  style={{
-                    width: '100%',
-                    padding: '14px 16px',
-                    borderRadius: theme.radius.sm,
-                    border: '1px solid ' + theme.colors.border,
-                    background: theme.colors.surface,
-                    color: theme.colors.text,
-                    fontSize: '16px',
-                    fontWeight: 600,
-                    outline: 'none',
-                    transition: theme.transition,
-                  }}
-                >
-                  <option value="">All Departments</option>
-                  {departmentOptions.map((dep) => (
-                    <option key={dep} value={dep}>{dep}</option>
-                  ))}
-                </select>
-
-                <SearchCombobox
-                  placeholder="Search by name, email, or department..."
-                  value={searchEmployee}
-                  onChange={setSearchEmployee}
-                  onSelect={(id) => { setForm(f => ({ ...f, employeeId: id })); setSearchEmployee(''); }}
-                  loading={loading}
-                  icon={<FiSearch size={16} />}
-                  options={filteredEmployees.map(e => ({
-                    id: e._id,
-                    label: e.name || 'Unknown',
-                    subtitle: e.department,
-                    badge: form.employeeId === e._id ? <FiCheck size={18} color={theme.colors.primary} /> : undefined
-                  }))}
-                />
-
-              </div>
-            </div>
-
             {/* Skill */}
             <div style={{ padding: '32px', background: theme.colors.surface, borderRadius: theme.radius.lg, border: '1px solid ' + theme.colors.border, boxShadow: theme.shadow.sm }}>
               <div style={{ fontWeight: 700, fontSize: '23px', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -687,6 +668,109 @@ export default function AssignSkillPage() {
                 </>
               ) : 'Assign Skill'}
             </button>
+
+            {/* Existing Employee Skills */}
+            <div style={{ padding: '32px', background: theme.colors.surface, borderRadius: theme.radius.lg, border: '1px solid ' + theme.colors.border, boxShadow: theme.shadow.sm }}>
+              <div style={{ fontWeight: 700, fontSize: '27px', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ width: '34px', height: '34px', borderRadius: '50%', background: theme.colors.primaryBg, color: theme.colors.primary, display: 'inline-grid', placeItems: 'center' }}>
+                  <HiOutlineAcademicCap size={20} />
+                </span>
+                Existing Skills
+              </div>
+              <div style={{ padding: '14px', borderRadius: theme.radius.sm, background: theme.colors.surface, border: '1px solid ' + theme.colors.border }}>
+                {employeeSkillsLoading ? (
+                  <div style={{ color: theme.colors.muted, fontSize: '17px', fontStyle: 'italic' }}>Loading employee skills...</div>
+                ) : employeeSkillsError ? (
+                  <div style={{ color: theme.colors.danger, fontSize: '17px', fontWeight: 700 }}>{employeeSkillsError}</div>
+                ) : selectedEmployeeSkills.length === 0 ? (
+                  <div style={{ color: theme.colors.muted, fontSize: '17px', fontStyle: 'italic' }}>No skills assigned yet</div>
+                ) : (
+                  <div style={{ display: 'grid', gap: '8px' }}>
+                    {selectedEmployeeSkills.map((s) => (
+                      <div
+                        key={s.id}
+                        style={{
+                          padding: '8px 10px',
+                          borderRadius: '10px',
+                          fontSize: '15px',
+                          fontWeight: 700,
+                          background: '#f3f4f6',
+                          border: '1px solid #e5e7eb',
+                          color: theme.colors.text,
+                          display: 'grid',
+                          gap: '8px',
+                        }}
+                        title={typeof s.dynamicScore === 'number' ? `Score: ${s.dynamicScore}` : undefined}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                          <span>
+                            {s.name} - {String(s.level || '-')}
+                            {typeof s.dynamicScore === 'number' ? ` (${s.dynamicScore}/100)` : ''}
+                          </span>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button
+                              type="button"
+                              onClick={() => startEditEmployeeSkill(s)}
+                              disabled={savingEmployeeSkill}
+                              style={{ border: '1px solid #cbd5e1', background: '#fff', borderRadius: '8px', padding: '6px 10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleDeleteEmployeeSkill(s)}
+                              disabled={savingEmployeeSkill}
+                              style={{ border: '1px solid #fecaca', background: '#fff1f2', color: '#b91c1c', borderRadius: '8px', padding: '6px 10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                        {editingEmployeeSkillId === s.id ? (
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: '6px', alignItems: 'center' }}>
+                            <select
+                              value={editingLevel}
+                              onChange={(e) => setEditingLevel(e.target.value as SkillLevel)}
+                              style={{ height: '36px', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0 8px', fontSize: '13px', fontWeight: 700 }}
+                            >
+                              <option value="LOW">Low</option>
+                              <option value="MEDIUM">Medium</option>
+                              <option value="HIGH">High</option>
+                              <option value="EXPERT">Expert</option>
+                            </select>
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={editingScore}
+                              onChange={(e) => setEditingScore(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+                              style={{ height: '36px', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0 8px', fontSize: '13px', fontWeight: 700 }}
+                              placeholder="Score"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => void saveEmployeeSkillChanges(s)}
+                              disabled={savingEmployeeSkill}
+                              style={{ border: '1px solid #a7f3d0', background: '#ecfdf5', color: '#065f46', borderRadius: '8px', padding: '6px 10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
+                            >
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              onClick={cancelEditEmployeeSkill}
+                              disabled={savingEmployeeSkill}
+                              style={{ border: '1px solid #cbd5e1', background: '#fff', borderRadius: '8px', padding: '6px 10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </form>
 
           {/* Live Preview */}
@@ -728,44 +812,6 @@ export default function AssignSkillPage() {
                     <div style={{ fontSize: '16px', color: theme.colors.muted, fontStyle: 'italic' }}>Select an employee</div>
                   )}
                 </div>
-
-                {/* Existing Employee Skills */}
-                {selectedEmployee ? (
-                  <div>
-                    <div style={{ fontSize: '12px', fontWeight: 800, color: theme.colors.text, opacity: 0.8, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                      <HiOutlineAcademicCap size={14} /> Existing skills
-                    </div>
-                    <div style={{ padding: '14px', borderRadius: theme.radius.sm, background: theme.colors.surface, border: '1px solid ' + theme.colors.border }}>
-                      {employeeSkillsLoading ? (
-                        <div style={{ color: theme.colors.muted, fontSize: '14px', fontStyle: 'italic' }}>Loading employee skills...</div>
-                      ) : employeeSkillsError ? (
-                        <div style={{ color: theme.colors.danger, fontSize: '14px', fontWeight: 700 }}>{employeeSkillsError}</div>
-                      ) : selectedEmployeeSkills.length === 0 ? (
-                        <div style={{ color: theme.colors.muted, fontSize: '14px', fontStyle: 'italic' }}>No skills assigned yet</div>
-                      ) : (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                          {selectedEmployeeSkills.map((s) => (
-                            <span
-                              key={s.id}
-                              style={{
-                                padding: '6px 10px',
-                                borderRadius: '999px',
-                                fontSize: '12px',
-                                fontWeight: 700,
-                                background: '#f3f4f6',
-                                border: '1px solid #e5e7eb',
-                                color: theme.colors.text,
-                              }}
-                              title={typeof s.dynamicScore === 'number' ? `Score: ${s.dynamicScore}` : undefined}
-                            >
-                              {s.name} - {String(s.level || '-')}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : null}
 
                 {/* Skill Preview */}
                 <div>

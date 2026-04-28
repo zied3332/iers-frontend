@@ -103,7 +103,7 @@ export default function HrLayout() {
         icon: "skills",
       },
       {
-        to: "/hr/skills/assign",
+        to: "/hr/skills/assign-table",
         label: "Assign Skills",
         end: true,
         group: "Skills",
