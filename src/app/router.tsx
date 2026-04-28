@@ -25,6 +25,8 @@ const AccountManagementPage = lazy(() => import("../pages/hr/AccountManagementPa
 const SkillsManagementPage = lazy(() => import("../pages/hr/skills/SkillsManagementPage"));
 const AssignSkillPage = lazy(() => import("../pages/hr/skills/AssignSkillPage"));
 const AssignSkillTablePage = lazy(() => import("../pages/hr/skills/AssignSkillTablePage"));
+const AssignExperiencePage = lazy(() => import("../pages/hr/experience/AssignExperiencePage"));
+const AssignExperienceTablePage = lazy(() => import("../pages/hr/experience/AssignExperienceTablePage"));
 const DomainManagementPage = lazy(() => import("../pages/hr/domains/DomainManagementPage"));
 const HrCopilotPage = lazy(() => import("../pages/hr/HrCopilotPage"));
 const HrStatsDashboard = lazy(() => import("../pages/hr/HrStatsDashboard"));
@@ -186,6 +188,8 @@ export const router = createBrowserRouter([
           { path: "domains", element: withSuspense(<DomainManagementPage />) },
           { path: "skills/assign", element: withSuspense(<AssignSkillPage />) },
           { path: "skills/assign-table", element: withSuspense(<AssignSkillTablePage />) },
+          { path: "experience/assign", element: withSuspense(<AssignExperiencePage />) },
+          { path: "experience/assign-table", element: withSuspense(<AssignExperienceTablePage />) },
           { path: "ai/text-correction", element: withSuspense(<TextCorrectionPage />) },
           { path: "profile", element: withSuspense(<Profile />) },
           { path: "history", element: withSuspense(<AuditHistoryPage />) },
@@ -217,6 +221,8 @@ export const router = createBrowserRouter([
           { path: "domains", element: withSuspense(<DomainManagementPage />) },
           { path: "skills/assign", element: withSuspense(<AssignSkillPage />) },
           { path: "skills/assign-table", element: withSuspense(<AssignSkillTablePage />) },
+          { path: "experience/assign", element: withSuspense(<AssignExperiencePage />) },
+          { path: "experience/assign-table", element: withSuspense(<AssignExperienceTablePage />) },
           { path: "profile", element: withSuspense(<Profile />) },
           { path: "history", element: withSuspense(<AuditHistoryPage />) },
           { path: "notifications", element: withSuspense(<NotificationsPage />) },
@@ -251,6 +257,8 @@ export const router = createBrowserRouter([
           { path: "domains", element: withSuspense(<DomainManagementPage />) },
           { path: "skills/assign", element: withSuspense(<AssignSkillPage />) },
           { path: "skills/assign-table", element: withSuspense(<AssignSkillTablePage />) },
+          { path: "experience/assign", element: withSuspense(<AssignExperiencePage />) },
+          { path: "experience/assign-table", element: withSuspense(<AssignExperienceTablePage />) },
           { path: "profile", element: withSuspense(<Profile />) },
           { path: "history", element: withSuspense(<AuditHistoryPage />) },
           { path: "notifications", element: withSuspense(<NotificationsPage />) },

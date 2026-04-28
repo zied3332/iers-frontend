@@ -110,6 +110,13 @@ export default function HrLayout() {
         icon: "assign",
       },
       {
+        to: "/hr/experience/assign-table",
+        label: "Assign Experience",
+        end: true,
+        group: "Skills",
+        icon: "assign",
+      },
+      {
         to: "/hr/history",
         label: "My history",
         group: "Personal",

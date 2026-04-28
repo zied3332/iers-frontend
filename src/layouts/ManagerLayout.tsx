@@ -85,6 +85,13 @@ export default function ManagerLayout() {
         icon: "assign",
       },
       {
+        to: "/manager/experience/assign-table",
+        label: "Assign Experience",
+        end: true,
+        group: "Skills",
+        icon: "assign",
+      },
+      {
         to: "/manager/history",
         label: "My history",
         group: "Personal",

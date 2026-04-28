@@ -85,6 +85,13 @@ export default function SuperManagerLayout() {
         icon: "assign",
       },
       {
+        to: "/super-manager/experience/assign-table",
+        label: "Assign Experience",
+        end: true,
+        group: "Skills",
+        icon: "assign",
+      },
+      {
         to: "/super-manager/history",
         label: "My history",
         group: "Personal",
