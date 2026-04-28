@@ -40,7 +40,6 @@ type Currency = "TND — Tunisian Dinar" | "EUR — Euro" | "USD — US Dollar";
 type SettingsTab =
   | "Appearance"
   | "Language & Region"
-  | "Notifications"
   | "Security"
   | "Edit Profile";
 
@@ -1002,7 +1001,7 @@ export default function SettingsPage() {
           <h1 style={titleStyle}>Settings</h1>
           <p style={descStyle}>
             Manage how your workspace looks and behaves with cleaner visual
-            preferences, localization options, and system-wide experience
+            preferences, and system-wide experience
             controls.
           </p>
         </div>
@@ -1023,7 +1022,7 @@ export default function SettingsPage() {
 
       <div style={tabsWrap}>
         {(
-          ["Appearance", "Language & Region", "Notifications", "Security", "Edit Profile",] as SettingsTab[]
+          ["Appearance", "Language & Region",  "Security", "Edit Profile",] as SettingsTab[]
         ).map((tab) => (
           <button
             key={tab}
@@ -1291,21 +1290,7 @@ export default function SettingsPage() {
             </>
           )}
 
-          {activeTab === "Notifications" && (
-            <section style={sectionCardStyle}>
-              <div style={sectionHeaderStyle}>
-                <h2 style={sectionTitleStyle}>Notifications</h2>
-                <p style={sectionTextStyle}>
-                  Placeholder section. Next you can connect real notification
-                  preferences here.
-                </p>
-              </div>
-              <div style={rowHint}>
-                Add email notifications, in-app alerts, activity reminders, and
-                approval updates.
-              </div>
-            </section>
-          )}
+          
 
           {activeTab === "Security" && (
             <section style={sectionCardStyle}>
