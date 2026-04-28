@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   getActivityById,
   type ActivityRecord,
 } from "../../services/activities.service";
-import { getCandidates } from "../../services/hrCopilot.service";
 import {
   getFinalRecommendations,
   type RecommendationDecision,
@@ -63,54 +62,26 @@ function getCandidateKey(candidate: UiRecommendationItem) {
 }
 
 function normalizeFinalResponse(
-  result: RecommendationFinalResponse,
-  oldRecommendations: any
+  result: RecommendationFinalResponse
 ): UiRecommendationFinalResponse {
-  const oldPrimary = oldRecommendations?.primaryCandidates || [];
-  const oldBackup = oldRecommendations?.backupCandidates || [];
-
-  const attachPrimary = (
-    candidate: RecommendationItem,
-    index: number
-  ): UiRecommendationItem => {
-    const oldId = String(oldPrimary[index]?.employeeId || "");
-    const finalId = isMongoId(oldId) ? oldId : String(candidate.employeeId);
-
-    return {
-      ...candidate,
-      employeeId: finalId,
-      reviewEmployeeId: finalId,
-    };
-  };
-
-  const attachBackup = (
-    candidate: RecommendationItem,
-    index: number
-  ): UiRecommendationItem => {
-    const oldId = String(oldBackup[index]?.employeeId || "");
-    const finalId = isMongoId(oldId) ? oldId : String(candidate.employeeId);
-
-    return {
-      ...candidate,
-      employeeId: finalId,
-      reviewEmployeeId: finalId,
-    };
-  };
-
-  const attachNotRecommended = (
+  const attachCandidate = (
     candidate: RecommendationItem
-  ): UiRecommendationItem => ({
-    ...candidate,
-    reviewEmployeeId: String(candidate.employeeId),
-  });
+  ): UiRecommendationItem => {
+    const employeeId = String(candidate.employeeId);
+
+    return {
+      ...candidate,
+      employeeId,
+      reviewEmployeeId: employeeId,
+    };
+  };
 
   return {
     ...result,
-    primaryCandidates: result.primaryCandidates.map(attachPrimary),
-    backupCandidates: result.backupCandidates.map(attachBackup),
-    notRecommendedCandidates: result.notRecommendedCandidates.map(
-      attachNotRecommended
-    ),
+    primaryCandidates: result.primaryCandidates.map(attachCandidate),
+    backupCandidates: result.backupCandidates.map(attachCandidate),
+    notRecommendedCandidates:
+      result.notRecommendedCandidates.map(attachCandidate),
   };
 }
 
@@ -135,12 +106,13 @@ export default function HrRecommendationPage() {
   const [success, setSuccess] = useState("");
 
   const [filter, setFilter] = useState<FilterMode>("ALL");
-  const [view, setView] = useState<ViewMode>("table");
+  const [view, setView] = useState<ViewMode>("cards");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeCandidate, setActiveCandidate] =
     useState<UiRecommendationItem | null>(null);
 
   const managerApproved = reviewStatus === "APPROVED_BY_MANAGER";
+
   const reviewAlreadySent =
     reviewStatus === "SUBMITTED_TO_MANAGER" ||
     reviewStatus === "APPROVED_BY_MANAGER";
@@ -236,18 +208,14 @@ export default function HrRecommendationPage() {
 
       for (let i = 0; i < PIPELINE_STEPS.length; i++) {
         setActiveStep(i);
-        await wait(650);
+        await wait(450);
         setCompletedSteps((prev) => [...prev, i]);
       }
 
-      await wait(250);
+      await wait(200);
 
-      const [newResult, oldResult] = await Promise.all([
-        getFinalRecommendations(activityId),
-        getCandidates(activityId),
-      ]);
-
-      const fixedResult = normalizeFinalResponse(newResult, oldResult);
+      const result = await getFinalRecommendations(activityId);
+      const fixedResult = normalizeFinalResponse(result);
 
       setData(fixedResult);
       setSelectedIds(
@@ -319,9 +287,7 @@ export default function HrRecommendationPage() {
       const submitResult = await submitHrShortlistToManager(activityId);
 
       setSentToManager(true);
-      setReviewStatus(
-        submitResult?.review?.status || "SUBMITTED_TO_MANAGER"
-      );
+      setReviewStatus(submitResult?.review?.status || "SUBMITTED_TO_MANAGER");
       setSuccess("Shortlist sent to manager. Waiting for manager review.");
     } catch (err: any) {
       console.error("SEND ERROR:", err);
@@ -337,169 +303,74 @@ export default function HrRecommendationPage() {
 
   return (
     <main className="hr-rec-page">
-      <div className="hr-rec-topbar">
+      <section className="hr-rec-hero">
         <div>
-          <div className="hr-rec-eyebrow">HR recommendation engine</div>
+          <div className="hr-rec-eyebrow">HR Recommendation Engine</div>
           <h1>{activity?.title || "Activity Staffing Recommendation"}</h1>
           <p>
             {managerApproved
               ? "Manager approved this shortlist. HR can now review the manager list."
               : sentToManager
               ? "Shortlist is locked and waiting for manager review."
-              : "Generate a shortlist, inspect skill gaps, and prepare staffing seats for manager review."}
+              : "Generate a shortlist, review candidate fit, and prepare seats for manager validation."}
           </p>
         </div>
 
-        {reviewAlreadySent ? (
-          <button
-            className="hr-rec-btn hr-rec-btn-primary"
-            onClick={goToManagerList}
-          >
-            See manager list
-          </button>
-        ) : (
-          <button
-            className="hr-rec-btn hr-rec-btn-primary"
-            onClick={runRecommendation}
-            disabled={
-              loading ||
-              sendingToManager ||
-              activityLoading ||
-              sentToManager ||
-              reviewAlreadySent
-            }
-          >
-            {loading
-              ? "Analyzing..."
-              : data
-              ? "Regenerate Recommendation"
-              : "Generate Recommendation"}
-          </button>
-        )}
-      </div>
+        <div className="hr-rec-hero-actions">
+          {reviewAlreadySent ? (
+            <button
+              className="hr-rec-btn hr-rec-btn-primary"
+              onClick={goToManagerList}
+            >
+              See manager list
+            </button>
+          ) : (
+            <button
+              className="hr-rec-btn hr-rec-btn-primary"
+              onClick={runRecommendation}
+              disabled={loading || sendingToManager || activityLoading}
+            >
+              {loading
+                ? "Analyzing..."
+                : data
+                ? "Regenerate"
+                : "Generate recommendation"}
+            </button>
+          )}
+        </div>
+      </section>
 
-      {error ? <div className="hr-rec-error">{error}</div> : null}
-      {success ? <div className="hr-rec-success">{success}</div> : null}
+      {error ? <div className="hr-rec-alert danger">{error}</div> : null}
+      {success ? <div className="hr-rec-alert success">{success}</div> : null}
 
       {managerApproved ? (
-        <div className="hr-rec-warning pending">
+        <div className="hr-rec-alert info">
           Manager approved the shortlist. The recommendation engine is locked.
-          Open the manager list to continue HR final validation.
+          Open the manager list to continue final HR validation.
         </div>
       ) : sentToManager ? (
-        <div className="hr-rec-warning pending">
-          Shortlist has been sent to manager. The recommendation engine is
-          disabled until the manager decision is complete.
+        <div className="hr-rec-alert info">
+          Shortlist has been sent to manager. Candidate editing is disabled.
         </div>
       ) : null}
 
       <div className="hr-rec-layout">
-        <aside className="hr-rec-card">
-          <div className="hr-rec-card-body">
-            <h2 className="hr-rec-activity-title">
-              {activityLoading
-                ? "Loading activity..."
-                : activity?.title || "Activity details"}
-            </h2>
-
-            <div className="hr-rec-meta-grid">
-              <div>
-                <span>Type</span>
-                <strong>{activity?.type || "—"}</strong>
-              </div>
-
-              <div>
-                <span>Context</span>
-                <strong>{activity?.priorityContext || "—"}</strong>
-              </div>
-
-              <div>
-                <span>Seats</span>
-                <strong>{data?.seats ?? activity?.availableSlots ?? "—"}</strong>
-              </div>
-
-              <div>
-                <span>Status</span>
-                <strong>
-                  {managerApproved
-                    ? "Approved by manager"
-                    : sentToManager
-                    ? "Waiting manager review"
-                    : "Draft shortlist"}
-                </strong>
-              </div>
-
-              <div>
-                <span>Department</span>
-                <strong>{(activity as any)?.departmentName || "—"}</strong>
-              </div>
-
-              <div>
-                <span>Duration</span>
-                <strong>{activity?.duration || "—"}</strong>
-              </div>
-            </div>
-
-            <h3>Required skills</h3>
-
-            {activity?.requiredSkills?.length ? (
-              activity.requiredSkills.map((skill) => (
-                <div
-                  className="hr-rec-skill"
-                  key={`${skill.name}-${skill.desiredLevel}`}
-                >
-                  <div>
-                    <strong>{skill.name}</strong>
-                    <p>Required level: {skill.desiredLevel}</p>
-                  </div>
-
-                  <span
-                    className={
-                      skill.desiredLevel === "HIGH"
-                        ? "hr-rec-pill"
-                        : "hr-rec-pill warning"
-                    }
-                  >
-                    {skill.desiredLevel === "HIGH" ? "Mandatory" : "Preferred"}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <p className="hr-rec-muted">
-                {activityLoading
-                  ? "Loading required skills..."
-                  : "No required skills found for this activity."}
-              </p>
-            )}
-          </div>
+        <aside className="hr-rec-side">
+          <ActivityPanel
+            activity={activity}
+            activityLoading={activityLoading}
+            data={data}
+            sentToManager={sentToManager}
+            managerApproved={managerApproved}
+          />
         </aside>
 
         <section className="hr-rec-main">
           {!data && !showPipeline ? (
-            <div className="hr-rec-card hr-rec-empty">
-              <div>
-                <div className="hr-rec-empty-icon">◎</div>
-                <h2>
-                  {reviewAlreadySent
-                    ? "Recommendation is locked"
-                    : "No recommendation generated yet"}
-                </h2>
-                <p>
-                  {reviewAlreadySent
-                    ? "The shortlist has already entered the manager review flow."
-                    : "Click “Generate Recommendation” to run staffing analysis."}
-                </p>
-
-                {reviewAlreadySent ? (
-                  <button
-                    className="hr-rec-btn hr-rec-btn-primary"
-                    onClick={goToManagerList}
-                  >
-                    See manager list
-                  </button>
-                ) : null}
-              </div>
-            </div>
+            <EmptyState
+              reviewAlreadySent={reviewAlreadySent}
+              onManagerList={goToManagerList}
+            />
           ) : null}
 
           {showPipeline ? (
@@ -511,47 +382,18 @@ export default function HrRecommendationPage() {
 
           {data ? (
             <div className="hr-rec-results">
-              <div
-                className={
-                  reviewAlreadySent ? "hr-rec-warning pending" : "hr-rec-warning"
-                }
-              >
-                {managerApproved
-                  ? "Manager approved this shortlist. Open the manager list for HR final validation."
-                  : sentToManager
-                  ? "Shortlist has been sent. Seats are waiting for manager review."
-                  : data.summary.primaryCount < data.seats
-                  ? `Only ${data.summary.primaryCount} of ${data.seats} seats can be safely filled.`
-                  : "Shortlist coverage is ready for manager review."}
-              </div>
+              <CoverageBanner
+                data={data}
+                sentToManager={sentToManager}
+                managerApproved={managerApproved}
+              />
 
-              <div className="hr-rec-kpi-grid">
-                <div>
-                  <span>Seats</span>
-                  <strong>{data.seats}</strong>
-                </div>
-
-                <div>
-                  <span>Primary</span>
-                  <strong>{data.summary.primaryCount}</strong>
-                </div>
-
-                <div>
-                  <span>Backup</span>
-                  <strong>{data.summary.backupCount}</strong>
-                </div>
-
-                <div>
-                  <span>
-                    {managerApproved
-                      ? "Approved"
-                      : sentToManager
-                      ? "Waiting"
-                      : "Selected"}
-                  </span>
-                  <strong>{selectedIds.length}</strong>
-                </div>
-              </div>
+              <KpiGrid
+                data={data}
+                selectedCount={selectedIds.length}
+                sentToManager={sentToManager}
+                managerApproved={managerApproved}
+              />
 
               <SeatPlanning
                 data={data}
@@ -560,8 +402,8 @@ export default function HrRecommendationPage() {
                 managerApproved={managerApproved}
               />
 
-              <div className="hr-rec-card">
-                <div className="hr-rec-tools">
+              <section className="hr-rec-card">
+                <div className="hr-rec-card-head candidate-head">
                   <div>
                     <h2>Candidate ranking</h2>
                     <p>
@@ -569,27 +411,28 @@ export default function HrRecommendationPage() {
                         ? "Manager approved the shortlist. Candidate changes are locked."
                         : sentToManager
                         ? "Shortlist is locked while waiting for manager review."
-                        : "Select candidates, then send the shortlist to manager."}
+                        : "Select the best candidates and submit the shortlist to the manager."}
                     </p>
                   </div>
 
-                  <div className="hr-rec-toggle">
+                  <div className="hr-rec-view-toggle">
                     <button
                       className={view === "table" ? "active" : ""}
                       onClick={() => setView("table")}
                     >
-                      List view
+                      List
                     </button>
-
                     <button
                       className={view === "cards" ? "active" : ""}
                       onClick={() => setView("cards")}
                     >
-                      Card view
+                      Cards
                     </button>
                   </div>
+                </div>
 
-                  <div className="hr-rec-toggle">
+                <div className="hr-rec-filter-row">
+                  <div className="hr-rec-filter-tabs">
                     {(
                       [
                         "ALL",
@@ -607,52 +450,50 @@ export default function HrRecommendationPage() {
                       </button>
                     ))}
                   </div>
-                </div>
 
-                <div className="hr-rec-shortlist-actions">
-                  <div>
+                  <div className="hr-rec-selection-text">
                     <strong>{selectedIds.length}</strong>{" "}
                     {managerApproved
-                      ? "approved by manager"
+                      ? "approved"
                       : sentToManager
-                      ? "waiting for manager review"
-                      : "selected for manager review"}
+                      ? "waiting"
+                      : "selected"}
                   </div>
+                </div>
 
-                  <div>
+                <div className="hr-rec-actionbar">
+                  <button
+                    className="hr-rec-btn hr-rec-btn-outline"
+                    onClick={selectTopSeats}
+                    disabled={reviewAlreadySent || sendingToManager}
+                  >
+                    Select top seats
+                  </button>
+
+                  <button
+                    className="hr-rec-btn hr-rec-btn-outline"
+                    onClick={clearSelection}
+                    disabled={reviewAlreadySent || sendingToManager}
+                  >
+                    Clear
+                  </button>
+
+                  {reviewAlreadySent ? (
                     <button
-                      className="hr-rec-btn hr-rec-btn-outline"
-                      onClick={selectTopSeats}
-                      disabled={reviewAlreadySent || sendingToManager}
+                      className="hr-rec-btn hr-rec-btn-primary"
+                      onClick={goToManagerList}
                     >
-                      Select top seats
+                      See manager list
                     </button>
-
+                  ) : (
                     <button
-                      className="hr-rec-btn hr-rec-btn-outline"
-                      onClick={clearSelection}
-                      disabled={reviewAlreadySent || sendingToManager}
+                      className="hr-rec-btn hr-rec-btn-primary"
+                      onClick={handleSendToManager}
+                      disabled={sendingToManager || selectedIds.length === 0}
                     >
-                      Clear
+                      {sendingToManager ? "Sending..." : "Send to manager"}
                     </button>
-
-                    {reviewAlreadySent ? (
-                      <button
-                        className="hr-rec-btn hr-rec-btn-primary"
-                        onClick={goToManagerList}
-                      >
-                        See manager list
-                      </button>
-                    ) : (
-                      <button
-                        className="hr-rec-btn hr-rec-btn-primary"
-                        onClick={handleSendToManager}
-                        disabled={sendingToManager || selectedIds.length === 0}
-                      >
-                        {sendingToManager ? "Sending..." : "Send to manager"}
-                      </button>
-                    )}
-                  </div>
+                  )}
                 </div>
 
                 {filteredCandidates.length === 0 ? (
@@ -674,16 +515,20 @@ export default function HrRecommendationPage() {
                       <CandidateCard
                         key={getCandidateKey(candidate)}
                         candidate={candidate}
-                        selected={selectedIds.includes(getCandidateKey(candidate))}
+                        selected={selectedIds.includes(
+                          getCandidateKey(candidate)
+                        )}
                         sentToManager={reviewAlreadySent}
                         sendingToManager={sendingToManager}
-                        onToggle={() => toggleCandidate(getCandidateKey(candidate))}
+                        onToggle={() =>
+                          toggleCandidate(getCandidateKey(candidate))
+                        }
                         onView={() => setActiveCandidate(candidate)}
                       />
                     ))}
                   </div>
                 )}
-              </div>
+              </section>
             </div>
           ) : null}
         </section>
@@ -699,6 +544,187 @@ export default function HrRecommendationPage() {
   );
 }
 
+function ActivityPanel({
+  activity,
+  activityLoading,
+  data,
+  sentToManager,
+  managerApproved,
+}: {
+  activity: ActivityRecord | null;
+  activityLoading: boolean;
+  data: UiRecommendationFinalResponse | null;
+  sentToManager: boolean;
+  managerApproved: boolean;
+}) {
+  return (
+    <section className="hr-rec-card">
+      <div className="hr-rec-card-head compact">
+        <div>
+          <div className="hr-rec-eyebrow">Activity</div>
+          <h2>
+            {activityLoading
+              ? "Loading activity..."
+              : activity?.title || "Activity details"}
+          </h2>
+        </div>
+      </div>
+
+      <div className="hr-rec-meta-grid">
+        <Meta label="Type" value={activity?.type || "—"} />
+        <Meta label="Context" value={activity?.priorityContext || "—"} />
+        <Meta label="Seats" value={data?.seats ?? activity?.availableSlots ?? "—"} />
+        <Meta
+          label="Status"
+          value={
+            managerApproved
+              ? "Approved"
+              : sentToManager
+              ? "Manager review"
+              : "Draft"
+          }
+        />
+        <Meta label="Department" value={(activity as any)?.departmentName || "—"} />
+        <Meta label="Duration" value={activity?.duration || "—"} />
+      </div>
+
+      <div className="hr-rec-skills-section">
+        <h3>Required skills</h3>
+
+        {activity?.requiredSkills?.length ? (
+          <div className="hr-rec-skill-list">
+            {activity.requiredSkills.map((skill) => (
+              <div
+                className="hr-rec-skill"
+                key={`${skill.name}-${skill.desiredLevel}`}
+              >
+                <div>
+                  <strong>{skill.name}</strong>
+                  <p>Required level: {skill.desiredLevel}</p>
+                </div>
+
+                <span
+                  className={
+                    skill.desiredLevel === "HIGH"
+                      ? "hr-rec-pill"
+                      : "hr-rec-pill warning"
+                  }
+                >
+                  {skill.desiredLevel === "HIGH" ? "Mandatory" : "Preferred"}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="hr-rec-muted">
+            {activityLoading
+              ? "Loading required skills..."
+              : "No required skills found for this activity."}
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function Meta({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="hr-rec-meta-item">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function EmptyState({
+  reviewAlreadySent,
+  onManagerList,
+}: {
+  reviewAlreadySent: boolean;
+  onManagerList: () => void;
+}) {
+  return (
+    <section className="hr-rec-card hr-rec-empty">
+      <div className="hr-rec-empty-icon">◎</div>
+      <h2>
+        {reviewAlreadySent
+          ? "Recommendation is locked"
+          : "No recommendation generated yet"}
+      </h2>
+      <p>
+        {reviewAlreadySent
+          ? "This shortlist already entered the manager review workflow."
+          : "Generate the recommendation to see ranked employees, seat coverage, and skill gaps."}
+      </p>
+
+      {reviewAlreadySent ? (
+        <button className="hr-rec-btn hr-rec-btn-primary" onClick={onManagerList}>
+          See manager list
+        </button>
+      ) : null}
+    </section>
+  );
+}
+
+function CoverageBanner({
+  data,
+  sentToManager,
+  managerApproved,
+}: {
+  data: UiRecommendationFinalResponse;
+  sentToManager: boolean;
+  managerApproved: boolean;
+}) {
+  return (
+    <div
+      className={`hr-rec-coverage ${
+        managerApproved || sentToManager ? "locked" : ""
+      }`}
+    >
+      <strong>
+        {managerApproved
+          ? "Manager approved this shortlist."
+          : sentToManager
+          ? "Shortlist sent to manager."
+          : data.summary.primaryCount < data.seats
+          ? `Only ${data.summary.primaryCount} of ${data.seats} seats can be safely filled.`
+          : "Seat coverage is ready for manager review."}
+      </strong>
+      <p>
+        {managerApproved
+          ? "Open the manager list to continue HR validation."
+          : sentToManager
+          ? "Candidate selection is locked until the manager completes the review."
+          : "Review the candidate ranking below before submitting the shortlist."}
+      </p>
+    </div>
+  );
+}
+
+function KpiGrid({
+  data,
+  selectedCount,
+  sentToManager,
+  managerApproved,
+}: {
+  data: UiRecommendationFinalResponse;
+  selectedCount: number;
+  sentToManager: boolean;
+  managerApproved: boolean;
+}) {
+  return (
+    <div className="hr-rec-kpi-grid">
+      <Meta label="Seats" value={data.seats} />
+      <Meta label="Primary" value={data.summary.primaryCount} />
+      <Meta label="Backup" value={data.summary.backupCount} />
+      <Meta
+        label={managerApproved ? "Approved" : sentToManager ? "Waiting" : "Selected"}
+        value={selectedCount}
+      />
+    </div>
+  );
+}
+
 function PipelineCard({
   activeStep,
   completedSteps,
@@ -707,45 +733,47 @@ function PipelineCard({
   completedSteps: number[];
 }) {
   return (
-    <div className="hr-rec-card hr-rec-pipeline-card">
-      <div className="hr-rec-card-body">
-        <div className="hr-rec-eyebrow">Recommendation pipeline</div>
-        <h2>Analyzing activity and employee profiles</h2>
-        <p className="hr-rec-muted">
-          Reading requirements, matching skills, detecting gaps, ranking
-          employees, and preparing the HR shortlist.
-        </p>
-
-        <div className="hr-rec-pipeline">
-          {PIPELINE_STEPS.map((step, index) => {
-            const done = completedSteps.includes(index);
-            const active = activeStep === index && !done;
-
-            return (
-              <div
-                className={`hr-rec-step ${active ? "active" : ""} ${
-                  done ? "done" : ""
-                }`}
-                key={step}
-              >
-                <div className="hr-rec-step-icon">{done ? "✓" : index + 1}</div>
-
-                <div>
-                  <strong>{step}</strong>
-                  <p>
-                    {index === 0 && "Extracting activity context and seats."}
-                    {index === 1 && "Comparing employee skills and levels."}
-                    {index === 2 && "Finding missing mandatory/preferred skills."}
-                    {index === 3 && "Applying scoring and scenario rules."}
-                    {index === 4 && "Preparing primary and backup groups."}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
+    <section className="hr-rec-card">
+      <div className="hr-rec-card-head">
+        <div>
+          <div className="hr-rec-eyebrow">Recommendation pipeline</div>
+          <h2>Analyzing employee profiles</h2>
+          <p>
+            Reading activity requirements, matching skills, detecting gaps, and
+            preparing the shortlist.
+          </p>
         </div>
       </div>
-    </div>
+
+      <div className="hr-rec-pipeline">
+        {PIPELINE_STEPS.map((step, index) => {
+          const done = completedSteps.includes(index);
+          const active = activeStep === index && !done;
+
+          return (
+            <div
+              className={`hr-rec-step ${active ? "active" : ""} ${
+                done ? "done" : ""
+              }`}
+              key={step}
+            >
+              <div className="hr-rec-step-icon">{done ? "✓" : index + 1}</div>
+
+              <div>
+                <strong>{step}</strong>
+                <p>
+                  {index === 0 && "Extracting activity context and seats."}
+                  {index === 1 && "Comparing employee skills and levels."}
+                  {index === 2 && "Finding missing mandatory skills."}
+                  {index === 3 && "Applying scoring rules."}
+                  {index === 4 && "Preparing primary and backup groups."}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -761,76 +789,73 @@ function SeatPlanning({
   managerApproved: boolean;
 }) {
   return (
-    <div className="hr-rec-card">
-      <div className="hr-rec-card-body">
-        <div className="hr-rec-section-header">
-          <div>
-            <h2>Seat planning</h2>
-            <p>
-              {managerApproved
-                ? "Selected seats have been approved by the manager."
-                : sentToManager
-                ? "Selected seats are waiting for manager validation."
-                : "Selected candidates prepared for manager review."}
-            </p>
-          </div>
-
-          <span
-            className={
-              managerApproved
-                ? "hr-rec-pill"
-                : sentToManager
-                ? "hr-rec-pill warning"
-                : "hr-rec-pill"
-            }
-          >
+    <section className="hr-rec-card">
+      <div className="hr-rec-card-head">
+        <div>
+          <h2>Seat planning</h2>
+          <p>
             {managerApproved
-              ? "Approved by manager"
+              ? "Selected seats have been approved by the manager."
               : sentToManager
-              ? "Waiting manager review"
-              : "Manager review ready"}
-          </span>
+              ? "Selected seats are waiting for manager validation."
+              : "Selected employees prepared for manager review."}
+          </p>
         </div>
 
-        <div className="hr-rec-seat-map">
-          {Array.from({ length: data.seats }).map((_, index) => {
-            const candidate = selectedCandidates[index];
-
-            return (
-              <div
-                key={index}
-                className={`hr-rec-seat ${
-                  candidate
-                    ? managerApproved
-                      ? "filled"
-                      : sentToManager
-                      ? "pending"
-                      : "filled"
-                    : ""
-                }`}
-              >
-                <div>Seat {index + 1}</div>
-                <strong>{candidate?.fullName ?? "Open"}</strong>
-                <p>
-                  {candidate
-                    ? managerApproved
-                      ? "Approved by manager"
-                      : sentToManager
-                      ? "Waiting manager review"
-                      : `${percent(candidate.finalScore)} · ${decisionLabel(candidate.decision)}`
-                    : "Needs HR decision"}
-                </p>
-              </div>
-            );
-          })}
-        </div>
+        <span
+          className={
+            managerApproved
+              ? "hr-rec-pill"
+              : sentToManager
+              ? "hr-rec-pill warning"
+              : "hr-rec-pill"
+          }
+        >
+          {managerApproved
+            ? "Approved"
+            : sentToManager
+            ? "Waiting review"
+            : "Ready"}
+        </span>
       </div>
-    </div>
+
+      <div className="hr-rec-seat-map">
+        {Array.from({ length: data.seats }).map((_, index) => {
+          const candidate = selectedCandidates[index];
+
+          return (
+            <div
+              key={index}
+              className={`hr-rec-seat ${
+                candidate
+                  ? managerApproved
+                    ? "filled"
+                    : sentToManager
+                    ? "pending"
+                    : "filled"
+                  : ""
+              }`}
+            >
+              <span>Seat {index + 1}</span>
+              <strong>{candidate?.fullName ?? "Open"}</strong>
+              <p>
+                {candidate
+                  ? managerApproved
+                    ? "Approved by manager"
+                    : sentToManager
+                    ? "Waiting manager review"
+                    : `${percent(candidate.finalScore)} · ${decisionLabel(
+                        candidate.decision
+                      )}`
+                  : "Needs HR decision"}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
-
-/* keep the rest of your CandidateTable, CandidateCard, Bar, CandidateDrawer,
-DrawerSection, and List functions exactly as they are */
 
 function CandidateTable({
   candidates,
@@ -897,7 +922,7 @@ function CandidateTable({
                     className="hr-rec-btn hr-rec-btn-outline"
                     onClick={() => onView(candidate)}
                   >
-                    View details
+                    Details
                   </button>
                 </td>
               </tr>
@@ -936,19 +961,19 @@ function CandidateCard({
   onView: () => void;
 }) {
   return (
-    <div className={`hr-rec-candidate-card ${selected ? "selected" : ""}`}>
+    <article className={`hr-rec-candidate-card ${selected ? "selected" : ""}`}>
       <div className="hr-rec-candidate-top">
         <div className="hr-rec-candidate-left">
           <div className="hr-rec-rank">#{candidate.rank}</div>
 
-          <div>
+          <div className="hr-rec-candidate-name">
             <h3>{candidate.fullName}</h3>
             <p>{candidate.email}</p>
           </div>
         </div>
 
         <div className="hr-rec-candidate-score-box">
-          <div className="hr-rec-card-score">{percent(candidate.finalScore)}</div>
+          <strong>{percent(candidate.finalScore)}</strong>
           <DecisionPill decision={candidate.decision} />
         </div>
       </div>
@@ -960,19 +985,21 @@ function CandidateCard({
         <Bar label="History fit" value={candidate.breakdown.historyFit} />
       </div>
 
-      <div className="hr-rec-notes">
-        <strong>Strengths</strong>
-        <p>{candidate.strengths.join(" · ") || "No strengths found."}</p>
-      </div>
+      <div className="hr-rec-card-notes">
+        <div>
+          <strong>Strengths</strong>
+          <p>{candidate.strengths.join(" · ") || "No strengths found."}</p>
+        </div>
 
-      <div className="hr-rec-notes">
-        <strong>Warnings / risks</strong>
-        <p>{candidate.risks.join(" · ") || "No risks found."}</p>
+        <div>
+          <strong>Risks</strong>
+          <p>{candidate.risks.join(" · ") || "No risks found."}</p>
+        </div>
       </div>
 
       <div className="hr-rec-card-actions">
         <button className="hr-rec-btn hr-rec-btn-outline" onClick={onView}>
-          View details
+          Details
         </button>
 
         <button
@@ -980,14 +1007,10 @@ function CandidateCard({
           onClick={onToggle}
           disabled={sentToManager || sendingToManager}
         >
-          {selected ? "Remove" : "Add to shortlist"}
-        </button>
-
-        <button className="hr-rec-btn" disabled={sentToManager || sendingToManager}>
-          Replace
+          {selected ? "Remove" : "Add"}
         </button>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -995,11 +1018,9 @@ function Bar({ label, value }: { label: string; value: number }) {
   return (
     <div className="hr-rec-bar-row">
       <span>{label}</span>
-
       <div>
         <i style={{ width: `${Math.round((Number(value) || 0) * 100)}%` }} />
       </div>
-
       <strong>{percent(value)}</strong>
     </div>
   );
@@ -1060,7 +1081,7 @@ function DrawerSection({
   children,
 }: {
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="hr-rec-drawer-section">
