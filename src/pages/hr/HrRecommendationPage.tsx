@@ -30,13 +30,7 @@ type UiRecommendationFinalResponse = RecommendationFinalResponse & {
   notRecommendedCandidates: UiRecommendationItem[];
 };
 
-const PIPELINE_STEPS = [
-  "Activity parsed",
-  "Skills matched",
-  "Gaps detected",
-  "Ranking completed",
-  "Shortlist prepared",
-];
+
 
 function percent(value: number) {
   return `${Math.round((Number(value) || 0) * 100)}%`;
@@ -49,9 +43,7 @@ function decisionLabel(decision: RecommendationDecision | "ALL") {
   return "Recommended";
 }
 
-function wait(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+
 
 function isMongoId(id: string) {
   return /^[a-f\d]{24}$/i.test(id);
@@ -91,16 +83,13 @@ export default function HrRecommendationPage() {
 
   const [activity, setActivity] = useState<ActivityRecord | null>(null);
   const [activityLoading, setActivityLoading] = useState(false);
-
+  const [showAiLoader, setShowAiLoader] = useState(false);
   const [data, setData] = useState<UiRecommendationFinalResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [sendingToManager, setSendingToManager] = useState(false);
   const [sentToManager, setSentToManager] = useState(false);
   const [reviewStatus, setReviewStatus] = useState<string>("");
 
-  const [showPipeline, setShowPipeline] = useState(false);
-  const [activeStep, setActiveStep] = useState(-1);
-  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -184,55 +173,44 @@ export default function HrRecommendationPage() {
     );
   }, [allCandidates, selectedIds]);
 
-  async function runRecommendation() {
-    if (
-      !activityId ||
-      loading ||
-      sendingToManager ||
-      sentToManager ||
-      reviewAlreadySent
-    ) {
-      return;
-    }
-
-    try {
-      setError("");
-      setSuccess("");
-      setData(null);
-      setSelectedIds([]);
-      setSentToManager(false);
-      setLoading(true);
-      setShowPipeline(true);
-      setActiveStep(-1);
-      setCompletedSteps([]);
-
-      for (let i = 0; i < PIPELINE_STEPS.length; i++) {
-        setActiveStep(i);
-        await wait(450);
-        setCompletedSteps((prev) => [...prev, i]);
-      }
-
-      await wait(200);
-
-      const result = await getFinalRecommendations(activityId);
-      const fixedResult = normalizeFinalResponse(result);
-
-      setData(fixedResult);
-      setSelectedIds(
-        fixedResult.primaryCandidates.map((candidate) =>
-          getCandidateKey(candidate)
-        )
-      );
-
-      setShowPipeline(false);
-      setActiveStep(-1);
-    } catch (err: any) {
-      setError(err?.message || "Failed to generate recommendations.");
-      setShowPipeline(false);
-    } finally {
-      setLoading(false);
-    }
+async function runRecommendation() {
+  if (
+    !activityId ||
+    loading ||
+    sendingToManager ||
+    sentToManager ||
+    reviewAlreadySent
+  ) {
+    return;
   }
+
+  try {
+    setError("");
+    setSuccess("");
+    setData(null);
+    setSelectedIds([]);
+    setSentToManager(false);
+
+    setLoading(true);
+    setShowAiLoader(true); // ✅ ONLY loader now
+
+    const result = await getFinalRecommendations(activityId);
+    const fixedResult = normalizeFinalResponse(result);
+
+    setData(fixedResult);
+
+    setSelectedIds(
+      fixedResult.primaryCandidates.map((candidate) =>
+        getCandidateKey(candidate)
+      )
+    );
+  } catch (err: any) {
+    setError(err?.message || "Failed to generate recommendations.");
+  } finally {
+    setShowAiLoader(false); // ✅ stop loader
+    setLoading(false);
+  }
+}
 
   function toggleCandidate(candidateId: string) {
     if (sentToManager || sendingToManager || reviewAlreadySent) return;
@@ -366,20 +344,10 @@ export default function HrRecommendationPage() {
         </aside>
 
         <section className="hr-rec-main">
-          {!data && !showPipeline ? (
-            <EmptyState
-              reviewAlreadySent={reviewAlreadySent}
-              onManagerList={goToManagerList}
-            />
-          ) : null}
+      
 
-          {showPipeline ? (
-            <PipelineCard
-              activeStep={activeStep}
-              completedSteps={completedSteps}
-            />
-          ) : null}
-
+        
+{showAiLoader ? <AiRecommendationLoader /> : null}
           {data ? (
             <div className="hr-rec-results">
               <CoverageBanner
@@ -725,57 +693,7 @@ function KpiGrid({
   );
 }
 
-function PipelineCard({
-  activeStep,
-  completedSteps,
-}: {
-  activeStep: number;
-  completedSteps: number[];
-}) {
-  return (
-    <section className="hr-rec-card">
-      <div className="hr-rec-card-head">
-        <div>
-          <div className="hr-rec-eyebrow">Recommendation pipeline</div>
-          <h2>Analyzing employee profiles</h2>
-          <p>
-            Reading activity requirements, matching skills, detecting gaps, and
-            preparing the shortlist.
-          </p>
-        </div>
-      </div>
 
-      <div className="hr-rec-pipeline">
-        {PIPELINE_STEPS.map((step, index) => {
-          const done = completedSteps.includes(index);
-          const active = activeStep === index && !done;
-
-          return (
-            <div
-              className={`hr-rec-step ${active ? "active" : ""} ${
-                done ? "done" : ""
-              }`}
-              key={step}
-            >
-              <div className="hr-rec-step-icon">{done ? "✓" : index + 1}</div>
-
-              <div>
-                <strong>{step}</strong>
-                <p>
-                  {index === 0 && "Extracting activity context and seats."}
-                  {index === 1 && "Comparing employee skills and levels."}
-                  {index === 2 && "Finding missing mandatory skills."}
-                  {index === 3 && "Applying scoring rules."}
-                  {index === 4 && "Preparing primary and backup groups."}
-                </p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
 
 function SeatPlanning({
   data,
@@ -1100,5 +1018,114 @@ function List({ items, empty }: { items: string[]; empty: string }) {
         <li key={item}>{item}</li>
       ))}
     </ul>
+  );
+}
+function AiRecommendationLoader() {
+  const steps = [
+    "Analyzing employee profiles",
+    "Comparing skills with activity requirements",
+    "Checking department and context fit",
+    "Ranking strongest candidates",
+    "Preparing recommendation explanation",
+  ];
+
+  const [stepIndex, setStepIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setStepIndex((prev) => (prev + 1) % steps.length);
+    }, 1800);
+
+    return () => window.clearInterval(interval);
+  }, []);
+
+  return (
+    <section className="hr-rec-card hr-rec-empty hr-ai-loader-card">
+      <div className="hr-ai-brain-box">
+        <svg viewBox="0 0 340 245">
+          <defs>
+            <linearGradient id="brainGradientHr" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#ecfdf5" />
+              <stop offset="55%" stopColor="#d1fae5" />
+              <stop offset="100%" stopColor="#bbf7d0" />
+            </linearGradient>
+
+            <path id="hrPath1" d="M75 118 C112 56, 160 48, 238 96" />
+            <path id="hrPath2" d="M238 96 C278 122, 250 160, 205 164" />
+            <path id="hrPath3" d="M75 118 C94 150, 125 166, 158 160" />
+            <path id="hrPath5" d="M145 58 C150 94, 154 125, 158 160" />
+          </defs>
+
+          <path
+            className="hr-ai-brain-shape"
+            d="M88 178 C61 176 42 160 43 136 C22 123 25 88 52 78 C48 51 76 32 106 43 C123 18 166 19 185 44 C214 31 248 43 260 68 C287 72 303 98 292 123 C313 145 296 177 263 178 C260 200 232 215 205 202 C183 222 137 217 123 194 C106 201 91 194 88 178 Z"
+          />
+
+          <path className="hr-ai-fold" d="M73 82 C58 94 56 112 67 125" />
+          <path className="hr-ai-fold" d="M102 45 C91 58 88 73 95 89" />
+          <path className="hr-ai-fold" d="M184 45 C194 58 194 76 185 89" />
+          <path className="hr-ai-fold" d="M258 70 C245 80 244 99 257 111" />
+          <path className="hr-ai-fold" d="M123 194 C134 182 151 179 168 184" />
+
+          <use href="#hrPath1" className="hr-ai-connection strong" />
+          <use href="#hrPath2" className="hr-ai-connection strong" />
+          <use href="#hrPath3" className="hr-ai-connection" />
+          <use href="#hrPath5" className="hr-ai-connection" />
+
+          <circle className="hr-ai-packet top" r="4.5">
+            <animateMotion dur="1.4s" repeatCount="indefinite">
+              <mpath href="#hrPath1" />
+            </animateMotion>
+          </circle>
+
+          <circle className="hr-ai-packet" r="3.8">
+            <animateMotion dur="1.9s" repeatCount="indefinite" begin="0.2s">
+              <mpath href="#hrPath3" />
+            </animateMotion>
+          </circle>
+
+          <circle className="hr-ai-packet top" r="4.3">
+            <animateMotion dur="1.6s" repeatCount="indefinite" begin="0.4s">
+              <mpath href="#hrPath2" />
+            </animateMotion>
+          </circle>
+
+          {[["75", "118"], ["145", "58"], ["238", "96"], ["158", "160"], ["205", "164"]].map(
+            ([x, y]) => (
+              <g key={`${x}-${y}`}>
+                <circle className="hr-ai-node-glow" cx={x} cy={y} r="16" />
+                <circle className="hr-ai-node" cx={x} cy={y} r="16" />
+                <text className="hr-ai-employee" x={x} y={Number(y) + 1}>
+                  👤
+                </text>
+              </g>
+            )
+          )}
+
+          <circle className="hr-ai-spark" cx="125" cy="124" r="3.7" />
+          <circle className="hr-ai-spark" cx="172" cy="112" r="3.2" />
+          <circle className="hr-ai-spark" cx="215" cy="130" r="3.5" />
+        </svg>
+      </div>
+
+      <h2>Generating AI recommendations</h2>
+      <p>
+        The AI is analyzing employee skills, department fit, activity history,
+        availability, and requirements.
+      </p>
+
+      <div className="hr-ai-status-box">
+        {steps[stepIndex]}
+        <span className="hr-ai-dots">
+          <span>.</span>
+          <span>.</span>
+          <span>.</span>
+        </span>
+      </div>
+
+      <div className="hr-ai-progress">
+        <span />
+      </div>
+    </section>
   );
 }
