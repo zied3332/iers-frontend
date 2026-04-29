@@ -6,14 +6,13 @@ import {
 } from "../../services/activities.service";
 import {
   getActivityStaffingStatus,
-  getNextBackupCandidates,
+  
 } from "../../services/activityInvitations.service";
 import {
   getActivityReview,
   saveHrShortlist,
   submitHrShortlistToManager,
 } from "../../services/activityReviews.service";
-import { getCandidates } from "../../services/hrCopilot.service";
 import type { CandidateItem } from "../../types/hr-copilot";
 import type { ActivityReviewRecord } from "../../types/activity-review";
 import type {
@@ -320,25 +319,43 @@ function getInitialSelectedPrimaryIds(
 }
 
 async function fetchStaffingPageData(activityId: string) {
-  const [staffing, recommendations, nextBackups, review, activity] = await Promise.all([
-    getActivityStaffingStatus(activityId),
-    getCandidates(activityId),
-    getNextBackupCandidates(activityId, 10),
-    getActivityReview(activityId),
-    getActivityById(activityId),
-  ]);
+  const [staffingResult, reviewResult, activityResult] =
+    await Promise.allSettled([
+      getActivityStaffingStatus(activityId),
+      getActivityReview(activityId),
+      getActivityById(activityId),
+    ]);
 
-  const primaries = recommendations.primaryCandidates || [];
+  const staffing =
+    staffingResult.status === "fulfilled" ? staffingResult.value : null;
+
+  const review =
+    reviewResult.status === "fulfilled" ? reviewResult.value : null;
+
+  const activity =
+    activityResult.status === "fulfilled" ? activityResult.value : null;
+
+  const reviewAny: any = review as any;
+
+  const snapshotCandidates: CandidateItem[] =
+    reviewAny?.hrCandidateSnapshots?.map((c: any, index: number) => ({
+      employeeId: c.employeeId,
+      name: c.fullName || `Employee ${String(c.employeeId).slice(-6)}`,
+      finalScore: Math.round(Number(c.finalScore || 0)),
+      shortReason: c.explanation || "Suggested by HR for this activity.",
+      rank: c.rank || index + 1,
+      recommendationType: c.decision || "HR_SHORTLIST",
+    })) || [];
+
   return {
     staffing,
     review,
     activity,
-    primaries,
-    backupCandidates: recommendations.backupCandidates || [],
-    availableBackups: nextBackups.availableBackups || [],
+    primaries: snapshotCandidates,
+    backupCandidates: [],
+    availableBackups: [],
   };
 }
-
 function getErrorMessage(err: any, fallback: string) {
   return err?.response?.data?.message || err?.message || fallback;
 }

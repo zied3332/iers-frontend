@@ -256,12 +256,24 @@ async function runRecommendation() {
 
       const employeeIds = selectedIds.filter(isMongoId);
 
-      await saveHrShortlist(activityId, {
-        employeeIds,
-        hrNote: `Sent to manager for approval on ${new Date().toLocaleDateString()}`,
-        hrInvitationResponseDays: 3,
-      });
-
+ await saveHrShortlist(activityId, {
+  employeeIds,
+  candidateSnapshots: selectedCandidates.map((c) => ({
+    employeeId: c.employeeId,
+    fullName: c.fullName,
+    email: c.email,
+    finalScore: c.finalScore,
+    decision: c.decision,
+    rank: c.rank,
+    breakdown: c.breakdown,
+    strengths: c.strengths,
+    risks: c.risks,
+    explanation: c.explanation,
+    nextAction: c.nextAction,
+  })),
+  hrNote: `Sent to manager for approval on ${new Date().toLocaleDateString()}`,
+  hrInvitationResponseDays: 3,
+});
       const submitResult = await submitHrShortlistToManager(activityId);
 
       setSentToManager(true);

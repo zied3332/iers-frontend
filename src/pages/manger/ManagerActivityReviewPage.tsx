@@ -16,7 +16,6 @@ import {
   approveActivityReview,
   getActivityReview,
 } from "../../services/activityReviews.service";
-import { getCandidates } from "../../services/hrCopilot.service";
 import type {
   ActivityInvitationItem,
   ActivityStaffingStatusResponse,
@@ -95,6 +94,11 @@ function formatDate(value?: string) {
   } catch {
     return value;
   }
+}
+function normalizeScore(value: unknown) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n <= 1 ? n * 100 : n);
 }
 
 export default function ManagerActivityReviewPage() {
@@ -234,14 +238,11 @@ export default function ManagerActivityReviewPage() {
       setSuccess("");
 
       try {
-        const [activityData, skills, reviewData, recommendations, backups] =
-          await Promise.all([
-            getActivityById(activityId),
-            getActivitySkills(activityId),
-            getActivityReview(activityId),
-            getCandidates(activityId),
-            getNextBackupCandidates(activityId, 24),
-          ]);
+      const [activityData, skills, reviewData] = await Promise.all([
+  getActivityById(activityId),
+  getActivitySkills(activityId),
+  getActivityReview(activityId),
+]);
 
         setActivity(activityData);
         setActivitySkills(skills);
@@ -256,57 +257,60 @@ export default function ManagerActivityReviewPage() {
           setSelectedFinalIds([]);
           return;
         }
+const reviewAny: any = reviewData as any;
 
-        const primary = recommendations.primaryCandidates || [];
-        const backupRecs = recommendations.backupCandidates || [];
+const savedSnapshots: any[] =
+  reviewAny?.candidateSnapshots ||
+  reviewAny?.hrCandidateSnapshots ||
+  reviewAny?.shortlistSnapshots ||
+  reviewAny?.snapshots ||
+  [];
 
-        const fromApiBackups = (backups.availableBackups || []).map((b) => ({
-          employeeId: b.employeeId,
-          name: b.name,
-          finalScore: b.finalScore,
-          shortReason: b.shortReason,
-          rank: b.rank || 0,
-          recommendationType: b.recommendationType || "BACKUP",
-        }));
+const savedSnapshotMap = new Map<string, any>();
 
-        const primaryMap = new Map(primary.map((c) => [c.employeeId, c]));
-        const backupRecMap = new Map(backupRecs.map((c) => [c.employeeId, c]));
+savedSnapshots.forEach((candidate) => {
+  const id = String(
+    candidate?.employeeId ||
+      candidate?.id ||
+      candidate?._id ||
+      candidate?.employee?._id ||
+      candidate?.employee?.id ||
+      ""
+  ).trim();
 
-        const hrList: CandidateItem[] = (reviewData.hrSelectedEmployeeIds || []).map(
-          (id, index) => {
-            const c = primaryMap.get(id) || backupRecMap.get(id);
+  if (id) savedSnapshotMap.set(id, candidate);
+});
 
-            return {
-              employeeId: id,
-              name: c?.name || formatEmployeeFallback(id),
-              finalScore: c?.finalScore ?? 0,
-              shortReason: c?.shortReason || "Suggested by HR for this activity.",
-              rank: c?.rank ?? index + 1,
-              recommendationType: c?.recommendationType || "HR_SHORTLIST",
-            };
-          }
-        );
+const hrList: CandidateItem[] = (reviewData.hrSelectedEmployeeIds || []).map(
+  (id, index) => {
+    const key = String(id).trim();
+   const candidate = savedSnapshotMap.get(key) || null;
 
-        const hrIds = new Set(hrList.map((h) => h.employeeId));
-
-        const mergedBackups: CandidateItem[] = [
-          ...fromApiBackups.filter((b) => !hrIds.has(b.employeeId)),
-          ...backupRecs
-            .filter((c) => !hrIds.has(c.employeeId))
-            .map((c) => ({
-              employeeId: c.employeeId,
-              name: c.name,
-              finalScore: c.finalScore,
-              shortReason: c.shortReason,
-              rank: c.rank,
-              recommendationType: c.recommendationType || "BACKUP",
-            })),
-        ];
-
-        const uniqueBackups = Array.from(
-          new Map(mergedBackups.map((c) => [c.employeeId, c])).values()
-        );
-
+    return {
+      employeeId: id,
+      name:
+        candidate?.fullName ||
+        candidate?.name ||
+        candidate?.employeeName ||
+        candidate?.employee?.name ||
+        formatEmployeeFallback(id),
+      finalScore: normalizeScore(
+        candidate?.finalScore ?? candidate?.score ?? candidate?.totalScore
+      ),
+      shortReason:
+        candidate?.explanation ||
+        candidate?.shortReason ||
+        candidate?.reason ||
+        "Suggested by HR for this activity.",
+      rank: Number(candidate?.rank || index + 1),
+      recommendationType:
+        candidate?.decision ||
+        candidate?.recommendationType ||
+        "HR_SHORTLIST",
+    };
+  }
+);
+const uniqueBackups: CandidateItem[] = [];
         setHrSelectedCandidates(hrList);
         setBackupCandidates(uniqueBackups);
         setSelectedFinalIds([...(reviewData.hrSelectedEmployeeIds || [])]);
