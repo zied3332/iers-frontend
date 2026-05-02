@@ -25,7 +25,9 @@ export type ActivityRecord = {
   duration: string;
   status: ActivityStatus;
   responsibleManagerId?: string;
+  responsibleManagerName?: string;
   departmentId?: string;
+  departmentName?: string;
   priorityContext: PriorityContext;
   targetLevel: DesiredLevel;
   createdAt: string;
@@ -158,7 +160,13 @@ function mapApiActivity(raw: any): ActivityRecord {
     duration: String(raw?.duration || ""),
     status: normalizedStatus,
     responsibleManagerId: toId(raw?.responsible_manager),
+    responsibleManagerName:
+      typeof raw?.responsible_manager?.name === "string"
+        ? raw.responsible_manager.name
+        : undefined,
     departmentId: toId(raw?.department),
+    departmentName:
+      typeof raw?.department?.name === "string" ? raw.department.name : undefined,
     priorityContext: normalizedContext,
     targetLevel: normalizedLevel,
     createdAt: String(raw?.created_at || raw?.createdAt || ""),
@@ -180,7 +188,7 @@ function mapApiActivity(raw: any): ActivityRecord {
 
 export type ListActivitiesQuery = {
   /** Drafts: planned + workflow DRAFT (before IA/staffing). Pipeline / completed: HR lists */
-  hrView?: "drafts" | "pipeline" | "completed";
+  hrView?: "drafts" | "pipeline" | "completed" | "cancelled";
   /** Manager: activities in progress after HR launch vs completed/cancelled archive */
   managerView?: "running" | "past";
 };

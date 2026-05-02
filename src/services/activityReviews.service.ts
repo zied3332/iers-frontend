@@ -50,6 +50,7 @@ export async function saveHrShortlist(
   activityId: string,
   body: {
     employeeIds: string[];
+    candidateSnapshots?: any[];
     hrNote?: string;
     hrInvitationResponseDays?: number;
   }
@@ -62,9 +63,9 @@ export async function saveHrShortlist(
       body: JSON.stringify(body),
     }
   );
+
   return handle(res) as Promise<{ message: string; review: ActivityReviewRecord }>;
 }
-
 export async function submitHrShortlistToManager(
   activityId: string
 ): Promise<{ message: string; review: ActivityReviewRecord }> {

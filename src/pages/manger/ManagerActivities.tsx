@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { FiSearch } from "react-icons/fi";
 import {
   listActivities,
   type ActivityRecord,
@@ -70,6 +71,10 @@ export default function ManagerActivities() {
   const navigate = useNavigate();
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"all" | ActivityRecord["type"]>(
+    "all"
+  );
   const [phasePages, setPhasePages] = useState<Record<ManagerActivityPhase, number>>({
     RECEIVED_FROM_HR: 1,
     INVITATIONS_ONGOING: 1,
@@ -103,15 +108,30 @@ export default function ManagerActivities() {
       INVITATIONS_ONGOING: [],
       SENT_TO_HR: [],
     };
+    const q = search.trim().toLowerCase();
     const sorted = [...activities].sort((a, b) =>
       String(b.startDate).localeCompare(String(a.startDate))
     );
     for (const activity of sorted) {
+      if (typeFilter !== "all" && activity.type !== typeFilter) continue;
+      if (q) {
+        const haystack = [
+          activity.title,
+          activity.type,
+          activity.status,
+          activity.workflowStatus || "",
+          activity.startDate,
+          activity.endDate,
+        ]
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(q)) continue;
+      }
       const phase = resolveManagerActivityPhase(activity);
       if (phase) groups[phase].push(activity);
     }
     return groups;
-  }, [activities]);
+  }, [activities, search, typeFilter]);
 
   useEffect(() => {
     setPhasePages({
@@ -119,7 +139,7 @@ export default function ManagerActivities() {
       INVITATIONS_ONGOING: 1,
       SENT_TO_HR: 1,
     });
-  }, [activities.length]);
+  }, [activities.length, search, typeFilter]);
   const activePageCount =
     groupedByPhase.RECEIVED_FROM_HR.length +
     groupedByPhase.INVITATIONS_ONGOING.length +
@@ -306,11 +326,73 @@ export default function ManagerActivities() {
         <div className="page-header" style={{ marginBottom: 24 }}>
           <div>
             <h1 className="page-title">My activities</h1>
-            <p className="page-subtitle" style={{ maxWidth: 720 }}>
+            <p
+              className="page-subtitle"
+              style={{
+                maxWidth: 720,
+                color: "color-mix(in srgb, var(--text) 72%, var(--muted))",
+              }}
+            >
               Activities move page-to-page by phase. This page shows only manager workflow phases
               before HR final launch.
             </p>
           </div>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr auto",
+            gap: 12,
+            marginBottom: 16,
+          }}
+        >
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              border: "1px solid var(--border)",
+              borderRadius: 12,
+              padding: "10px 12px",
+              background: "var(--card)",
+            }}
+          >
+            <FiSearch size={16} style={{ color: "var(--muted)" }} />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by title, type, workflow, or date..."
+              style={{
+                width: "100%",
+                border: "none",
+                outline: "none",
+                background: "transparent",
+                color: "var(--text)",
+              }}
+            />
+          </label>
+          <select
+            value={typeFilter}
+            onChange={(e) =>
+              setTypeFilter(e.target.value as "all" | ActivityRecord["type"])
+            }
+            style={{
+              border: "1px solid var(--border)",
+              borderRadius: 12,
+              padding: "10px 12px",
+              background: "var(--card)",
+              color: "var(--text)",
+              fontWeight: 600,
+            }}
+          >
+            <option value="all">All activity types</option>
+            <option value="TRAINING">Training</option>
+            <option value="CERTIFICATION">Certification</option>
+            <option value="PROJECT">Project</option>
+            <option value="MISSION">Mission</option>
+            <option value="AUDIT">Audit</option>
+          </select>
         </div>
 
         {activePageCount === 0 ? (

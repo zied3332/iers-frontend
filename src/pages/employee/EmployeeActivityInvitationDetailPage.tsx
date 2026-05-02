@@ -112,9 +112,6 @@ export default function EmployeeActivityInvitationDetailPage() {
       <div className="emp-inv-page">
         <div className="emp-inv-shell">
           <div className="emp-inv-banner emp-inv-banner--error">{error}</div>
-          <Link className="emp-inv-back" to="/me/activity-invitations">
-            Back to list
-          </Link>
         </div>
       </div>
     );
@@ -125,10 +122,6 @@ export default function EmployeeActivityInvitationDetailPage() {
   return (
     <div className="emp-inv-page">
       <div className="emp-inv-shell emp-inv-shell--narrow">
-        <Link className="emp-inv-back" to="/me/activity-invitations">
-          ← Activity invitations
-        </Link>
-
         {error ? <div className="emp-inv-banner emp-inv-banner--error">{error}</div> : null}
 
         <section className="emp-inv-detail-card">

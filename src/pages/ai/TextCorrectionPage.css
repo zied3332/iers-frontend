@@ -20,7 +20,7 @@
 .eyebrow {
   display: inline-block;
   margin-bottom: 12px;
-  font-size: 13px;
+  font-size: calc(13px * var(--app-font-scale));
   font-weight: 700;
   color: #2d7a4b;
   text-transform: uppercase;
@@ -29,7 +29,7 @@
 
 .text-correction-card h1 {
   margin: 0 0 10px;
-  font-size: 32px;
+  font-size: calc(32px * var(--app-font-scale));
   color: #1f2937;
 }
 
@@ -55,7 +55,7 @@
   border: 1px solid #d7e0da;
   border-radius: 14px;
   padding: 14px 16px;
-  font-size: 15px;
+  font-size: calc(15px * var(--app-font-scale));
   resize: vertical;
   outline: none;
   background: #fcfdfc;
@@ -74,7 +74,7 @@
   border: none;
   border-radius: 12px;
   padding: 14px 22px;
-  font-size: 15px;
+  font-size: calc(15px * var(--app-font-scale));
   font-weight: 600;
   cursor: pointer;
   margin-bottom: 20px;
@@ -122,7 +122,7 @@
 .preview-card h3,
 .changes-card h3 {
   margin: 0 0 14px;
-  font-size: 17px;
+  font-size: calc(17px * var(--app-font-scale));
   color: #1f2937;
 }
 

@@ -7,10 +7,10 @@ import SiteNav from "../../components/SiteNav";
 import AuthFooter from "../../components/AuthFooter";
 import "../../auth-pages.css";
 
-const logoSrc = "/images/logo.png";
+const logoSrc = "/images/logo-160.webp";
 
 export default function ResetPassword() {
-  const heroImages = ["/images/bg1.png", "/images/bg2.png", "/images/bg3.png", "/images/bg4.png"];
+  const heroImages = ["/images/bg1.webp", "/images/bg2.webp", "/images/bg3.webp", "/images/bg4.webp"];
   const [searchParams] = useSearchParams();
   const nav = useNavigate();
   const token = searchParams.get("token") ?? "";

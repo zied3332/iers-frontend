@@ -9,5 +9,4 @@ export type EditableUser = Pick<
   manager_id?: string;
   status?: string;
   isActive?: boolean;
-  emailVerified?: boolean;
 };

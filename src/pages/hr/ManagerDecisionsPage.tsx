@@ -129,9 +129,6 @@ export default function ManagerDecisionsPage() {
         <div className="decisions-shell decisions-shell--wide">
           <div className="decisions-shell-state decisions-shell-state--error">
             <p>{error}</p>
-            <button type="button" className="decisions-secondary-btn" onClick={() => navigate(-1)}>
-              Go back
-            </button>
           </div>
         </div>
       </div>
@@ -154,13 +151,6 @@ export default function ManagerDecisionsPage() {
     <div className="manager-decisions-page">
       <div className="decisions-shell decisions-shell--wide">
         <div className="decisions-header">
-          <button
-            type="button"
-            className="back-btn"
-            onClick={() => navigate(`/hr/activities/${activityId}/staffing`)}
-          >
-            <FiArrowLeft /> Back to staffing
-          </button>
           <div className="decisions-header__lead">
             <span className="decisions-kicker">Manager list</span>
             <h1>{activity.title}</h1>

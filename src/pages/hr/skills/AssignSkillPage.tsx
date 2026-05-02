@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { 
   FiSearch, FiCheck, FiX, FiAlertCircle, FiInfo
 } from 'react-icons/fi';
@@ -11,7 +12,13 @@ import {
   HiOutlineSparkles,
   HiOutlineUserCircle,
 } from 'react-icons/hi2';
-import { assignSkill, getAllSkills } from '../../../services/skills.service';
+import {
+  assignSkill,
+  deleteEmployeeSkill,
+  getAllSkills,
+  getEmployeeSkills,
+  updateEmployeeSkillLevel,
+} from '../../../services/skills.service';
 import { getUsers } from '../../../services/users.service';
 import { getAllDepartments, type Department } from '../../../services/departments.service';
 import { getAllDomains, type Domain } from '../../../services/domains.service';
@@ -70,6 +77,13 @@ type Employee = {
 };
 
 type SkillLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'EXPERT';
+type EmployeeAssignedSkill = {
+  id: string;
+  name: string;
+  category: Skill['category'] | string;
+  level: SkillLevel | string;
+  dynamicScore?: number;
+};
 
 // ─────────────────────────────────────────────────────────────
 // 🎨 Reusable UI Components
@@ -245,7 +259,7 @@ const SearchCombobox = ({
 
 const LevelSelector = ({ value, onChange }: { value: SkillLevel; onChange: (l: SkillLevel) => void }) => {
   const levels: { val: SkillLevel; label: string; color: string; desc: string }[] = [
-    { val: 'LOW', label: 'Beginner', color: '#94a3b8', desc: 'Basic awareness' },
+    { val: 'LOW', label: 'Beginner', color: '#475569', desc: 'Basic awareness' },
     { val: 'MEDIUM', label: 'Intermediate', color: '#3b82f6', desc: 'Works independently' },
     { val: 'HIGH', label: 'Advanced', color: '#8b5cf6', desc: 'Can mentor others' },
     { val: 'EXPERT', label: 'Expert', color: '#ec4899', desc: 'Subject authority' },
@@ -264,7 +278,7 @@ const LevelSelector = ({ value, onChange }: { value: SkillLevel; onChange: (l: S
               padding: '16px 12px', borderRadius: theme.radius.sm,
               border: '2px solid ' + (active ? lvl.color : theme.colors.border),
               background: active ? lvl.color + '12' : theme.colors.surface,
-              color: active ? lvl.color : theme.colors.muted,
+              color: active ? 'color-mix(in srgb, var(--text) 82%, ' + lvl.color + ')' : 'var(--text)',
               fontWeight: 700, fontSize: '14px', cursor: 'pointer',
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
               transition: theme.transition,
@@ -289,18 +303,24 @@ const LevelSelector = ({ value, onChange }: { value: SkillLevel; onChange: (l: S
 // 🚀 Main Component
 // ─────────────────────────────────────────────────────────────
 export default function AssignSkillPage() {
+  const [searchParams] = useSearchParams();
   const [skills, setSkills] = useState<Skill[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [departmentFilter, setDepartmentFilter] = useState('');
   const [skillCategoryFilter, setSkillCategoryFilter] = useState<'' | Skill['category']>('');
   const [skillDomainFilter, setSkillDomainFilter] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [searchEmployee, setSearchEmployee] = useState('');
   const [searchSkill, setSearchSkill] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [selectedEmployeeSkills, setSelectedEmployeeSkills] = useState<EmployeeAssignedSkill[]>([]);
+  const [employeeSkillsLoading, setEmployeeSkillsLoading] = useState(false);
+  const [employeeSkillsError, setEmployeeSkillsError] = useState('');
+  const [editingEmployeeSkillId, setEditingEmployeeSkillId] = useState('');
+  const [editingLevel, setEditingLevel] = useState<SkillLevel>('LOW');
+  const [editingScore, setEditingScore] = useState<number>(0);
+  const [savingEmployeeSkill, setSavingEmployeeSkill] = useState(false);
 
   const [form, setForm] = useState<{
     employeeId: string;
@@ -344,20 +364,6 @@ export default function AssignSkillPage() {
     load();
   }, []);
 
-  const filteredEmployees = useMemo(() => {
-    const q = searchEmployee.trim().toLowerCase();
-    return employees.filter((e) => {
-      const matchesDepartment = !departmentFilter || (e.department || '') === departmentFilter;
-      if (!matchesDepartment) return false;
-      if (!q) return true;
-      return (
-        (e.name || '').toLowerCase().includes(q) ||
-        (e.email || '').toLowerCase().includes(q) ||
-        (e.department || '').toLowerCase().includes(q)
-      );
-    });
-  }, [employees, searchEmployee, departmentFilter]);
-
   const filteredSkills = useMemo(() => {
     const q = searchSkill.trim().toLowerCase();
     return skills.filter((s) => {
@@ -381,18 +387,48 @@ export default function AssignSkillPage() {
     });
   }, [skills, searchSkill, skillCategoryFilter, skillDomainFilter]);
 
-  const departmentOptions = useMemo(() => {
-    const unique = new Set<string>();
-    employees.forEach((e) => {
-      const name = String(e.department || '').trim();
-      if (name) unique.add(name);
-    });
-    return Array.from(unique).sort((a, b) => a.localeCompare(b));
-  }, [employees]);
-
   const selectedEmployee = employees.find(e => e._id === form.employeeId);
   const selectedSkill = skills.find(s => s._id === form.skillId);
   const isValid = form.employeeId && form.skillId && form.dynamicScore >= 0;
+
+  useEffect(() => {
+    const preselectedEmployeeId = String(searchParams.get('employeeId') || '').trim();
+    if (!preselectedEmployeeId || employees.length === 0) return;
+    if (!employees.some((e) => e._id === preselectedEmployeeId)) return;
+
+    setForm((prev) => (prev.employeeId === preselectedEmployeeId ? prev : { ...prev, employeeId: preselectedEmployeeId }));
+  }, [searchParams, employees]);
+
+  const refreshEmployeeSkills = async (employeeId: string) => {
+    setEmployeeSkillsLoading(true);
+    setEmployeeSkillsError('');
+    try {
+      const rows = await getEmployeeSkills(employeeId);
+      const mapped = (Array.isArray(rows) ? rows : []).map((row: any) => ({
+        id: String(row?._id || ''),
+        name: String(row?.skill?.name || 'Unknown skill'),
+        category: String(row?.skill?.category || '-'),
+        level: String(row?.level || '-'),
+        dynamicScore: typeof row?.dynamicScore === 'number' ? row.dynamicScore : undefined,
+      }));
+      setSelectedEmployeeSkills(mapped);
+    } catch (e: any) {
+      setSelectedEmployeeSkills([]);
+      setEmployeeSkillsError(String(e?.message || 'Failed to load employee skills.'));
+    } finally {
+      setEmployeeSkillsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!form.employeeId) {
+      setSelectedEmployeeSkills([]);
+      setEmployeeSkillsLoading(false);
+      setEmployeeSkillsError('');
+      return;
+    }
+    void refreshEmployeeSkills(form.employeeId);
+  }, [form.employeeId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -400,7 +436,8 @@ export default function AssignSkillPage() {
     try {
       setSubmitting(true); setError(''); setSuccess('');
       await assignSkill(form as any);
-      setForm({ employeeId: '', skillId: '', level: 'LOW', dynamicScore: 0 });
+      await refreshEmployeeSkills(form.employeeId);
+      setForm((prev) => ({ ...prev, skillId: '', level: 'LOW', dynamicScore: 0 }));
       setSuccess('Skill assigned successfully.');
       setTimeout(() => setSuccess(''), 4000);
     } catch (err: any) {
@@ -411,6 +448,58 @@ export default function AssignSkillPage() {
         setError('Failed to assign skill.');
       }
     } finally { setSubmitting(false); }
+  };
+
+  const startEditEmployeeSkill = (skill: EmployeeAssignedSkill) => {
+    setEditingEmployeeSkillId(skill.id);
+    setEditingLevel((String(skill.level || 'LOW').toUpperCase() as SkillLevel) || 'LOW');
+    setEditingScore(Number(skill.dynamicScore ?? 0));
+    setError('');
+  };
+
+  const cancelEditEmployeeSkill = () => {
+    setEditingEmployeeSkillId('');
+  };
+
+  const saveEmployeeSkillChanges = async (skill: EmployeeAssignedSkill) => {
+    if (!form.employeeId) return;
+    try {
+      setSavingEmployeeSkill(true);
+      setError('');
+      const currentScore = Number(skill.dynamicScore ?? 0);
+      const nextScore = Number(editingScore);
+      const scoreDelta = Number.isFinite(nextScore) ? nextScore - currentScore : 0;
+      await updateEmployeeSkillLevel(skill.id, {
+        newLevel: editingLevel,
+        scoreDelta,
+      });
+      await refreshEmployeeSkills(form.employeeId);
+      setEditingEmployeeSkillId('');
+      setSuccess('Skill updated successfully.');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (e: any) {
+      setError(String(e?.response?.data?.message || e?.message || 'Failed to update skill.'));
+    } finally {
+      setSavingEmployeeSkill(false);
+    }
+  };
+
+  const handleDeleteEmployeeSkill = async (skill: EmployeeAssignedSkill) => {
+    if (!form.employeeId) return;
+    const ok = window.confirm(`Remove "${skill.name}" from this employee?`);
+    if (!ok) return;
+    try {
+      setSavingEmployeeSkill(true);
+      setError('');
+      await deleteEmployeeSkill(skill.id);
+      await refreshEmployeeSkills(form.employeeId);
+      setSuccess('Skill removed successfully.');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (e: any) {
+      setError(String(e?.response?.data?.message || e?.message || 'Failed to delete skill.'));
+    } finally {
+      setSavingEmployeeSkill(false);
+    }
   };
 
   // ─────────────────────────────────────────────────────────
@@ -424,7 +513,7 @@ export default function AssignSkillPage() {
         <div className="page-header" style={{ marginBottom: '36px' }}>
           <div>
             <h1 className="page-title">Skill Assignment</h1>
-            <p className="page-subtitle" style={{ color: theme.colors.muted }}>
+            <p className="page-subtitle" style={{ color: 'color-mix(in srgb, var(--text) 72%, var(--muted))' }}>
               Match competencies with precision and context.
             </p>
           </div>
@@ -452,55 +541,6 @@ export default function AssignSkillPage() {
           
           {/* Form Section */}
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-            {/* Employee */}
-            <div style={{ padding: '32px', background: theme.colors.surface, borderRadius: theme.radius.lg, border: '1px solid ' + theme.colors.border, boxShadow: theme.shadow.sm }}>
-              <div style={{ fontWeight: 700, fontSize: '23px', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ width: '34px', height: '34px', borderRadius: '50%', background: theme.colors.primaryBg, color: theme.colors.primary, display: 'inline-grid', placeItems: 'center' }}>
-                  <HiOutlineUserCircle size={20} />
-                </span>
-                Select Employee
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '0.7fr 1.3fr', gap: '12px' }}>
-                <select
-                  value={departmentFilter}
-                  onChange={(e) => setDepartmentFilter(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '14px 16px',
-                    borderRadius: theme.radius.sm,
-                    border: '1px solid ' + theme.colors.border,
-                    background: theme.colors.surface,
-                    color: theme.colors.text,
-                    fontSize: '16px',
-                    fontWeight: 600,
-                    outline: 'none',
-                    transition: theme.transition,
-                  }}
-                >
-                  <option value="">All Departments</option>
-                  {departmentOptions.map((dep) => (
-                    <option key={dep} value={dep}>{dep}</option>
-                  ))}
-                </select>
-
-                <SearchCombobox
-                  placeholder="Search by name, email, or department..."
-                  value={searchEmployee}
-                  onChange={setSearchEmployee}
-                  onSelect={(id) => { setForm(f => ({ ...f, employeeId: id })); setSearchEmployee(''); }}
-                  loading={loading}
-                  icon={<FiSearch size={16} />}
-                  options={filteredEmployees.map(e => ({
-                    id: e._id,
-                    label: e.name || 'Unknown',
-                    subtitle: e.department,
-                    badge: form.employeeId === e._id ? <FiCheck size={18} color={theme.colors.primary} /> : undefined
-                  }))}
-                />
-
-              </div>
-            </div>
-
             {/* Skill */}
             <div style={{ padding: '32px', background: theme.colors.surface, borderRadius: theme.radius.lg, border: '1px solid ' + theme.colors.border, boxShadow: theme.shadow.sm }}>
               <div style={{ fontWeight: 700, fontSize: '23px', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -513,6 +553,7 @@ export default function AssignSkillPage() {
                 <select
                   value={skillCategoryFilter}
                   onChange={(e) => setSkillCategoryFilter(e.target.value as '' | Skill['category'])}
+                  aria-label="Filter skills by category"
                   style={{
                     width: '100%',
                     padding: '14px 16px',
@@ -535,6 +576,7 @@ export default function AssignSkillPage() {
                 <select
                   value={skillDomainFilter}
                   onChange={(e) => setSkillDomainFilter(e.target.value)}
+                  aria-label="Filter skills by domain"
                   style={{
                     width: '100%',
                     padding: '14px 16px',
@@ -578,16 +620,17 @@ export default function AssignSkillPage() {
             <div style={{ padding: '32px', background: theme.colors.surface, borderRadius: theme.radius.lg, border: '1px solid ' + theme.colors.border, boxShadow: theme.shadow.sm }}>
               <div style={{ fontWeight: 700, fontSize: '23px', marginBottom: '20px' }}>Proficiency & Priority</div>
               <div style={{ marginBottom: '22px' }}>
-                <div style={{ fontSize: '16px', fontWeight: 700, color: theme.colors.muted, marginBottom: '10px' }}>Target Level</div>
+                <div style={{ fontSize: '16px', fontWeight: 700, color: 'color-mix(in srgb, var(--text) 70%, var(--muted))', marginBottom: '10px' }}>Target Level</div>
                 <LevelSelector value={form.level} onChange={(l) => setForm(f => ({ ...f, level: l }))} />
               </div>
               <div>
-                <div style={{ fontSize: '16px', fontWeight: 700, color: theme.colors.muted, marginBottom: '10px' }}>Dynamic Score (0-100)</div>
+                <div style={{ fontSize: '16px', fontWeight: 700, color: 'color-mix(in srgb, var(--text) 70%, var(--muted))', marginBottom: '10px' }}>Dynamic Score (0-100)</div>
                 <input
                   type="number"
                   min="0"
                   max="100"
                   value={form.dynamicScore}
+                  aria-label="Dynamic score from zero to one hundred"
                   onChange={(e) => setForm(f => ({ ...f, dynamicScore: Math.max(0, Math.min(100, Number(e.target.value) || 0)) }))}
                   style={{
                     width: '100%', padding: '14px 16px', borderRadius: theme.radius.sm,
@@ -625,6 +668,109 @@ export default function AssignSkillPage() {
                 </>
               ) : 'Assign Skill'}
             </button>
+
+            {/* Existing Employee Skills */}
+            <div style={{ padding: '32px', background: theme.colors.surface, borderRadius: theme.radius.lg, border: '1px solid ' + theme.colors.border, boxShadow: theme.shadow.sm }}>
+              <div style={{ fontWeight: 700, fontSize: '27px', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ width: '34px', height: '34px', borderRadius: '50%', background: theme.colors.primaryBg, color: theme.colors.primary, display: 'inline-grid', placeItems: 'center' }}>
+                  <HiOutlineAcademicCap size={20} />
+                </span>
+                Existing Skills
+              </div>
+              <div style={{ padding: '14px', borderRadius: theme.radius.sm, background: theme.colors.surface, border: '1px solid ' + theme.colors.border }}>
+                {employeeSkillsLoading ? (
+                  <div style={{ color: theme.colors.muted, fontSize: '17px', fontStyle: 'italic' }}>Loading employee skills...</div>
+                ) : employeeSkillsError ? (
+                  <div style={{ color: theme.colors.danger, fontSize: '17px', fontWeight: 700 }}>{employeeSkillsError}</div>
+                ) : selectedEmployeeSkills.length === 0 ? (
+                  <div style={{ color: theme.colors.muted, fontSize: '17px', fontStyle: 'italic' }}>No skills assigned yet</div>
+                ) : (
+                  <div style={{ display: 'grid', gap: '8px' }}>
+                    {selectedEmployeeSkills.map((s) => (
+                      <div
+                        key={s.id}
+                        style={{
+                          padding: '8px 10px',
+                          borderRadius: '10px',
+                          fontSize: '15px',
+                          fontWeight: 700,
+                          background: '#f3f4f6',
+                          border: '1px solid #e5e7eb',
+                          color: theme.colors.text,
+                          display: 'grid',
+                          gap: '8px',
+                        }}
+                        title={typeof s.dynamicScore === 'number' ? `Score: ${s.dynamicScore}` : undefined}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                          <span>
+                            {s.name} - {String(s.level || '-')}
+                            {typeof s.dynamicScore === 'number' ? ` (${s.dynamicScore}/100)` : ''}
+                          </span>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button
+                              type="button"
+                              onClick={() => startEditEmployeeSkill(s)}
+                              disabled={savingEmployeeSkill}
+                              style={{ border: '1px solid #cbd5e1', background: '#fff', borderRadius: '8px', padding: '6px 10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleDeleteEmployeeSkill(s)}
+                              disabled={savingEmployeeSkill}
+                              style={{ border: '1px solid #fecaca', background: '#fff1f2', color: '#b91c1c', borderRadius: '8px', padding: '6px 10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                        {editingEmployeeSkillId === s.id ? (
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: '6px', alignItems: 'center' }}>
+                            <select
+                              value={editingLevel}
+                              onChange={(e) => setEditingLevel(e.target.value as SkillLevel)}
+                              style={{ height: '36px', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0 8px', fontSize: '13px', fontWeight: 700 }}
+                            >
+                              <option value="LOW">Low</option>
+                              <option value="MEDIUM">Medium</option>
+                              <option value="HIGH">High</option>
+                              <option value="EXPERT">Expert</option>
+                            </select>
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={editingScore}
+                              onChange={(e) => setEditingScore(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+                              style={{ height: '36px', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0 8px', fontSize: '13px', fontWeight: 700 }}
+                              placeholder="Score"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => void saveEmployeeSkillChanges(s)}
+                              disabled={savingEmployeeSkill}
+                              style={{ border: '1px solid #a7f3d0', background: '#ecfdf5', color: '#065f46', borderRadius: '8px', padding: '6px 10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
+                            >
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              onClick={cancelEditEmployeeSkill}
+                              disabled={savingEmployeeSkill}
+                              style={{ border: '1px solid #cbd5e1', background: '#fff', borderRadius: '8px', padding: '6px 10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </form>
 
           {/* Live Preview */}

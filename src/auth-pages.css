@@ -68,13 +68,13 @@
 
 .auth-brand-mark {
   font-weight: 900;
-  font-size: 34px;
+  font-size: calc(34px * var(--app-font-scale));
   letter-spacing: -0.5px;
 }
 
 .auth-hero-title {
   margin: 10px 0 0 0;
-  font-size: 44px;
+  font-size: calc(44px * var(--app-font-scale));
   line-height: 1.05;
   font-weight: 900;
   letter-spacing: -0.6px;
@@ -83,7 +83,7 @@
 .auth-hero-sub {
   margin: 0;
   max-width: 520px;
-  font-size: 15px;
+  font-size: calc(15px * var(--app-font-scale));
   line-height: 1.6;
   opacity: 0.92;
 }
@@ -115,7 +115,7 @@
 
 .auth-left-foot {
   margin-top: 26px;
-  font-size: 13px;
+  font-size: calc(13px * var(--app-font-scale));
   opacity: 0.8;
 }
 
@@ -210,7 +210,7 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-size: 22px;
+  font-size: calc(22px * var(--app-font-scale));
   font-weight: 900;
   color: #0f172a;
 }
@@ -227,7 +227,7 @@
 
 .auth-title {
   margin-top: 16px;
-  font-size: 30px;
+  font-size: calc(30px * var(--app-font-scale));
   font-weight: 900;
   letter-spacing: -0.4px;
   color: #0f172a;
@@ -236,7 +236,7 @@
 
 .auth-sub {
   margin-top: 6px;
-  font-size: 14px;
+  font-size: calc(14px * var(--app-font-scale));
   color: #64748b;
 }
 
@@ -259,7 +259,7 @@
   background: var(--primary-weak);
   color: var(--primary-soft-text);
   font-weight: 700;
-  font-size: 14px;
+  font-size: calc(14px * var(--app-font-scale));
   line-height: 1.5;
 }
 
@@ -282,7 +282,7 @@
 }
 
 .auth-label {
-  font-size: 13px;
+  font-size: calc(13px * var(--app-font-scale));
   font-weight: 900;
   color: #0f172a;
 }
@@ -317,7 +317,7 @@
   background: linear-gradient(180deg, var(--primary) 0%, var(--primary-hover) 100%);
   color: var(--primary-on);
   font-weight: 900;
-  font-size: 15px;
+  font-size: calc(15px * var(--app-font-scale));
   cursor: pointer;
   box-shadow: 0 10px 20px var(--primary-border);
   transition: transform 0.08s ease, filter 0.12s ease;
@@ -333,7 +333,7 @@
   display: flex;
   gap: 10px;
   justify-content: center;
-  font-size: 14px;
+  font-size: calc(14px * var(--app-font-scale));
 }
 
 .auth-muted {
@@ -353,7 +353,7 @@
   margin-top: 10px;
   text-align: center;
   color: #64748b;
-  font-size: 13px;
+  font-size: calc(13px * var(--app-font-scale));
 }
 
 /* ===== Responsive ===== */

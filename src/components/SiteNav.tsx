@@ -6,7 +6,15 @@ export default function SiteNav() {
     <header className="site-topbar">
       <div className="site-container site-nav-container">
         <Link to="/" className="site-brand" aria-label="IntelliHR home">
-          <img className="site-brand-logo" src="/images/logo.png" alt="IntelliHR logo" />
+          <img
+            className="site-brand-logo"
+            src="/images/logo-64.webp"
+            alt="IntelliHR logo"
+            width={60}
+            height={60}
+            loading="eager"
+            decoding="async"
+          />
           <div className="site-brand-text">
             <h1>IntelliHR</h1>
             <p>Internal Employee Platform</p>

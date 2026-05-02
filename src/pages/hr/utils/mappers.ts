@@ -16,6 +16,5 @@ export function toEditable(u: any): EditableUser {
     manager_id: u.manager_id,
     status: u.status,
     isActive: u.isActive,
-    emailVerified: u.emailVerified,
   };
 }

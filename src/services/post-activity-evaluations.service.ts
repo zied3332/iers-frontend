@@ -23,12 +23,36 @@ export interface SkillScoreItem {
   score: number; // 1-5
 }
 
+export type AttendanceStatus = "EXCELLENT" | "GOOD" | "IRREGULAR" | "POOR";
+export type ParticipationLevel = "VERY_ACTIVE" | "ACTIVE" | "MODERATE" | "LOW";
+export type SkillProgress = "STRONG" | "MODERATE" | "SLIGHT" | "NONE";
+export type EvaluationOutcome =
+  | "COMPLETED_SUCCESSFULLY"
+  | "NEEDS_FOLLOW_UP"
+  | "DID_NOT_COMPLETE";
+export type Recommendation =
+  | "ADVANCED_TRAINING"
+  | "PROJECT_ASSIGNMENT"
+  | "MENTORING"
+  | "RETRY_LATER";
+
+export interface ManagerAssessmentPayload {
+  attendanceStatus: AttendanceStatus;
+  participationLevel: ParticipationLevel;
+  skillProgress: SkillProgress;
+  outcome: EvaluationOutcome;
+  recommendation: Recommendation;
+  rating: number;
+  comment?: string;
+}
+
 export interface CreateEvaluationPayload {
   activityId: string;
   employeeId: string;
   presence: EvaluationPresence;
   feedback?: string;
   skillScores?: SkillScoreItem[];
+  managerAssessment?: ManagerAssessmentPayload;
 }
 
 export interface PostActivityEvaluation {
@@ -39,6 +63,7 @@ export interface PostActivityEvaluation {
   presence: EvaluationPresence;
   feedback: string;
   skillScores: Array<{ skillId: any; score: number }>;
+  managerAssessment?: ManagerAssessmentPayload;
   createdAt: string;
 }
 
@@ -50,6 +75,7 @@ export interface ActivityEvalProgress {
     startDate: string;
     endDate: string;
     status: string;
+    managerEvaluationFinalizedAt?: string | null;
   };
   totalParticipants: number;
   reviewedCount: number;
@@ -79,6 +105,11 @@ export async function getCompletedActivitiesForEvaluation(): Promise<ActivityEva
   return api("/post-evaluations/activities");
 }
 
+/** List activities already finalized by manager */
+export async function getFinalizedActivitiesForEvaluation(): Promise<ActivityEvalProgress[]> {
+  return api("/post-evaluations/finalized");
+}
+
 /** Get participants + their eval status for one activity */
 export async function getParticipantsForEvaluation(
   activityId: string
@@ -89,7 +120,7 @@ export async function getParticipantsForEvaluation(
 /** Submit one evaluation */
 export async function submitEvaluation(
   payload: CreateEvaluationPayload
-): Promise<{ message: string; evaluation: PostActivityEvaluation }> {
+): Promise<{ message: string; evaluation: PostActivityEvaluation; action?: "created" | "updated" }> {
   return api("/post-evaluations", {
     method: "POST",
     body: JSON.stringify(payload),
@@ -103,6 +134,15 @@ export async function submitBulkEvaluations(
   return api("/post-evaluations/bulk", {
     method: "POST",
     body: JSON.stringify({ evaluations }),
+  });
+}
+
+/** Manager finalizes evaluations and sends them to HR/super manager */
+export async function finalizeActivityEvaluations(
+  activityId: string
+): Promise<{ message: string; activity: any }> {
+  return api(`/post-evaluations/activity/${activityId}/finalize`, {
+    method: "POST",
   });
 }
 

@@ -6,14 +6,13 @@ import {
 } from "../../services/activities.service";
 import {
   getActivityStaffingStatus,
-  getNextBackupCandidates,
+  
 } from "../../services/activityInvitations.service";
 import {
   getActivityReview,
   saveHrShortlist,
   submitHrShortlistToManager,
 } from "../../services/activityReviews.service";
-import { getCandidates } from "../../services/hrCopilot.service";
 import type { CandidateItem } from "../../types/hr-copilot";
 import type { ActivityReviewRecord } from "../../types/activity-review";
 import type {
@@ -56,7 +55,9 @@ const SKILL_BANK = [
 ];
 
 function createSeededNumber(seed: string, min: number, max: number) {
-  const seedValue = seed.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const seedValue = seed
+    .split("")
+    .reduce((acc, char) => acc + (char.codePointAt(0) ?? 0), 0);
   const value = Math.abs(Math.sin(seedValue) * 10000);
   return Math.floor(min + (value % (max - min + 1)));
 }
@@ -115,7 +116,287 @@ function getAvailabilityOrder(availability: CandidateInsight["availability"]) {
   return 2;
 }
 
+function getSelectedCandidates(
+  primaryCandidates: CandidateItem[],
+  selectedPrimaryIds: string[]
+) {
+  return primaryCandidates.filter((candidate) =>
+    selectedPrimaryIds.includes(candidate.employeeId)
+  );
+}
+
+function computeQualityCheckIssues(
+  statusData: ActivityStaffingStatusResponse | null,
+  selectedPrimaryIds: string[],
+  primaryCandidates: CandidateItem[],
+  backupCandidatesCount: number
+) {
+  if (!statusData) return [];
+
+  const issues: string[] = [];
+  if (selectedPrimaryIds.length === 0) {
+    issues.push("No candidate selected.");
+  }
+  if (selectedPrimaryIds.length < statusData.seatsRequired) {
+    issues.push(
+      `Selected candidates are fewer than required seats (${statusData.seatsRequired}).`
+    );
+  }
+
+  const selectedCandidates = getSelectedCandidates(primaryCandidates, selectedPrimaryIds);
+  const overloadedCount = selectedCandidates.filter((candidate) => {
+    const insight = getDummyCandidateInsight(candidate);
+    return insight.availability === "Overloaded" || insight.workload === "High";
+  }).length;
+  if (overloadedCount > 0) {
+    issues.push(`${overloadedCount} selected candidate(s) show high workload risk.`);
+  }
+
+  const lowAcceptanceCount = selectedCandidates.filter((candidate) => {
+    const insight = getDummyCandidateInsight(candidate);
+    return insight.acceptanceChance < 65;
+  }).length;
+  if (lowAcceptanceCount > 0) {
+    issues.push(
+      `${lowAcceptanceCount} selected candidate(s) have low acceptance probability.`
+    );
+  }
+
+  if (backupCandidatesCount === 0 && statusData.emptySeats > 0) {
+    issues.push("No backup recommendations available for open seats.");
+  }
+  return issues;
+}
+
+function computeRecommendedAction(
+  statusData: ActivityStaffingStatusResponse | null,
+  selectedPrimaryIds: string[],
+  primaryCandidates: CandidateItem[]
+) {
+  if (!statusData) return "Review the shortlist before sending.";
+  if (selectedPrimaryIds.length === 0) {
+    return "Select candidates to start building the shortlist.";
+  }
+  if (selectedPrimaryIds.length < statusData.seatsRequired) {
+    return `Add ${statusData.seatsRequired - selectedPrimaryIds.length} more candidate(s) to cover all seats.`;
+  }
+
+  const selectedCandidates = getSelectedCandidates(primaryCandidates, selectedPrimaryIds);
+  const highRiskCount = selectedCandidates.filter((candidate) => {
+    const insight = getDummyCandidateInsight(candidate);
+    return insight.riskLevel === "High";
+  }).length;
+  if (highRiskCount > 0) {
+    return `Consider replacing ${highRiskCount} high-risk selected candidate(s).`;
+  }
+
+  const lowAcceptanceCount = selectedCandidates.filter((candidate) => {
+    const insight = getDummyCandidateInsight(candidate);
+    return insight.acceptanceChance < 65;
+  }).length;
+  if (lowAcceptanceCount > 0) {
+    return "Consider adding one stronger backup because acceptance confidence is low.";
+  }
+  return "Shortlist looks strong and ready for manager review.";
+}
+
+function computeShortlistSummary(
+  selectedCandidates: CandidateItem[],
+  seatsRequired: number
+) {
+  const avgScore =
+    selectedCandidates.length > 0
+      ? Math.round(
+          selectedCandidates.reduce(
+            (sum, candidate) => sum + (candidate.finalScore ?? 0),
+            0
+          ) / selectedCandidates.length
+        )
+      : 0;
+
+  const availableCount = selectedCandidates.filter((candidate) => {
+    const insight = getDummyCandidateInsight(candidate);
+    return insight.availability === "Available";
+  }).length;
+  const lowRiskCount = selectedCandidates.filter((candidate) => {
+    const insight = getDummyCandidateInsight(candidate);
+    return insight.riskLevel === "Low";
+  }).length;
+  const likelyAcceptCount = selectedCandidates.filter((candidate) => {
+    const insight = getDummyCandidateInsight(candidate);
+    return insight.acceptanceChance >= 75;
+  }).length;
+
+  return {
+    selectedCount: selectedCandidates.length,
+    avgScore,
+    availableCount,
+    lowRiskCount,
+    likelyAcceptCount,
+    missingSeats: Math.max(0, seatsRequired - selectedCandidates.length),
+  };
+}
+
+function computeFilteredCandidates(params: {
+  primaryCandidates: CandidateItem[];
+  searchTerm: string;
+  selectedPrimaryIds: string[];
+  showSelectedOnly: boolean;
+  showAvailableOnly: boolean;
+  showLowRiskOnly: boolean;
+  sortBy: SortOption;
+}) {
+  const {
+    primaryCandidates,
+    searchTerm,
+    selectedPrimaryIds,
+    showSelectedOnly,
+    showAvailableOnly,
+    showLowRiskOnly,
+    sortBy,
+  } = params;
+  let candidates = [...primaryCandidates];
+
+  if (searchTerm.trim()) {
+    const q = searchTerm.trim().toLowerCase();
+    candidates = candidates.filter((candidate) =>
+      candidate.name?.toLowerCase().includes(q)
+    );
+  }
+  if (showSelectedOnly) {
+    candidates = candidates.filter((candidate) =>
+      selectedPrimaryIds.includes(candidate.employeeId)
+    );
+  }
+  if (showAvailableOnly) {
+    candidates = candidates.filter((candidate) => {
+      const insight = getDummyCandidateInsight(candidate);
+      return insight.availability === "Available";
+    });
+  }
+  if (showLowRiskOnly) {
+    candidates = candidates.filter((candidate) => {
+      const insight = getDummyCandidateInsight(candidate);
+      return insight.riskLevel === "Low";
+    });
+  }
+
+  candidates.sort((a, b) => {
+    const insightA = getDummyCandidateInsight(a);
+    const insightB = getDummyCandidateInsight(b);
+    switch (sortBy) {
+      case "acceptance-desc":
+        return insightB.acceptanceChance - insightA.acceptanceChance;
+      case "risk-asc":
+        return getRiskOrder(insightA.riskLevel) - getRiskOrder(insightB.riskLevel);
+      case "availability":
+        return (
+          getAvailabilityOrder(insightA.availability) -
+          getAvailabilityOrder(insightB.availability)
+        );
+      case "name-asc":
+        return (a.name || "").localeCompare(b.name || "");
+      case "score-desc":
+      default:
+        return (b.finalScore ?? 0) - (a.finalScore ?? 0);
+    }
+  });
+
+  return candidates;
+}
+
+function getInitialSelectedPrimaryIds(
+  review: ActivityReviewRecord | null,
+  primaries: CandidateItem[]
+) {
+  if (review?.hrSelectedEmployeeIds?.length) {
+    return review.hrSelectedEmployeeIds;
+  }
+  if (primaries.length > 0) {
+    return primaries.map((candidate) => candidate.employeeId);
+  }
+  return [];
+}
+
+async function fetchStaffingPageData(activityId: string) {
+  const [staffingResult, reviewResult, activityResult] =
+    await Promise.allSettled([
+      getActivityStaffingStatus(activityId),
+      getActivityReview(activityId),
+      getActivityById(activityId),
+    ]);
+
+  const staffing =
+    staffingResult.status === "fulfilled" ? staffingResult.value : null;
+
+  const review =
+    reviewResult.status === "fulfilled" ? reviewResult.value : null;
+
+  const activity =
+    activityResult.status === "fulfilled" ? activityResult.value : null;
+
+  const reviewAny: any = review as any;
+
+  const snapshotCandidates: CandidateItem[] =
+    reviewAny?.hrCandidateSnapshots?.map((c: any, index: number) => ({
+      employeeId: c.employeeId,
+      name: c.fullName || `Employee ${String(c.employeeId).slice(-6)}`,
+      finalScore: Math.round(Number(c.finalScore || 0)),
+      shortReason: c.explanation || "Suggested by HR for this activity.",
+      rank: c.rank || index + 1,
+      recommendationType: c.decision || "HR_SHORTLIST",
+    })) || [];
+
+  return {
+    staffing,
+    review,
+    activity,
+    primaries: snapshotCandidates,
+    backupCandidates: [],
+    availableBackups: [],
+  };
+}
+function getErrorMessage(err: any, fallback: string) {
+  return err?.response?.data?.message || err?.message || fallback;
+}
+
+function getNextCompareIds(prev: string[], employeeId: string) {
+  if (prev.includes(employeeId)) {
+    return prev.filter((id) => id !== employeeId);
+  }
+  if (prev.length >= 3) {
+    return [...prev.slice(1), employeeId];
+  }
+  return [...prev, employeeId];
+}
+
+function getAvailabilityToneFromInsight(insight: CandidateInsight) {
+  if (insight.availability === "Available") return "#166534";
+  if (insight.availability === "Busy soon") return "#b45309";
+  return "#b91c1c";
+}
+
+function getRiskBadgeStylesForRisk(risk: CandidateInsight["riskLevel"]) {
+  if (risk === "Low") {
+    return { background: "#ecfdf3", color: "#166534" };
+  }
+  if (risk === "Medium") {
+    return { background: "#fff7ed", color: "#b45309" };
+  }
+  return { background: "#fef2f2", color: "#b91c1c" };
+}
+
+function isRosterReadyAwaitingHr(activityRecord: ActivityRecord | null): boolean {
+  if (!activityRecord?.rosterReadyForHrAt) return false;
+  if (activityRecord?.hrFinalLaunchAt) return false;
+  return true;
+}
+
 export default function ActivityStaffingPage() {
+  return <ActivityStaffingPageContent />;
+}
+
+function ActivityStaffingPageContent() {
   const { activityId = "" } = useParams();
   const navigate = useNavigate();
 
@@ -159,38 +440,25 @@ export default function ActivityStaffingPage() {
     try {
       setError("");
       setLoading(true);
-
-      const [staffing, recommendations, nextBackups, review, activity] =
-        await Promise.all([
-          getActivityStaffingStatus(activityId),
-          getCandidates(activityId),
-          getNextBackupCandidates(activityId, 10),
-          getActivityReview(activityId),
-          getActivityById(activityId),
-        ]);
-
+      const {
+        staffing,
+        review,
+        activity,
+        primaries,
+        backupCandidates: nextBackupCandidates,
+        availableBackups: nextAvailableBackups,
+      } = await fetchStaffingPageData(activityId);
       setStatusData(staffing);
       setActivityRecord(activity);
       setActivityReview(review);
       setHrInvitationResponseDays(staffing.hrInvitationResponseDays ?? 3);
-
-      const primaries = recommendations.primaryCandidates || [];
       setPrimaryCandidates(primaries);
-      setBackupCandidates(recommendations.backupCandidates || []);
-      setAvailableBackups(nextBackups.availableBackups || []);
-
-      if (review?.hrSelectedEmployeeIds?.length) {
-        setSelectedPrimaryIds(review.hrSelectedEmployeeIds);
-      } else if (primaries.length > 0) {
-        setSelectedPrimaryIds(primaries.map((c) => c.employeeId));
-      } else {
-        setSelectedPrimaryIds([]);
-      }
+      setBackupCandidates(nextBackupCandidates);
+      setAvailableBackups(nextAvailableBackups);
+      setSelectedPrimaryIds(getInitialSelectedPrimaryIds(review, primaries));
     } catch (err: any) {
       console.error(err);
-      setError(
-        err?.response?.data?.message || "Failed to load staffing dashboard."
-      );
+      setError(getErrorMessage(err, "Failed to load staffing dashboard."));
     } finally {
       setLoading(false);
     }
@@ -214,9 +482,7 @@ export default function ActivityStaffingPage() {
     );
   }, [activityRecord]);
 
-  const rosterReadyAwaitingHr = Boolean(
-    activityRecord?.rosterReadyForHrAt && !activityRecord?.hrFinalLaunchAt
-  );
+  const rosterReadyAwaitingHr = isRosterReadyAwaitingHr(activityRecord);
 
   const invitedEmployeeIds = useMemo(() => {
     return new Set((statusData?.invitations || []).map((inv) => inv.employeeId));
@@ -231,15 +497,7 @@ export default function ActivityStaffingPage() {
   };
 
   const toggleCompareSelection = (employeeId: string) => {
-    setCompareIds((prev) => {
-      if (prev.includes(employeeId)) {
-        return prev.filter((id) => id !== employeeId);
-      }
-      if (prev.length >= 3) {
-        return [...prev.slice(1), employeeId];
-      }
-      return [...prev, employeeId];
-    });
+    setCompareIds((prev) => getNextCompareIds(prev, employeeId));
   };
 
   const openCandidateInsights = (candidate: CandidateItem) => {
@@ -305,7 +563,7 @@ export default function ActivityStaffingPage() {
       setSuccess("Shortlist sent to manager successfully.");
     } catch (err: any) {
       console.error(err);
-      setError(err?.message || "Failed to send candidates to manager.");
+      setError(getErrorMessage(err, "Failed to send candidates to manager."));
     } finally {
       setSendingToManager(false);
     }
@@ -356,177 +614,38 @@ export default function ActivityStaffingPage() {
   }, [activeCandidate]);
 
   const qualityCheckIssues = useMemo(() => {
-    if (!statusData) return [];
-
-    const issues: string[] = [];
-
-    if (selectedPrimaryIds.length === 0) {
-      issues.push("No candidate selected.");
-    }
-
-    if (selectedPrimaryIds.length < statusData.seatsRequired) {
-      issues.push(
-        `Selected candidates are fewer than required seats (${statusData.seatsRequired}).`
-      );
-    }
-
-    const selectedCandidates = primaryCandidates.filter((candidate) =>
-      selectedPrimaryIds.includes(candidate.employeeId)
+    return computeQualityCheckIssues(
+      statusData,
+      selectedPrimaryIds,
+      primaryCandidates,
+      backupCandidates.length
     );
-
-    const overloadedCount = selectedCandidates.filter((candidate) => {
-      const insight = getDummyCandidateInsight(candidate);
-      return insight.availability === "Overloaded" || insight.workload === "High";
-    }).length;
-
-    if (overloadedCount > 0) {
-      issues.push(`${overloadedCount} selected candidate(s) show high workload risk.`);
-    }
-
-    const lowAcceptanceCount = selectedCandidates.filter((candidate) => {
-      const insight = getDummyCandidateInsight(candidate);
-      return insight.acceptanceChance < 65;
-    }).length;
-
-    if (lowAcceptanceCount > 0) {
-      issues.push(
-        `${lowAcceptanceCount} selected candidate(s) have low acceptance probability.`
-      );
-    }
-
-    if (backupCandidates.length === 0 && statusData.emptySeats > 0) {
-      issues.push("No backup recommendations available for open seats.");
-    }
-
-    return issues;
   }, [backupCandidates.length, primaryCandidates, selectedPrimaryIds, statusData]);
 
   const qualityCheckOk = qualityCheckIssues.length === 0;
 
   const recommendedAction = useMemo(() => {
-    if (!statusData) return "Review the shortlist before sending.";
-    if (selectedPrimaryIds.length === 0) {
-      return "Select candidates to start building the shortlist.";
-    }
-    if (selectedPrimaryIds.length < statusData.seatsRequired) {
-      return `Add ${statusData.seatsRequired - selectedPrimaryIds.length} more candidate(s) to cover all seats.`;
-    }
-
-    const selectedCandidates = primaryCandidates.filter((candidate) =>
-      selectedPrimaryIds.includes(candidate.employeeId)
-    );
-
-    const highRiskCount = selectedCandidates.filter((candidate) => {
-      const insight = getDummyCandidateInsight(candidate);
-      return insight.riskLevel === "High";
-    }).length;
-
-    if (highRiskCount > 0) {
-      return `Consider replacing ${highRiskCount} high-risk selected candidate(s).`;
-    }
-
-    const lowAcceptanceCount = selectedCandidates.filter((candidate) => {
-      const insight = getDummyCandidateInsight(candidate);
-      return insight.acceptanceChance < 65;
-    }).length;
-
-    if (lowAcceptanceCount > 0) {
-      return "Consider adding one stronger backup because acceptance confidence is low.";
-    }
-
-    return "Shortlist looks strong and ready for manager review.";
+    return computeRecommendedAction(statusData, selectedPrimaryIds, primaryCandidates);
   }, [primaryCandidates, selectedPrimaryIds, statusData]);
 
   const selectedCandidates = useMemo(() => {
-    return primaryCandidates.filter((candidate) =>
-      selectedPrimaryIds.includes(candidate.employeeId)
-    );
+    return getSelectedCandidates(primaryCandidates, selectedPrimaryIds);
   }, [primaryCandidates, selectedPrimaryIds]);
 
   const shortlistSummary = useMemo(() => {
-    const avgScore =
-      selectedCandidates.length > 0
-        ? Math.round(
-            selectedCandidates.reduce((sum, candidate) => sum + (candidate.finalScore ?? 0), 0) /
-              selectedCandidates.length
-          )
-        : 0;
-
-    const availableCount = selectedCandidates.filter((candidate) => {
-      const insight = getDummyCandidateInsight(candidate);
-      return insight.availability === "Available";
-    }).length;
-
-    const lowRiskCount = selectedCandidates.filter((candidate) => {
-      const insight = getDummyCandidateInsight(candidate);
-      return insight.riskLevel === "Low";
-    }).length;
-
-    const likelyAcceptCount = selectedCandidates.filter((candidate) => {
-      const insight = getDummyCandidateInsight(candidate);
-      return insight.acceptanceChance >= 75;
-    }).length;
-
-    return {
-      selectedCount: selectedCandidates.length,
-      avgScore,
-      availableCount,
-      lowRiskCount,
-      likelyAcceptCount,
-      missingSeats: Math.max(0, (statusData?.seatsRequired ?? 0) - selectedCandidates.length),
-    };
+    return computeShortlistSummary(selectedCandidates, statusData?.seatsRequired ?? 0);
   }, [selectedCandidates, statusData?.seatsRequired]);
 
   const filteredPrimaryCandidates = useMemo(() => {
-    let candidates = [...primaryCandidates];
-
-    if (searchTerm.trim()) {
-      const q = searchTerm.trim().toLowerCase();
-      candidates = candidates.filter((candidate) =>
-        candidate.name?.toLowerCase().includes(q)
-      );
-    }
-
-    if (showSelectedOnly) {
-      candidates = candidates.filter((candidate) =>
-        selectedPrimaryIds.includes(candidate.employeeId)
-      );
-    }
-
-    if (showAvailableOnly) {
-      candidates = candidates.filter((candidate) => {
-        const insight = getDummyCandidateInsight(candidate);
-        return insight.availability === "Available";
-      });
-    }
-
-    if (showLowRiskOnly) {
-      candidates = candidates.filter((candidate) => {
-        const insight = getDummyCandidateInsight(candidate);
-        return insight.riskLevel === "Low";
-      });
-    }
-
-    candidates.sort((a, b) => {
-      const insightA = getDummyCandidateInsight(a);
-      const insightB = getDummyCandidateInsight(b);
-
-      switch (sortBy) {
-        case "acceptance-desc":
-          return insightB.acceptanceChance - insightA.acceptanceChance;
-        case "risk-asc":
-          return getRiskOrder(insightA.riskLevel) - getRiskOrder(insightB.riskLevel);
-        case "availability":
-          return getAvailabilityOrder(insightA.availability) - getAvailabilityOrder(insightB.availability);
-        case "name-asc":
-          return (a.name || "").localeCompare(b.name || "");
-        case "score-desc":
-        default:
-          return (b.finalScore ?? 0) - (a.finalScore ?? 0);
-      }
+    return computeFilteredCandidates({
+      primaryCandidates,
+      searchTerm,
+      selectedPrimaryIds,
+      showSelectedOnly,
+      showAvailableOnly,
+      showLowRiskOnly,
+      sortBy,
     });
-
-    return candidates;
   }, [
     primaryCandidates,
     searchTerm,
@@ -557,10 +676,19 @@ export default function ActivityStaffingPage() {
     width: "min(920px, 100%)",
     maxHeight: "85vh",
     overflow: "auto",
-    background: "#fff",
+    background: "var(--card)",
+    color: "var(--text)",
+    border: "1px solid var(--border)",
     borderRadius: 24,
     boxShadow: "0 24px 60px rgba(15, 23, 42, 0.18)",
     padding: 24,
+  };
+  const overlayCloseButtonStyle: React.CSSProperties = {
+    position: "absolute",
+    inset: 0,
+    border: "none",
+    background: "transparent",
+    cursor: "pointer",
   };
 
   const modalHeaderStyle: React.CSSProperties = {
@@ -572,8 +700,9 @@ export default function ActivityStaffingPage() {
   };
 
   const closeBtnStyle: React.CSSProperties = {
-    border: "1px solid #dbe3ef",
-    background: "#fff",
+    border: "1px solid var(--border)",
+    background: "var(--surface-2)",
+    color: "var(--text)",
     borderRadius: 12,
     padding: "8px 12px",
     cursor: "pointer",
@@ -582,19 +711,48 @@ export default function ActivityStaffingPage() {
 
   const getAvailabilityTone = (candidate: CandidateItem) => {
     const insight = getDummyCandidateInsight(candidate);
-    if (insight.availability === "Available") return "#166534";
-    if (insight.availability === "Busy soon") return "#b45309";
-    return "#b91c1c";
+    return getAvailabilityToneFromInsight(insight);
   };
 
   const getRiskBadgeStyles = (risk: CandidateInsight["riskLevel"]) => {
-    if (risk === "Low") {
-      return { background: "#ecfdf3", color: "#166534" };
+    return getRiskBadgeStylesForRisk(risk);
+  };
+
+  const renderPrimaryActionButton = () => {
+    if (staffingLocked) {
+      return (
+        <button
+          type="button"
+          className="primary-staffing-btn"
+          onClick={() => navigate(`/hr/activities/${activityId}/manager-decisions`)}
+        >
+          View manager list
+        </button>
+      );
     }
-    if (risk === "Medium") {
-      return { background: "#fff7ed", color: "#b45309" };
+
+    if (listSentToManager) {
+      return (
+        <button
+          type="button"
+          className="primary-staffing-btn"
+          onClick={() => navigate(`/hr/activities/${activityId}/manager-decisions`)}
+        >
+          Open manager list
+        </button>
+      );
     }
-    return { background: "#fef2f2", color: "#b91c1c" };
+
+    return (
+      <button
+        type="button"
+        className="primary-staffing-btn"
+        onClick={handleSendToManager}
+        disabled={sendingToManager || selectedPrimaryIds.length === 0}
+      >
+        {sendingToManager ? "Sending..." : "Send to manager"}
+      </button>
+    );
   };
 
   return (
@@ -605,7 +763,7 @@ export default function ActivityStaffingPage() {
             <span className="staffing-kicker">HR staffing</span>
             <h1>{statusData?.activityTitle || "Loading activity..."}</h1>
             {!loading && statusData ? (
-              <p style={{ margin: "8px 0 0", color: "#64748b", fontSize: 14 }}>
+              <p style={{ margin: "8px 0 0", color: "var(--muted)", fontSize: 14 }}>
                 {selectedPrimaryIds.length} selected • {compareCandidates.length} in compare •{" "}
                 {qualityCheckOk ? "Ready to send" : "Needs attention"}
               </p>
@@ -661,7 +819,7 @@ export default function ActivityStaffingPage() {
         {success ? <div className="staffing-success">{success}</div> : null}
 
         {staffingLocked ? (
-          <div className="staffing-locked-banner" role="status">
+          <output className="staffing-locked-banner" aria-live="polite">
             <strong>Activity in progress</strong>
             <p>
               Staffing is closed. Open{" "}
@@ -673,11 +831,11 @@ export default function ActivityStaffingPage() {
               </Link>
               .
             </p>
-          </div>
+          </output>
         ) : null}
 
         {!staffingLocked && rosterReadyAwaitingHr ? (
-          <div className="staffing-roster-ready-banner" role="status">
+          <output className="staffing-roster-ready-banner" aria-live="polite">
             <strong>Roster ready</strong>
             <p>
               Open{" "}
@@ -689,15 +847,22 @@ export default function ActivityStaffingPage() {
               </Link>{" "}
               and run final validation.
             </p>
-          </div>
+          </output>
         ) : null}
 
-        {loading ? (
-          <div className="staffing-loading-card">Loading staffing dashboard...</div>
-        ) : !statusData ? (
-          <div className="staffing-loading-card">No activity data found.</div>
-        ) : (
-          <>
+        {(() => {
+          if (loading) {
+            return (
+              <div className="staffing-loading-card">Loading staffing dashboard...</div>
+            );
+          }
+
+          if (!statusData) {
+            return <div className="staffing-loading-card">No activity data found.</div>;
+          }
+
+          return (
+            <>
             <div
               className="staffing-stats-grid"
               style={{ gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}
@@ -731,7 +896,9 @@ export default function ActivityStaffingPage() {
                 border: qualityCheckOk
                   ? "1px solid rgba(34,197,94,0.22)"
                   : "1px solid rgba(245,158,11,0.28)",
-                background: qualityCheckOk ? "#f0fdf4" : "#fffaf0",
+                background: qualityCheckOk
+                  ? "color-mix(in srgb, var(--surface-2) 88%, #22c55e)"
+                  : "color-mix(in srgb, var(--surface-2) 88%, #f59e0b)",
                 borderRadius: 20,
                 padding: 18,
               }}
@@ -758,8 +925,10 @@ export default function ActivityStaffingPage() {
                     borderRadius: 999,
                     fontSize: 12,
                     fontWeight: 700,
-                    background: qualityCheckOk ? "#dcfce7" : "#fef3c7",
-                    color: qualityCheckOk ? "#166534" : "#92400e",
+                  background: qualityCheckOk
+                    ? "color-mix(in srgb, var(--surface-2) 85%, #22c55e)"
+                    : "color-mix(in srgb, var(--surface-2) 85%, #f59e0b)",
+                  color: "var(--text)",
                   }}
                 >
                   {qualityCheckOk ? "Ready to send" : `${qualityCheckIssues.length} warning(s)`}
@@ -769,11 +938,11 @@ export default function ActivityStaffingPage() {
               <div
                 style={{
                   marginTop: 12,
-                  background: "#fff",
+                  background: "var(--card)",
                   borderRadius: 14,
                   padding: "10px 12px",
                   fontSize: 14,
-                  color: qualityCheckOk ? "#166534" : "#92400e",
+                  color: "var(--text)",
                   border: qualityCheckOk
                     ? "1px solid rgba(34,197,94,0.14)"
                     : "1px solid rgba(245,158,11,0.16)",
@@ -784,16 +953,16 @@ export default function ActivityStaffingPage() {
 
               {qualityCheckIssues.length > 0 ? (
                 <div style={{ display: "grid", gap: 8, marginTop: 14 }}>
-                  {qualityCheckIssues.map((issue, index) => (
+                  {qualityCheckIssues.map((issue) => (
                     <div
-                      key={index}
+                      key={issue}
                       style={{
-                        background: "#fff",
+                        background: "var(--card)",
                         border: "1px solid rgba(245,158,11,0.18)",
                         borderRadius: 14,
                         padding: "10px 12px",
                         fontSize: 14,
-                        color: "#92400e",
+                        color: "var(--text)",
                       }}
                     >
                       {issue}
@@ -804,12 +973,12 @@ export default function ActivityStaffingPage() {
                 <div
                   style={{
                     marginTop: 14,
-                    background: "#fff",
+                    background: "var(--card)",
                     border: "1px solid rgba(34,197,94,0.16)",
                     borderRadius: 14,
                     padding: "10px 12px",
                     fontSize: 14,
-                    color: "#166534",
+                    color: "var(--text)",
                   }}
                 >
                   The current shortlist looks balanced and ready for manager review.
@@ -875,10 +1044,12 @@ export default function ActivityStaffingPage() {
                     style={{
                       width: "100%",
                       borderRadius: 14,
-                      border: "1px solid #dbe3ef",
+                      border: "1px solid var(--border)",
                       padding: "12px 14px",
                       fontSize: 14,
                       outline: "none",
+                      background: "var(--card)",
+                      color: "var(--text)",
                     }}
                   />
 
@@ -887,10 +1058,11 @@ export default function ActivityStaffingPage() {
                     onChange={(e) => setSortBy(e.target.value as SortOption)}
                     style={{
                       borderRadius: 14,
-                      border: "1px solid #dbe3ef",
+                      border: "1px solid var(--border)",
                       padding: "12px 14px",
                       fontSize: 14,
-                      background: "#fff",
+                      background: "var(--card)",
+                      color: "var(--text)",
                     }}
                   >
                     <option value="score-desc">Sort: Score</option>
@@ -954,6 +1126,12 @@ export default function ActivityStaffingPage() {
                       const compareSelected = compareIds.includes(candidate.employeeId);
                       const selectionLocked =
                         listSentToManager || alreadyInvited || staffingLocked;
+                      let selectionLabel = "Select";
+                      if (listSentToManager) {
+                        selectionLabel = "Already sent";
+                      } else if (alreadyInvited) {
+                        selectionLabel = "Already invited";
+                      }
 
                       const insight = getDummyCandidateInsight(candidate);
                       const riskStyles = getRiskBadgeStyles(insight.riskLevel);
@@ -1020,7 +1198,7 @@ export default function ActivityStaffingPage() {
                                   gap: 10,
                                   flexWrap: "wrap",
                                   marginTop: 10,
-                                  color: "#64748b",
+                                  color: "var(--muted)",
                                   fontSize: 13,
                                 }}
                               >
@@ -1050,13 +1228,7 @@ export default function ActivityStaffingPage() {
                                   togglePrimarySelection(candidate.employeeId)
                                 }
                               />
-                              <span>
-                                {listSentToManager
-                                  ? "Already sent"
-                                  : alreadyInvited
-                                  ? "Already invited"
-                                  : "Select"}
-                              </span>
+                              <span>{selectionLabel}</span>
                             </label>
 
                             <div
@@ -1090,38 +1262,7 @@ export default function ActivityStaffingPage() {
                   )}
                 </div>
 
-                {staffingLocked ? (
-                  <button
-                    type="button"
-                    className="primary-staffing-btn"
-                    onClick={() =>
-                      navigate(`/hr/activities/${activityId}/manager-decisions`)
-                    }
-                  >
-                    View manager list
-                  </button>
-                ) : listSentToManager ? (
-                  <button
-                    type="button"
-                    className="primary-staffing-btn"
-                    onClick={() =>
-                      navigate(`/hr/activities/${activityId}/manager-decisions`)
-                    }
-                  >
-                    Open manager list
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="primary-staffing-btn"
-                    onClick={handleSendToManager}
-                    disabled={
-                      sendingToManager || selectedPrimaryIds.length === 0 
-                    }
-                  >
-                    {sendingToManager ? "Sending..." : "Send to manager"}
-                  </button>
-                )}
+                {renderPrimaryActionButton()}
               </section>
 
               <aside
@@ -1144,7 +1285,7 @@ export default function ActivityStaffingPage() {
                         border: "1px solid rgba(148, 163, 184, 0.22)",
                         borderRadius: 18,
                         padding: 16,
-                        background: "#fff",
+                        background: "var(--card)",
                       }}
                     >
                       <div
@@ -1180,9 +1321,11 @@ export default function ActivityStaffingPage() {
                           style={{
                             width: 86,
                             borderRadius: 12,
-                            border: "1px solid #dbe3ef",
+                            border: "1px solid var(--border)",
                             padding: "10px 12px",
                             fontSize: 14,
+                            background: "var(--surface-2)",
+                            color: "var(--text)",
                           }}
                         />
                         <span style={{ fontSize: 14, opacity: 0.7 }}>days</span>
@@ -1194,7 +1337,7 @@ export default function ActivityStaffingPage() {
                         border: "1px solid rgba(148, 163, 184, 0.22)",
                         borderRadius: 18,
                         padding: 16,
-                        background: "#fff",
+                        background: "var(--card)",
                       }}
                     >
                       <div
@@ -1215,27 +1358,27 @@ export default function ActivityStaffingPage() {
                           gap: 10,
                         }}
                       >
-                        <div style={{ border: "1px solid #eef2f7", borderRadius: 14, padding: 12 }}>
+                        <div style={{ border: "1px solid var(--border)", borderRadius: 14, padding: 12 }}>
                           <div style={{ fontSize: 12, opacity: 0.7 }}>Selected</div>
                           <strong>{shortlistSummary.selectedCount}</strong>
                         </div>
-                        <div style={{ border: "1px solid #eef2f7", borderRadius: 14, padding: 12 }}>
+                        <div style={{ border: "1px solid var(--border)", borderRadius: 14, padding: 12 }}>
                           <div style={{ fontSize: 12, opacity: 0.7 }}>Avg score</div>
                           <strong>{shortlistSummary.avgScore}</strong>
                         </div>
-                        <div style={{ border: "1px solid #eef2f7", borderRadius: 14, padding: 12 }}>
+                        <div style={{ border: "1px solid var(--border)", borderRadius: 14, padding: 12 }}>
                           <div style={{ fontSize: 12, opacity: 0.7 }}>Available</div>
                           <strong>{shortlistSummary.availableCount}</strong>
                         </div>
-                        <div style={{ border: "1px solid #eef2f7", borderRadius: 14, padding: 12 }}>
+                        <div style={{ border: "1px solid var(--border)", borderRadius: 14, padding: 12 }}>
                           <div style={{ fontSize: 12, opacity: 0.7 }}>Low risk</div>
                           <strong>{shortlistSummary.lowRiskCount}</strong>
                         </div>
-                        <div style={{ border: "1px solid #eef2f7", borderRadius: 14, padding: 12 }}>
+                        <div style={{ border: "1px solid var(--border)", borderRadius: 14, padding: 12 }}>
                           <div style={{ fontSize: 12, opacity: 0.7 }}>Likely accept</div>
                           <strong>{shortlistSummary.likelyAcceptCount}</strong>
                         </div>
-                        <div style={{ border: "1px solid #eef2f7", borderRadius: 14, padding: 12 }}>
+                        <div style={{ border: "1px solid var(--border)", borderRadius: 14, padding: 12 }}>
                           <div style={{ fontSize: 12, opacity: 0.7 }}>Missing seats</div>
                           <strong>{shortlistSummary.missingSeats}</strong>
                         </div>
@@ -1247,7 +1390,7 @@ export default function ActivityStaffingPage() {
                         border: "1px solid rgba(148, 163, 184, 0.22)",
                         borderRadius: 18,
                         padding: 16,
-                        background: "#fff",
+                        background: "var(--card)",
                       }}
                     >
                       <div
@@ -1279,7 +1422,7 @@ export default function ActivityStaffingPage() {
                         border: "1px solid rgba(148, 163, 184, 0.22)",
                         borderRadius: 18,
                         padding: 16,
-                        background: "#fff",
+                        background: "var(--card)",
                       }}
                     >
                       <div
@@ -1310,7 +1453,7 @@ export default function ActivityStaffingPage() {
                                   justifyContent: "space-between",
                                   gap: 12,
                                   alignItems: "center",
-                                  border: "1px solid #eef2f7",
+                                  border: "1px solid var(--border)",
                                   borderRadius: 14,
                                   padding: "12px 14px",
                                 }}
@@ -1354,7 +1497,7 @@ export default function ActivityStaffingPage() {
                         border: "1px solid rgba(148, 163, 184, 0.22)",
                         borderRadius: 18,
                         padding: 16,
-                        background: "#fff",
+                        background: "var(--card)",
                       }}
                     >
                       <div
@@ -1401,7 +1544,7 @@ export default function ActivityStaffingPage() {
                                 alignItems: "center",
                                 justifyContent: "space-between",
                                 gap: 12,
-                                border: "1px solid #eef2f7",
+                                border: "1px solid var(--border)",
                                 borderRadius: 12,
                                 padding: "10px 12px",
                               }}
@@ -1425,13 +1568,20 @@ export default function ActivityStaffingPage() {
                 </div>
               </aside>
             </div>
-          </>
-        )}
+            </>
+          );
+        })()}
       </div>
 
       {showBackupModal ? (
-        <div style={modalOverlayStyle} onClick={() => setShowBackupModal(false)}>
-          <div style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
+        <div style={modalOverlayStyle}>
+          <button
+            type="button"
+            style={overlayCloseButtonStyle}
+            aria-label="Close backup recommendations"
+            onClick={() => setShowBackupModal(false)}
+          />
+          <div style={modalCardStyle}>
             <div style={modalHeaderStyle}>
               <div>
                 <h2 style={{ margin: 0 }}>Backup recommendations</h2>
@@ -1492,8 +1642,14 @@ export default function ActivityStaffingPage() {
       ) : null}
 
       {showPoolModal ? (
-        <div style={modalOverlayStyle} onClick={() => setShowPoolModal(false)}>
-          <div style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
+        <div style={modalOverlayStyle}>
+          <button
+            type="button"
+            style={overlayCloseButtonStyle}
+            aria-label="Close backup pool"
+            onClick={() => setShowPoolModal(false)}
+          />
+          <div style={modalCardStyle}>
             <div style={modalHeaderStyle}>
               <div>
                 <h2 style={{ margin: 0 }}>Available backup pool</h2>
@@ -1553,11 +1709,14 @@ export default function ActivityStaffingPage() {
       ) : null}
 
       {showInvitationsModal ? (
-        <div
-          style={modalOverlayStyle}
-          onClick={() => setShowInvitationsModal(false)}
-        >
-          <div style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
+        <div style={modalOverlayStyle}>
+          <button
+            type="button"
+            style={overlayCloseButtonStyle}
+            aria-label="Close current invitations"
+            onClick={() => setShowInvitationsModal(false)}
+          />
+          <div style={modalCardStyle}>
             <div style={modalHeaderStyle}>
               <div>
                 <h2 style={{ margin: 0 }}>Current invitations</h2>
@@ -1577,9 +1736,13 @@ export default function ActivityStaffingPage() {
             {statusData?.invitations?.length ? (
               <div className="invitation-list">
                 {statusData.invitations.map(
-                  (invitation: ActivityInvitationItem, index) => (
+                  (invitation: ActivityInvitationItem) => (
                     <div
-                      key={invitation._id || invitation.id || index}
+                      key={
+                        invitation._id ||
+                        invitation.id ||
+                        `${invitation.employeeId}-${invitation.invitedAt}`
+                      }
                       className="invitation-card"
                     >
                       <div className="candidate-title-row">
@@ -1613,14 +1776,14 @@ export default function ActivityStaffingPage() {
       ) : null}
 
       {showInsightsModal && activeCandidate && activeCandidateInsight ? (
-        <div
-          style={modalOverlayStyle}
-          onClick={() => setShowInsightsModal(false)}
-        >
-          <div
-            style={{ ...modalCardStyle, width: "min(760px, 100%)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div style={modalOverlayStyle}>
+          <button
+            type="button"
+            style={overlayCloseButtonStyle}
+            aria-label="Close candidate insights"
+            onClick={() => setShowInsightsModal(false)}
+          />
+          <div style={{ ...modalCardStyle, width: "min(760px, 100%)" }}>
             <div style={modalHeaderStyle}>
               <div>
                 <h2 style={{ margin: 0 }}>{activeCandidate.name}</h2>
@@ -1642,10 +1805,10 @@ export default function ActivityStaffingPage() {
                 marginBottom: 16,
                 padding: "12px 14px",
                 borderRadius: 14,
-                background: "#f8fafc",
-                color: "#334155",
+                background: "var(--surface-2)",
+                color: "var(--text)",
                 fontSize: 14,
-                border: "1px solid #eef2f7",
+                border: "1px solid var(--border)",
               }}
             >
               Good fit with <strong>{activeCandidateInsight.managerFit.toLowerCase()}</strong> manager alignment,{" "}
@@ -1663,7 +1826,7 @@ export default function ActivityStaffingPage() {
             >
               <div
                 style={{
-                  border: "1px solid #eef2f7",
+                  border: "1px solid var(--border)",
                   borderRadius: 16,
                   padding: 14,
                 }}
@@ -1674,7 +1837,7 @@ export default function ActivityStaffingPage() {
 
               <div
                 style={{
-                  border: "1px solid #eef2f7",
+                  border: "1px solid var(--border)",
                   borderRadius: 16,
                   padding: 14,
                 }}
@@ -1685,7 +1848,7 @@ export default function ActivityStaffingPage() {
 
               <div
                 style={{
-                  border: "1px solid #eef2f7",
+                  border: "1px solid var(--border)",
                   borderRadius: 16,
                   padding: 14,
                 }}
@@ -1696,7 +1859,7 @@ export default function ActivityStaffingPage() {
 
               <div
                 style={{
-                  border: "1px solid #eef2f7",
+                  border: "1px solid var(--border)",
                   borderRadius: 16,
                   padding: 14,
                 }}
@@ -1715,7 +1878,7 @@ export default function ActivityStaffingPage() {
             >
               <div
                 style={{
-                  border: "1px solid #eef2f7",
+                  border: "1px solid var(--border)",
                   borderRadius: 18,
                   padding: 16,
                 }}
@@ -1742,7 +1905,7 @@ export default function ActivityStaffingPage() {
 
               <div
                 style={{
-                  border: "1px solid #eef2f7",
+                  border: "1px solid var(--border)",
                   borderRadius: 18,
                   padding: 16,
                 }}
@@ -1771,13 +1934,13 @@ export default function ActivityStaffingPage() {
             <div
               style={{
                 marginTop: 16,
-                border: "1px solid #eef2f7",
+                border: "1px solid var(--border)",
                 borderRadius: 18,
                 padding: 16,
               }}
             >
               <h3 style={{ marginTop: 0, marginBottom: 8 }}>Activity history</h3>
-              <p style={{ margin: 0, color: "#475569" }}>
+              <p style={{ margin: 0, color: "var(--muted)" }}>
                 Participated in {activeCandidateInsight.previousActivityCount} similar
                 activity{activeCandidateInsight.previousActivityCount === 1 ? "" : "ies"}.
               </p>
@@ -1824,14 +1987,14 @@ export default function ActivityStaffingPage() {
       ) : null}
 
       {showCompareModal ? (
-        <div
-          style={modalOverlayStyle}
-          onClick={() => setShowCompareModal(false)}
-        >
-          <div
-            style={{ ...modalCardStyle, width: "min(1100px, 100%)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div style={modalOverlayStyle}>
+          <button
+            type="button"
+            style={overlayCloseButtonStyle}
+            aria-label="Close candidate comparison"
+            onClick={() => setShowCompareModal(false)}
+          />
+          <div style={{ ...modalCardStyle, width: "min(1100px, 100%)" }}>
             <div style={modalHeaderStyle}>
               <div>
                 <h2 style={{ margin: 0 }}>Candidate comparison</h2>
@@ -1867,10 +2030,10 @@ export default function ActivityStaffingPage() {
                     <div
                       key={candidate.employeeId}
                       style={{
-                        border: "1px solid #e5e7eb",
+                        border: "1px solid var(--border)",
                         borderRadius: 20,
                         padding: 18,
-                        background: "#fff",
+                        background: "var(--card)",
                       }}
                     >
                       <div
@@ -1894,7 +2057,7 @@ export default function ActivityStaffingPage() {
                       <div style={{ display: "grid", gap: 10 }}>
                         <div
                           style={{
-                            border: "1px solid #eef2f7",
+                            border: "1px solid var(--border)",
                             borderRadius: 14,
                             padding: "10px 12px",
                           }}
@@ -1904,7 +2067,7 @@ export default function ActivityStaffingPage() {
 
                         <div
                           style={{
-                            border: "1px solid #eef2f7",
+                            border: "1px solid var(--border)",
                             borderRadius: 14,
                             padding: "10px 12px",
                           }}
@@ -1914,7 +2077,7 @@ export default function ActivityStaffingPage() {
 
                         <div
                           style={{
-                            border: "1px solid #eef2f7",
+                            border: "1px solid var(--border)",
                             borderRadius: 14,
                             padding: "10px 12px",
                           }}
@@ -1924,7 +2087,7 @@ export default function ActivityStaffingPage() {
 
                         <div
                           style={{
-                            border: "1px solid #eef2f7",
+                            border: "1px solid var(--border)",
                             borderRadius: 14,
                             padding: "10px 12px",
                           }}
@@ -1934,7 +2097,7 @@ export default function ActivityStaffingPage() {
 
                         <div
                           style={{
-                            border: "1px solid #eef2f7",
+                            border: "1px solid var(--border)",
                             borderRadius: 14,
                             padding: "10px 12px",
                           }}
@@ -1944,7 +2107,7 @@ export default function ActivityStaffingPage() {
 
                         <div
                           style={{
-                            border: "1px solid #eef2f7",
+                            border: "1px solid var(--border)",
                             borderRadius: 14,
                             padding: "10px 12px",
                           }}
@@ -1971,7 +2134,7 @@ export default function ActivityStaffingPage() {
 
                         <div
                           style={{
-                            border: "1px solid #eef2f7",
+                            border: "1px solid var(--border)",
                             borderRadius: 14,
                             padding: "10px 12px",
                           }}

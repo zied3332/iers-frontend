@@ -1,11 +1,9 @@
 import type { ReactNode } from "react";
 import React from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { signOut } from "../utils/auth";
 import "../index.css";
 import NotificationBell from "../components/notifications/NotificationBell";
-
-const logoSrc = "/images/logo.png";
 
 type NavItem = {
   to: string;
@@ -68,7 +66,7 @@ function SidebarAvatar({
           display: "grid",
           placeItems: "center",
           fontWeight: 900,
-          fontSize: 16,
+          fontSize: "var(--fz-16)",
         }}
         title={name}
       >
@@ -138,8 +136,10 @@ export default function AppShell({
   hideTopbarSearch?: boolean;
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
+  const [sidebarSearch, setSidebarSearch] = React.useState("");
 
   const SIDE_W = 350;
   const workspaceCode =
@@ -174,6 +174,39 @@ export default function AppShell({
       }));
   }, [nav]);
 
+  const filteredNavGroups: NavGroup[] = React.useMemo(() => {
+    const query = sidebarSearch.trim().toLowerCase();
+    if (!query) return navGroups;
+
+    return navGroups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => item.label.toLowerCase().includes(query)),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [navGroups, sidebarSearch]);
+
+  const normalizePath = React.useCallback((value: string) => {
+    if (!value) return "/";
+    const noQuery = value.split("?")[0].split("#")[0];
+    if (noQuery.length > 1 && noQuery.endsWith("/")) return noQuery.slice(0, -1);
+    return noQuery || "/";
+  }, []);
+
+  const isDirectSidebarPage = React.useMemo(() => {
+    const currentPath = normalizePath(location.pathname);
+    return nav.some((item) => normalizePath(item.to) === currentPath);
+  }, [location.pathname, nav, normalizePath]);
+
+  const handleGlobalBack = React.useCallback(() => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    const fallback = nav[0]?.to || "/";
+    navigate(fallback);
+  }, [navigate, nav]);
+
   return (
     <div
       className="app-shell workspace-shell"
@@ -205,8 +238,12 @@ export default function AppShell({
               <div className="dash-logo-wrap">
                 <img
                   className="dash-logo-img"
-                  src={logoSrc}
+                  src="/images/logo-64.webp"
                   alt="IntelliHR logo"
+                  width={54}
+                  height={54}
+                  loading="eager"
+                  decoding="async"
                 />
               </div>
 
@@ -234,15 +271,49 @@ export default function AppShell({
             </div>
           </div>
 
-          <div className="sidebar-search" aria-hidden="true">
+          <label className="sidebar-search" htmlFor="sidebar-search-input">
             <span className="search-icon"></span>
-            <input type="text" placeholder="Search" />
-            <span className="search-shortcut">/</span>
-          </div>
+            <input
+              id="sidebar-search-input"
+              value={sidebarSearch}
+              onChange={(e) => setSidebarSearch(e.target.value)}
+              placeholder="Search menu..."
+              style={{
+                flex: 1,
+                minWidth: 0,
+                border: "none",
+                outline: "none",
+                background: "transparent",
+                color: "var(--text)",
+                fontSize: "var(--fz-13)",
+                fontWeight: 700,
+              }}
+            />
+            {sidebarSearch ? (
+              <button
+                type="button"
+                onClick={() => setSidebarSearch("")}
+                aria-label="Clear sidebar search"
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  color: "var(--muted)",
+                  fontSize: "14px",
+                  lineHeight: 1,
+                  padding: 0,
+                }}
+              >
+                ✕
+              </button>
+            ) : (
+              <span className="search-shortcut">/</span>
+            )}
+          </label>
         </div>
 
         <div className="sidebar-menu">
-          {navGroups.map((group) => (
+          {filteredNavGroups.map((group) => (
             <div className="menu-group" key={group.title}>
               <p className="menu-title sidebar-section-title">{group.title}</p>
 
@@ -264,6 +335,18 @@ export default function AppShell({
 
             </div>
           ))}
+          {filteredNavGroups.length === 0 ? (
+            <div
+              style={{
+                padding: "10px 14px",
+                color: "var(--muted)",
+                fontSize: "var(--fz-13)",
+                fontWeight: 700,
+              }}
+            >
+              No matching menu item.
+            </div>
+          ) : null}
         </div>
 
         <div className="sidebar-bottom">
@@ -326,10 +409,10 @@ export default function AppShell({
             transition: "all 0.2s ease",
           }}
         >
-          <span style={{ fontSize: 17, lineHeight: 1 }}>→</span>
+          <span style={{ fontSize: "var(--fz-17)", lineHeight: 1 }}>→</span>
           <span
             style={{
-              fontSize: 10,
+              fontSize: "var(--fz-10)",
               letterSpacing: "0.04em",
               writingMode: "vertical-rl",
               textOrientation: "mixed",
@@ -360,6 +443,33 @@ export default function AppShell({
               {isSidebarOpen ? "✕" : "☰"}
             </button>
 
+            {!isDirectSidebarPage ? (
+              <button
+                type="button"
+                onClick={handleGlobalBack}
+                aria-label="Go back"
+                title="Go back"
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  border: "1px solid var(--border)",
+                  background: "var(--surface)",
+                  color: "var(--text)",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 18,
+                  fontWeight: 900,
+                  lineHeight: 1,
+                  marginRight: 4,
+                }}
+              >
+                ←
+              </button>
+            ) : null}
+
             <div>
               <h2 className="main-title">{title}</h2>
               {subtitle ? <div className="main-sub">{subtitle}</div> : null}
@@ -370,7 +480,7 @@ export default function AppShell({
             {!hideTopbarSearch ? (
               <div className="topbar-search" aria-hidden="true">
                 <span className="search-icon"></span>
-                <input type="text" placeholder="Search workspace..." />
+                <span className="search-placeholder">Search workspace...</span>
               </div>
             ) : null}
 

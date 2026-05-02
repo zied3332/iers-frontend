@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getUsers } from "../../services/users.service";
 import { getAllEmployees } from "../../services/employee.service";
 import { getAllDepartments } from "../../services/departments.service";
@@ -30,6 +31,25 @@ type DepartmentPoint = {
 };
 
 export default function HrDashboard() {
+  const navigate = useNavigate();
+  const calendarPath = useMemo(() => {
+    try {
+      const raw = localStorage.getItem("user");
+      const parsed = raw ? JSON.parse(raw) : {};
+      const role = String(parsed?.role || "").toUpperCase();
+      if (
+        role === "SUPER_MANAGER" ||
+        role === "SUPER MANGER" ||
+        role === "SUPER MANAGER" ||
+        role === "SUPER_MANGER"
+      ) {
+        return "/super-manager/calendar";
+      }
+      return "/hr/calendar";
+    } catch {
+      return "/hr/calendar";
+    }
+  }, []);
   const [tab, setTab] = useState<FilterTab>("All");
   const [statsLoading, setStatsLoading] = useState(true);
   const [activityRecords, setActivityRecords] = useState<ActivityRecord[]>([]);
@@ -527,6 +547,15 @@ export default function HrDashboard() {
           <div style={{ display: "grid", gap: "20px" }}>
             {/* PERFORMANCE */}
             <section
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate(calendarPath)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  navigate(calendarPath);
+                }
+              }}
               style={{
                 background: "var(--card)",
                 borderRadius: "26px",
@@ -618,6 +647,15 @@ export default function HrDashboard() {
 
             {/* NEW DEPARTMENT GRAPH */}
             <section
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate(calendarPath)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  navigate(calendarPath);
+                }
+              }}
               style={{
                 background: "var(--card)",
                 borderRadius: "26px",
@@ -1096,6 +1134,15 @@ export default function HrDashboard() {
           <div style={{ display: "grid", gap: "20px" }}>
             {/* CALENDAR */}
             <section
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate(calendarPath)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  navigate(calendarPath);
+                }
+              }}
               style={{
                 background: "var(--card)",
                 borderRadius: "26px",
@@ -1103,6 +1150,16 @@ export default function HrDashboard() {
                 border: "1px solid var(--border)",
                 boxShadow: "0 8px 30px rgba(21, 61, 46, 0.05)",
                 minHeight: "470px",
+                cursor: "pointer",
+                transition: "transform 0.2s ease, box-shadow 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 14px 34px rgba(21, 61, 46, 0.12)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 8px 30px rgba(21, 61, 46, 0.05)";
               }}
             >
               <div
@@ -1123,9 +1180,10 @@ export default function HrDashboard() {
                 <div style={{ display: "flex", gap: "10px" }}>
                   <button
                     type="button"
-                    onClick={() =>
-                      setCalendarDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
-                    }
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCalendarDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+                    }}
                     style={{
                       width: "40px",
                       height: "40px",
@@ -1140,9 +1198,10 @@ export default function HrDashboard() {
                   </button>
                   <button
                     type="button"
-                    onClick={() =>
-                      setCalendarDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))
-                    }
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCalendarDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+                    }}
                     style={{
                       width: "40px",
                       height: "40px",

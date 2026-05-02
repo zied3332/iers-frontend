@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
+import * as XLSX from "xlsx";
 import {
   createDepartment,
   deleteDepartment,
@@ -179,6 +180,9 @@ export default function HrDepartments() {
   const [formError, setFormError] = useState<string | null>(null);
   const [editingDepartmentId, setEditingDepartmentId] = useState<string | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
+  const [importingExcel, setImportingExcel] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
+  const importFileRef = useRef<HTMLInputElement | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     code: "",
@@ -286,6 +290,118 @@ export default function HrDepartments() {
 
   const closeDetailsModal = () => setSelectedDepartment(null);
 
+  const normalizeText = (value: unknown) => String(value ?? "").trim();
+
+  const normalizeManagerKey = (value: unknown) => normalizeText(value).toLowerCase();
+
+  const parseExcelFile = async (file: File) => {
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "array" });
+    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+    if (!firstSheet) return [];
+    return XLSX.utils.sheet_to_json<Record<string, unknown>>(firstSheet, { defval: "" });
+  };
+
+  const exportDepartmentsExcel = async () => {
+    try {
+      setExportingExcel(true);
+      const rows = departments.map((dept) => {
+        const manager = managers.find((m) => m._id === dept.manager_id);
+        return {
+          Department_Name: dept.name || "",
+          Department_Code: dept.code || "",
+          Description: dept.description || "",
+          Manager_Email: manager?.email || "",
+          Manager_Name: manager?.name || "",
+        };
+      });
+
+      const sheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, sheet, "Departments");
+      XLSX.writeFile(workbook, "departments.xlsx");
+    } catch (err) {
+      window.alert((err as Error)?.message || "Failed to export departments.");
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
+  const handleImportClick = () => importFileRef.current?.click();
+
+  const importDepartmentsExcel = async (file: File) => {
+    try {
+      setImportingExcel(true);
+      const rows = await parseExcelFile(file);
+      if (!rows.length) {
+        window.alert("Excel file is empty.");
+        return;
+      }
+
+      const latestDepartments = await getAllDepartments();
+      const deptByCode = new Map(
+        latestDepartments.map((d) => [normalizeText(d.code).toLowerCase(), d])
+      );
+
+      const managerByKey = new Map<string, string>();
+      managers.forEach((m) => {
+        managerByKey.set(normalizeManagerKey(m._id), m._id);
+        managerByKey.set(normalizeManagerKey(m.email), m._id);
+        managerByKey.set(normalizeManagerKey(m.name), m._id);
+      });
+
+      let createdCount = 0;
+      let updatedCount = 0;
+      let skippedCount = 0;
+
+      for (const row of rows) {
+        const name = normalizeText(row.Department_Name ?? row.department_name ?? row.name);
+        const code = normalizeText(row.Department_Code ?? row.department_code ?? row.code);
+        const description = normalizeText(row.Description ?? row.description);
+        const managerRaw = normalizeText(
+          row.Manager_Email ?? row.manager_email ?? row.Manager ?? row.manager
+        );
+        const managerId = managerByKey.get(normalizeManagerKey(managerRaw));
+
+        if (!name || !code) {
+          skippedCount += 1;
+          continue;
+        }
+
+        const existing = deptByCode.get(code.toLowerCase());
+        if (existing) {
+          await updateDepartment(existing._id, {
+            name,
+            code,
+            description: description || undefined,
+            manager_id: managerId || undefined,
+          });
+          updatedCount += 1;
+        } else {
+          const created = await createDepartment({
+            name,
+            code,
+            description: description || undefined,
+            manager_id: managerId || undefined,
+          });
+          deptByCode.set(code.toLowerCase(), created);
+          createdCount += 1;
+        }
+      }
+
+      const refreshedDepartments = await getAllDepartments();
+      setDepartments(refreshedDepartments || []);
+      window.alert(
+        `Departments import completed.\nCreated: ${createdCount}\nUpdated: ${updatedCount}\nSkipped: ${skippedCount}`
+      );
+    } catch (err) {
+      window.alert((err as Error)?.message || "Failed to import departments.");
+    } finally {
+      setImportingExcel(false);
+      if (importFileRef.current) importFileRef.current.value = "";
+    }
+  };
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -341,12 +457,53 @@ export default function HrDepartments() {
           </button>
         </div>
 
-        <div style={{ ...card, marginTop: 14 }}>
+        <div
+          style={{
+            ...card,
+            marginTop: 14,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 18,
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ flex: "0 1 360px", minWidth: 260 }}>
+            <input
+              style={input}
+              placeholder="Search by name, code, or description..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <button
+              type="button"
+              style={{ ...btn, opacity: importingExcel ? 0.7 : 1 }}
+              onClick={handleImportClick}
+              disabled={importingExcel}
+            >
+              {importingExcel ? "Importing..." : "Import Excel"}
+            </button>
+            <button
+              type="button"
+              style={{ ...btn, opacity: exportingExcel ? 0.7 : 1 }}
+              onClick={exportDepartmentsExcel}
+              disabled={exportingExcel}
+            >
+              {exportingExcel ? "Exporting..." : "Export Excel"}
+            </button>
+          </div>
           <input
-            style={input}
-            placeholder="Search by name, code, or description..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            ref={importFileRef}
+            type="file"
+            accept=".xlsx,.xls"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              void importDepartmentsExcel(file);
+            }}
           />
         </div>
 

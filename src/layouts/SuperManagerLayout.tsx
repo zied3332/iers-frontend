@@ -59,6 +59,12 @@ export default function SuperManagerLayout() {
         icon: "activity",
       },
       {
+        to: "/super-manager/activities/evaluated",
+        label: "Post-activity evaluations",
+        group: "Operations",
+        icon: "review",
+      },
+      {
         to: "/super-manager/domains",
         label: "Domain management",
         group: "Skills",
@@ -72,17 +78,18 @@ export default function SuperManagerLayout() {
         icon: "skills",
       },
       {
-        to: "/super-manager/skills/assign",
+        to: "/super-manager/skills/assign-table",
         label: "Assign Skills",
         end: true,
         group: "Skills",
         icon: "assign",
       },
       {
-        to: "/super-manager/recommendations",
-        label: "Recommendations",
-        group: "Intelligence",
-        icon: "copilot",
+        to: "/super-manager/experience/assign-table",
+        label: "Assign Experience",
+        end: true,
+        group: "Skills",
+        icon: "assign",
       },
       {
         to: "/super-manager/history",

@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import * as XLSX from "xlsx";
 import {
   FiEdit2,
   FiEye,
@@ -121,10 +122,10 @@ const styles = {
   } as React.CSSProperties,
 
   btnPrimary: {
-    background: "var(--primary)",
+    background: "#065f46",
     color: "var(--primary-on)",
-    border: "1px solid var(--primary)",
-    boxShadow: "0 10px 24px var(--primary-border)",
+    border: "1px solid #065f46",
+    boxShadow: "0 10px 24px rgba(6, 95, 70, 0.28)",
   } as React.CSSProperties,
 
   btnSecondary: {
@@ -174,8 +175,8 @@ const styles = {
     }) as React.CSSProperties,
 
   muted: {
-    color: "var(--muted)",
-    fontWeight: 500,
+    color: "#334155",
+    fontWeight: 600,
   } as React.CSSProperties,
 
   subheading: {
@@ -299,12 +300,6 @@ const contextOptions: PriorityContext[] = [
   "EXPERTISE",
   "DEVELOPMENT",
 ];
-const statusOptions: ActivityStatus[] = [
-  "PLANNED",
-  "IN_PROGRESS",
-  "COMPLETED",
-  "CANCELLED",
-];
 const skillLevelOptions: ("LOW" | "MEDIUM" | "HIGH" | "EXPERT")[] = [
   "LOW",
   "MEDIUM",
@@ -372,6 +367,15 @@ type AssignFormState = {
   departmentId: string;
 };
 
+type CreatedSortOrder = "newest" | "oldest";
+
+function toActivityCreationTimestamp(activity: ActivityRecord): number {
+  const parsed = Date.parse(String(activity.createdAt || ""));
+  if (!Number.isNaN(parsed)) return parsed;
+  const fallback = Date.parse(String(activity.startDate || ""));
+  return Number.isNaN(fallback) ? 0 : fallback;
+}
+
 const INITIAL_FORM: FormState = {
   title: "",
   type: "TRAINING",
@@ -385,6 +389,35 @@ const INITIAL_FORM: FormState = {
   departmentId: "",
   priorityContext: "UPSKILLING",
   targetLevel: "MEDIUM",
+};
+
+const normalizeExcelHeader = (value: unknown) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+
+const asString = (value: unknown) => String(value || "").trim();
+
+const toActivityType = (value: unknown): ActivityType | null => {
+  const normalized = asString(value).toUpperCase().replace(/\s+/g, "_");
+  const allowed: ActivityType[] = ["TRAINING", "CERTIFICATION", "PROJECT", "MISSION", "AUDIT"];
+  return allowed.includes(normalized as ActivityType) ? (normalized as ActivityType) : null;
+};
+
+const toPriorityContext = (value: unknown): PriorityContext | null => {
+  const normalized = asString(value).toUpperCase().replace(/\s+/g, "_");
+  const allowed: PriorityContext[] = ["UPSKILLING", "EXPERTISE", "DEVELOPMENT"];
+  return allowed.includes(normalized as PriorityContext) ? (normalized as PriorityContext) : null;
+};
+
+const toTargetLevel = (value: unknown): DesiredLevel | null => {
+  const normalized = asString(value).toUpperCase().replace(/\s+/g, "_");
+  const allowed: DesiredLevel[] = ["LOW", "MEDIUM", "HIGH"];
+  return allowed.includes(normalized as DesiredLevel) ? (normalized as DesiredLevel) : null;
 };
 
 export default function ActivitiesManagement() {
@@ -404,13 +437,8 @@ export default function ActivitiesManagement() {
   const [success, setSuccess] = useState("");
 
   const [q, setQ] = useState("");
-  const [groupBy, setGroupBy] = useState<"status" | "department">(() => {
-    try {
-      const saved = localStorage.getItem("activityGroupBy");
-      if (saved === "department" || saved === "status") return saved;
-    } catch {}
-    return "status";
-  });
+  const [createdSortOrder, setCreatedSortOrder] = useState<CreatedSortOrder>("newest");
+  const groupBy: "department" = "department";
 
   const [createOpen, setCreateOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
@@ -425,19 +453,13 @@ export default function ActivitiesManagement() {
   });
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [calculatedDuration, setCalculatedDuration] = useState<number>(0);
+  const excelImportInputRef = useRef<HTMLInputElement | null>(null);
 
   const sectionGroupByParam = searchParams.get("sectionGroupBy");
   const sectionKeyParam = searchParams.get("sectionKey");
-  const isValidSectionGroupBy =
-    sectionGroupByParam === "status" || sectionGroupByParam === "department";
+  const isValidSectionGroupBy = sectionGroupByParam === "department";
   const sectionViewGroupBy = isValidSectionGroupBy ? sectionGroupByParam : null;
   const isSectionView = Boolean(sectionViewGroupBy && sectionKeyParam);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("activityGroupBy", groupBy);
-    } catch {}
-  }, [groupBy]);
 
   useEffect(() => {
     const load = async () => {
@@ -446,7 +468,7 @@ export default function ActivitiesManagement() {
       try {
         const [activitiesRes, usersRes, departmentsRes, skillsRes] =
           await Promise.allSettled([
-            listActivities(),
+            listActivities({ hrView: "drafts" }),
             getUsers(),
             getAllDepartments(),
             listSkills(),
@@ -505,30 +527,38 @@ export default function ActivitiesManagement() {
 
   const filtered = useMemo(() => {
     const search = q.trim().toLowerCase();
-    if (!search) return activities;
+    const base = !search
+      ? activities
+      : activities.filter((a) => {
+          const blob = [
+            a.title,
+            a.type,
+            a.location,
+            a.duration,
+            a.startDate,
+            a.endDate,
+            a.status,
+            managerNameById.get(a.responsibleManagerId || "") || "",
+            departmentNameById.get(a.departmentId || "") || "",
+            a.description,
+            a.priorityContext,
+            a.targetLevel,
+            ...a.requiredSkills.map((s) => `${s.name} ${s.type} ${s.desiredLevel}`),
+          ]
+            .join(" ")
+            .toLowerCase();
 
-    return activities.filter((a) => {
-      const blob = [
-        a.title,
-        a.type,
-        a.location,
-        a.duration,
-        a.startDate,
-        a.endDate,
-        a.status,
-        managerNameById.get(a.responsibleManagerId || "") || "",
-        departmentNameById.get(a.departmentId || "") || "",
-        a.description,
-        a.priorityContext,
-        a.targetLevel,
-        ...a.requiredSkills.map((s) => `${s.name} ${s.type} ${s.desiredLevel}`),
-      ]
-        .join(" ")
-        .toLowerCase();
+          return blob.includes(search);
+        });
 
-      return blob.includes(search);
+    const copy = [...base];
+    copy.sort((a, b) => {
+      const aTs = toActivityCreationTimestamp(a);
+      const bTs = toActivityCreationTimestamp(b);
+      return createdSortOrder === "oldest" ? aTs - bTs : bTs - aTs;
     });
-  }, [activities, q, managerNameById, departmentNameById]);
+    return copy;
+  }, [activities, q, managerNameById, departmentNameById, createdSortOrder]);
 
   const groupedBoard = useMemo(() => {
     const sections: Array<{
@@ -537,18 +567,6 @@ export default function ActivitiesManagement() {
       items: ActivityRecord[];
       tone?: string;
     }> = [];
-
-    if (groupBy === "status") {
-      statusOptions.forEach((status) => {
-        sections.push({
-          key: status,
-          title: formatLabel(status),
-          items: filtered.filter((a) => (a.status || "PLANNED") === status),
-          tone: statusPalette[status].color,
-        });
-      });
-      return sections;
-    }
 
     const byDepartment = new Map<string, ActivityRecord[]>();
     filtered.forEach((a) => {
@@ -588,22 +606,16 @@ export default function ActivitiesManagement() {
     if (!isSectionView || !sectionViewGroupBy) return groupedBoard;
 
     const sectionTitle =
-      sectionViewGroupBy === "status"
-        ? formatLabel(sectionKeyParam || "")
-        : sectionKeyParam === "__unassigned__"
+      sectionKeyParam === "__unassigned__"
         ? "Unassigned Department"
         : departmentNameById.get(sectionKeyParam || "") || "Department";
 
     const sectionItems = filtered.filter((a) => {
-      if (sectionViewGroupBy === "status") return (a.status || "PLANNED") === sectionKeyParam;
       const departmentKey = a.departmentId || "__unassigned__";
       return departmentKey === sectionKeyParam;
     });
 
-    const sectionTone =
-      sectionViewGroupBy === "status"
-        ? statusPalette[(sectionKeyParam as ActivityStatus) || "PLANNED"]?.color || "var(--text)"
-        : "var(--text)";
+    const sectionTone = "var(--text)";
 
     return [
       {
@@ -974,11 +986,11 @@ export default function ActivitiesManagement() {
               style={{ ...styles.btn, ...styles.btnPrimary, height: "40px" }}
               onClick={(e) => {
                 e.stopPropagation();
-                navigate(`/hr/activities/${a._id}/staffing`);
+                navigate(`/hr/activities/${a._id}/recommendation`);//recommendation//staffing
               }}
             >
               <FiUsers size={15} />
-              Staff
+              Launch AI
             </button>
           </div>
 
@@ -1014,6 +1026,105 @@ export default function ActivitiesManagement() {
     );
   };
 
+  const importActivityFromExcel = async (file: File) => {
+    const buf = await file.arrayBuffer();
+    const workbook = XLSX.read(buf, { type: "array" });
+    const firstSheetName = workbook.SheetNames[0];
+    if (!firstSheetName) {
+      throw new Error("Le fichier Excel est vide.");
+    }
+
+    const sheet = workbook.Sheets[firstSheetName];
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+      defval: "",
+      raw: false,
+    });
+
+    if (!rows.length) {
+      throw new Error("Aucune ligne de donnees trouvee dans le fichier.");
+    }
+
+    const firstRow = rows[0];
+    const normalizedRow = new Map<string, unknown>();
+    Object.entries(firstRow).forEach(([key, value]) => {
+      normalizedRow.set(normalizeExcelHeader(key), value);
+    });
+
+    const read = (...keys: string[]) => {
+      for (const key of keys) {
+        const value = normalizedRow.get(normalizeExcelHeader(key));
+        if (asString(value)) return asString(value);
+      }
+      return "";
+    };
+
+    const title = read("title", "activity title", "nom activite");
+    const description = read("description", "details", "activity description");
+    const location = read("location", "lieu");
+    const startDate = read("start date", "start", "date debut");
+    const endDate = read("end date", "end", "date fin");
+    const duration = read("duration", "duree");
+    const seatsRaw = read("seats", "available slots", "places", "nb seats");
+    const typeRaw = read("type", "activity type");
+    const contextRaw = read("context", "priority context", "prioritization context");
+    const levelRaw = read("target level", "level", "priority level");
+
+    if (!title) {
+      throw new Error("Colonne Title manquante (ou vide) dans le fichier Excel.");
+    }
+
+    const seats = Number(seatsRaw);
+    const nextType = toActivityType(typeRaw) ?? "TRAINING";
+    const nextContext = toPriorityContext(contextRaw) ?? "UPSKILLING";
+    const nextLevel = toTargetLevel(levelRaw) ?? "MEDIUM";
+    const nextDuration =
+      duration ||
+      (startDate && endDate
+        ? `${Math.max(0, calculateWorkingDays(startDate, endDate))} days`
+        : "");
+
+    setForm((prev) => ({
+      ...prev,
+      title,
+      type: nextType,
+      availableSlots: Number.isFinite(seats) && seats > 0 ? Math.round(seats) : prev.availableSlots,
+      description,
+      location,
+      startDate,
+      endDate,
+      duration: nextDuration,
+      // Toujours vides: c'est toi qui les remplis a la main.
+      departmentId: "",
+      responsibleManagerId: "",
+      priorityContext: nextContext,
+      targetLevel: nextLevel,
+    }));
+
+    if (startDate && endDate) {
+      setCalculatedDuration(calculateWorkingDays(startDate, endDate));
+    } else {
+      setCalculatedDuration(0);
+    }
+  };
+
+  const onPickExcelFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setError("");
+    setSuccess("");
+    try {
+      await importActivityFromExcel(file);
+      setSuccess(
+        "Fichier importe. Complete maintenant Department et Responsible manager manuellement."
+      );
+    } catch (err: any) {
+      setError(err?.message || "Impossible d'importer ce fichier Excel.");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
   return (
     <div style={styles.page}>
       <div style={styles.container}>
@@ -1032,7 +1143,7 @@ export default function ActivitiesManagement() {
               Activity Management
             </h1>
             <p style={{ ...styles.muted, margin: "8px 0 0", fontSize: "14px" }}>
-              Organize activities, manage staffing, and track progress in one clean view.
+              Draft planned activities before launching AI staffing.
             </p>
           </div>
 
@@ -1076,25 +1187,7 @@ export default function ActivitiesManagement() {
               <div style={styles.subheading}>Activities</div>
 
               <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
-                <div style={{ position: "relative" }}>
-                  <FiFilter
-                    style={{
-                      position: "absolute",
-                      left: "14px",
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      color: "var(--muted)",
-                    }}
-                  />
-                  <select
-                    style={{ ...styles.input, paddingLeft: "38px", width: "220px", cursor: "pointer" }}
-                    value={groupBy}
-                    onChange={(e) => setGroupBy(e.target.value as "status" | "department")}
-                  >
-                    <option value="status">Group by status</option>
-                    <option value="department">Group by department</option>
-                  </select>
-                </div>
+               
 
                 <div style={{ position: "relative", width: "320px", maxWidth: "100%" }}>
                   <FiSearch
@@ -1113,6 +1206,14 @@ export default function ActivitiesManagement() {
                     onChange={(e) => setQ(e.target.value)}
                   />
                 </div>
+                <select
+                  value={createdSortOrder}
+                  onChange={(e) => setCreatedSortOrder(e.target.value as CreatedSortOrder)}
+                  style={{ ...styles.input, width: "260px", fontWeight: 700 }}
+                >
+                  <option value="newest">newest first</option>
+                  <option value="oldest">oldest first</option>
+                </select>
               </div>
             </div>
           </div>
@@ -1261,13 +1362,35 @@ export default function ActivitiesManagement() {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  style={{ ...styles.btn, width: "42px", padding: 0 }}
-                  onClick={() => !saving && (setCreateOpen(false), setSelectedActivity(null))}
-                >
-                  <FiX size={16} />
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  {!selectedActivity ? (
+                    <>
+                      <input
+                        ref={excelImportInputRef}
+                        type="file"
+                        accept=".xlsx,.xls"
+                        onChange={onPickExcelFile}
+                        style={{ display: "none" }}
+                      />
+                      <button
+                        type="button"
+                        style={{ ...styles.btn, ...styles.btnSecondary }}
+                        onClick={() => excelImportInputRef.current?.click()}
+                        title="Importer une activite depuis Excel"
+                      >
+                        Import Excel
+                      </button>
+                    </>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    style={{ ...styles.btn, width: "42px", padding: 0 }}
+                    onClick={() => !saving && (setCreateOpen(false), setSelectedActivity(null))}
+                  >
+                    <FiX size={16} />
+                  </button>
+                </div>
               </div>
 
               <div style={{ marginBottom: "24px" }}>
@@ -1281,6 +1404,12 @@ export default function ActivitiesManagement() {
                 >
                   Basic Information
                 </div>
+                {!selectedActivity ? (
+                  <div style={{ ...styles.muted, fontSize: "13px", marginBottom: "12px" }}>
+                    Excel attendu (1ere ligne): Title, Description, Type, Seats, Location, Start Date, End Date, Duration, Context, Target Level.
+                    Department et Responsible manager restent a remplir manuellement.
+                  </div>
+                ) : null}
 
                 <div style={styles.grid2}>
                   <div>

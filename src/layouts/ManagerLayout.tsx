@@ -59,6 +59,12 @@ export default function ManagerLayout() {
         icon: "archive",
       },
       {
+        to: "/manager/activities/evaluated",
+        label: "Evaluated activities",
+        group: "Operations",
+        icon: "review",
+      },
+      {
         to: "/manager/domains",
         label: "Domain management",
         group: "Skills",
@@ -72,8 +78,15 @@ export default function ManagerLayout() {
         icon: "skills",
       },
       {
-        to: "/manager/skills/assign",
+        to: "/manager/skills/assign-table",
         label: "Assign Skills",
+        end: true,
+        group: "Skills",
+        icon: "assign",
+      },
+      {
+        to: "/manager/experience/assign-table",
+        label: "Assign Experience",
         end: true,
         group: "Skills",
         icon: "assign",

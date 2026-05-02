@@ -71,10 +71,23 @@ export default function HrLayout() {
         icon: "pipeline",
       },
       {
+        to: "/hr/activities/cancelled",
+        label: "Cancelled activities",
+        group: "Operations",
+        icon: "archive",
+      },
+      {
         to: "/hr/activities/archive",
         label: "Completed activities",
         group: "Operations",
         icon: "archive",
+      },
+      
+      {
+        to: "/hr/activities/evaluated",
+        label: "Post-activity evaluations",
+        group: "Operations",
+        icon: "review",
       },
       {
         to: "/hr/domains",
@@ -90,8 +103,15 @@ export default function HrLayout() {
         icon: "skills",
       },
       {
-        to: "/hr/skills/assign",
+        to: "/hr/skills/assign-table",
         label: "Assign Skills",
+        end: true,
+        group: "Skills",
+        icon: "assign",
+      },
+      {
+        to: "/hr/experience/assign-table",
+        label: "Assign Experience",
         end: true,
         group: "Skills",
         icon: "assign",

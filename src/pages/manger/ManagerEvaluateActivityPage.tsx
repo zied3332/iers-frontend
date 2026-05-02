@@ -1,22 +1,32 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
+  finalizeActivityEvaluations,
   getParticipantsForEvaluation,
   submitEvaluation,
+  type AttendanceStatus,
+  type EvaluationOutcome,
   type ParticipantEvalStatus,
+  type ParticipationLevel,
   type ActivityParticipantsEval,
   type CreateEvaluationPayload,
-  type EvaluationPresence,
+  type Recommendation,
+  type SkillProgress,
 } from "../../services/post-activity-evaluations.service";
-
-// ─── Styles ──────────────────────────────────────────────────────────────────
+import {
+  buildDateRange,
+  getMonitorDraftWithServer,
+  saveMonitorDraftWithServer,
+  type MonitorDraft,
+  type DailyAttendanceStatus,
+} from "../../services/manager-activity-monitor.service";
 
 const card: React.CSSProperties = {
   background: "var(--surface)",
   border: "1px solid var(--border)",
   borderRadius: 16,
   padding: 24,
-  boxShadow: "0 4px 16px rgba(15, 23, 42, 0.06)",
+  boxShadow: "var(--shadow)",
 };
 
 const avatarStyle = (size = 40): React.CSSProperties => ({
@@ -34,38 +44,81 @@ const avatarStyle = (size = 40): React.CSSProperties => ({
   overflow: "hidden",
 });
 
-const scoreBtn = (selected: boolean, value: number): React.CSSProperties => {
-  const colors = ["", "#ef4444", "#f97316", "#f59e0b", "#84cc16", "#22c55e"];
-  return {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    border: selected ? `2px solid ${colors[value]}` : "1.5px solid var(--border)",
-    background: selected
-      ? `color-mix(in srgb, ${colors[value]} 18%, var(--surface))`
-      : "var(--surface-2)",
-    color: selected ? colors[value] : "var(--muted)",
-    fontWeight: 900,
-    fontSize: 15,
-    cursor: "pointer",
-    transition: "all 0.14s",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  };
-};
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 interface EvalDraft {
-  presence: EvaluationPresence;
-  feedback: string;
-  skillScores: Record<string, number>; // skillId → score
+  attendanceStatus: AttendanceStatus;
+  participationLevel: ParticipationLevel;
+  skillProgress: SkillProgress;
+  outcome: EvaluationOutcome;
+  recommendation: Recommendation;
+  rating: number;
+  comment: string;
   submitted: boolean;
   submitting: boolean;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+const EVAL_DRAFT_STORAGE_KEY = "manager_eval_card_v1";
+
+function toStatusLabel(v: DailyAttendanceStatus) {
+  if (v === "PRESENT") return "Present";
+  if (v === "LATE") return "Late";
+  if (v === "EXCUSED") return "Excused";
+  return "Absent";
+}
+
+function getAttendanceBadgeStyle(value: DailyAttendanceStatus): React.CSSProperties {
+  if (value === "PRESENT") {
+    return {
+      color: "color-mix(in srgb, var(--text) 84%, #166534)",
+      background: "color-mix(in srgb, var(--surface) 86%, #22c55e)",
+      border: "1px solid color-mix(in srgb, var(--border) 68%, #22c55e)",
+    };
+  }
+  if (value === "LATE") {
+    return {
+      color: "color-mix(in srgb, var(--text) 84%, #92400e)",
+      background: "color-mix(in srgb, var(--surface) 86%, #f59e0b)",
+      border: "1px solid color-mix(in srgb, var(--border) 68%, #f59e0b)",
+    };
+  }
+  if (value === "EXCUSED") {
+    return {
+      color: "color-mix(in srgb, var(--text) 84%, #1d4ed8)",
+      background: "color-mix(in srgb, var(--surface) 88%, #3b82f6)",
+      border: "1px solid color-mix(in srgb, var(--border) 70%, #3b82f6)",
+    };
+  }
+  return {
+    color: "color-mix(in srgb, var(--text) 84%, #991b1b)",
+    background: "color-mix(in srgb, var(--surface) 88%, #ef4444)",
+    border: "1px solid color-mix(in srgb, var(--border) 70%, #ef4444)",
+  };
+}
+
+function buildFinalReportText(params: {
+  activityTitle: string;
+  totalParticipants: number;
+  reviewedCount: number;
+  pendingCount: number;
+  attendanceTrackedDays: number;
+  attendanceSummary: Record<DailyAttendanceStatus, number>;
+}) {
+  return [
+    `Activity: ${params.activityTitle}`,
+    `Participants: ${params.totalParticipants}`,
+    `Evaluations submitted: ${params.reviewedCount}`,
+    `Pending evaluations: ${params.pendingCount}`,
+    `Tracked attendance days: ${params.attendanceTrackedDays}`,
+    "",
+    "Attendance totals:",
+    `- Present: ${params.attendanceSummary.PRESENT}`,
+    `- Late: ${params.attendanceSummary.LATE}`,
+    `- Excused: ${params.attendanceSummary.EXCUSED}`,
+    `- Absent: ${params.attendanceSummary.ABSENT}`,
+    "",
+    "Manager conclusion:",
+    "",
+  ].join("\n");
+}
 
 export default function ManagerEvaluateActivityPage() {
   const { activityId } = useParams<{ activityId: string }>();
@@ -75,12 +128,28 @@ export default function ManagerEvaluateActivityPage() {
   const [loading, setLoading] = useState(true);
   const [drafts, setDrafts] = useState<Record<string, EvalDraft>>({});
   const [activeEmployee, setActiveEmployee] = useState<string | null>(null);
+  const [pageError, setPageError] = useState("");
+  const [reportText, setReportText] = useState("");
+  const [reportMessage, setReportMessage] = useState("");
+  const [monitorDraft, setMonitorDraft] = useState<MonitorDraft>({
+    attendanceByParticipant: {},
+    dayNotes: {},
+    finalReport: "",
+  });
 
   useEffect(() => {
     if (!activityId) return;
     getParticipantsForEvaluation(activityId)
-      .then((res) => {
+      .then(async (res) => {
         setData(res);
+        setPageError("");
+        const savedRaw =
+          activityId && typeof window !== "undefined"
+            ? window.localStorage.getItem(`${EVAL_DRAFT_STORAGE_KEY}:${activityId}`)
+            : null;
+        const savedDrafts = savedRaw
+          ? (JSON.parse(savedRaw) as Record<string, Partial<EvalDraft>>)
+          : {};
 
         const initial: Record<string, EvalDraft> = {};
         for (const p of res.participants) {
@@ -91,18 +160,49 @@ export default function ManagerEvaluateActivityPage() {
               const skillId = s.skillId?._id || s.skillId;
               scores[String(skillId)] = s.score;
             }
+            const assessment = p.evaluation.managerAssessment;
+            const baseRating = (() => {
+                const values = Object.values(scores);
+                if (values.length === 0) return 3;
+                return Math.max(
+                  1,
+                  Math.min(
+                    5,
+                    Math.round(values.reduce((acc, v) => acc + v, 0) / values.length)
+                  )
+                );
+              })();
             initial[empId] = {
-              presence: p.evaluation.presence,
-              feedback: p.evaluation.feedback || "",
-              skillScores: scores,
+              attendanceStatus:
+                assessment?.attendanceStatus ||
+                (p.evaluation.presence === "ABSENT" ? "POOR" : "GOOD"),
+              participationLevel: assessment?.participationLevel || "ACTIVE",
+              skillProgress: assessment?.skillProgress || "MODERATE",
+              outcome:
+                assessment?.outcome ||
+                (p.evaluation.presence === "ABSENT"
+                  ? "DID_NOT_COMPLETE"
+                  : "COMPLETED_SUCCESSFULLY"),
+              recommendation: assessment?.recommendation || "ADVANCED_TRAINING",
+              rating: assessment?.rating || baseRating,
+              comment:
+                assessment?.comment || p.evaluation.feedback || "",
               submitted: true,
               submitting: false,
             };
           } else {
+            const saved = savedDrafts[empId] || {};
             initial[empId] = {
-              presence: "PRESENT",
-              feedback: "",
-              skillScores: {},
+              attendanceStatus: (saved.attendanceStatus as AttendanceStatus) || "GOOD",
+              participationLevel:
+                (saved.participationLevel as ParticipationLevel) || "ACTIVE",
+              skillProgress: (saved.skillProgress as SkillProgress) || "MODERATE",
+              outcome:
+                (saved.outcome as EvaluationOutcome) || "COMPLETED_SUCCESSFULLY",
+              recommendation:
+                (saved.recommendation as Recommendation) || "ADVANCED_TRAINING",
+              rating: Number(saved.rating || 3),
+              comment: String(saved.comment || ""),
               submitted: false,
               submitting: false,
             };
@@ -110,16 +210,100 @@ export default function ManagerEvaluateActivityPage() {
         }
 
         setDrafts(initial);
-
-        // Auto-select first pending
         const firstPending = res.participants.find((p) => !p.isEvaluated);
         if (firstPending) setActiveEmployee(String(firstPending.employee._id));
-        else if (res.participants.length > 0)
-          setActiveEmployee(String(res.participants[0].employee._id));
+        else if (res.participants.length > 0) setActiveEmployee(String(res.participants[0].employee._id));
+
+        const monitor = await getMonitorDraftWithServer(activityId);
+        setMonitorDraft(monitor);
+        if (monitor.finalReport?.trim()) {
+          setReportText(monitor.finalReport);
+        } else {
+          setReportText(
+            buildFinalReportText({
+              activityTitle: res.activity?.title || "Activity",
+              totalParticipants: res.participants.length,
+              reviewedCount: res.participants.filter((p) => p.isEvaluated).length,
+              pendingCount: res.participants.filter((p) => !p.isEvaluated).length,
+              attendanceTrackedDays: 0,
+              attendanceSummary: {
+                PRESENT: 0,
+                LATE: 0,
+                EXCUSED: 0,
+                ABSENT: 0,
+              },
+            })
+          );
+        }
       })
-      .catch(() => setData(null))
+      .catch((e: unknown) => {
+        setPageError(e instanceof Error ? e.message : "Activity not found or not accessible.");
+        setData(null);
+      })
       .finally(() => setLoading(false));
   }, [activityId]);
+
+  const participants = data?.participants || [];
+  const activity = data?.activity;
+  const role = (() => {
+    try {
+      const raw = localStorage.getItem("user");
+      return raw ? String(JSON.parse(raw)?.role || "") : "";
+    } catch {
+      return "";
+    }
+  })();
+  const isManager = role === "MANAGER";
+  const isFinalized = Boolean(activity?.managerEvaluationFinalizedAt);
+  const isReadOnly = !isManager || isFinalized;
+
+  const totalReviewed = participants.filter((p) => drafts[String(p.employee._id)]?.submitted).length;
+  const totalCount = participants.length;
+  const pct = totalCount > 0 ? Math.round((totalReviewed / totalCount) * 100) : 0;
+
+  const activitySkills: Array<{ _id: string; name: string; category: string }> =
+    activity?.skills || [];
+
+  const attendanceSnapshot = useMemo(() => {
+    if (!activityId || !activity) {
+      return {
+        days: [] as string[],
+        totals: { PRESENT: 0, LATE: 0, EXCUSED: 0, ABSENT: 0 } as Record<DailyAttendanceStatus, number>,
+      };
+    }
+    const days = buildDateRange(activity.startDate, activity.endDate);
+    const totals: Record<DailyAttendanceStatus, number> = {
+      PRESENT: 0,
+      LATE: 0,
+      EXCUSED: 0,
+      ABSENT: 0,
+    };
+
+    participants.forEach((p) => {
+      const id = String(p.employee._id);
+      days.forEach((day) => {
+        const status = monitorDraft.attendanceByParticipant?.[id]?.[day] || "ABSENT";
+        totals[status] += 1;
+      });
+    });
+
+    return { days, totals };
+  }, [activityId, activity, participants, monitorDraft.attendanceByParticipant]);
+
+  useEffect(() => {
+    if (!activity || !activityId) return;
+    if (reportText.trim()) return;
+    setReportText(
+      buildFinalReportText({
+        activityTitle: activity.title || "Activity",
+        totalParticipants: totalCount,
+        reviewedCount: totalReviewed,
+        pendingCount: totalCount - totalReviewed,
+        attendanceTrackedDays: attendanceSnapshot.days.length,
+        attendanceSummary: attendanceSnapshot.totals,
+      })
+    );
+  }, [activity, activityId, totalCount, totalReviewed, attendanceSnapshot, reportText]);
 
   const updateDraft = (empId: string, patch: Partial<EvalDraft>) => {
     setDrafts((prev) => ({
@@ -128,44 +312,150 @@ export default function ManagerEvaluateActivityPage() {
     }));
   };
 
+  useEffect(() => {
+    if (!activityId || typeof window === "undefined") return;
+    const persistable: Record<string, Partial<EvalDraft>> = {};
+    Object.entries(drafts).forEach(([employeeId, d]) => {
+      if (!d.submitted) {
+        persistable[employeeId] = {
+          attendanceStatus: d.attendanceStatus,
+          participationLevel: d.participationLevel,
+          skillProgress: d.skillProgress,
+          outcome: d.outcome,
+          recommendation: d.recommendation,
+          rating: d.rating,
+          comment: d.comment,
+        };
+      }
+    });
+    window.localStorage.setItem(
+      `${EVAL_DRAFT_STORAGE_KEY}:${activityId}`,
+      JSON.stringify(persistable)
+    );
+  }, [activityId, drafts]);
+
   const handleSubmit = async (participant: ParticipantEvalStatus) => {
+    if (isReadOnly) return;
+    if (!activityId) return;
     const empId = String(participant.employee._id);
     const draft = drafts[empId];
     if (!draft || draft.submitting || draft.submitted) return;
 
+    setPageError("");
     updateDraft(empId, { submitting: true });
 
+    const isAbsent =
+      draft.attendanceStatus === "POOR" || draft.outcome === "DID_NOT_COMPLETE";
+    const presence = isAbsent ? "ABSENT" : "PRESENT";
+    const normalizedRating = Math.max(1, Math.min(5, Math.round(draft.rating || 3)));
+    const feedbackParts = [
+      draft.comment.trim(),
+      `Attendance: ${draft.attendanceStatus}`,
+      `Participation: ${draft.participationLevel}`,
+      `Skill progress: ${draft.skillProgress}`,
+      `Outcome: ${draft.outcome}`,
+      `Recommendation: ${draft.recommendation}`,
+      `Manager rating: ${normalizedRating}/5`,
+    ].filter(Boolean);
+    const feedback = feedbackParts.join("\n").slice(0, 2000);
+
     const payload: CreateEvaluationPayload = {
-      activityId: activityId!,
+      activityId,
       employeeId: empId,
-      presence: draft.presence,
-      feedback: draft.feedback,
-      skillScores: Object.entries(draft.skillScores).map(([skillId, score]) => ({
-        skillId,
-        score,
-      })),
+      presence,
+      feedback,
+      skillScores:
+        presence === "PRESENT"
+          ? activitySkills.map((skill) => ({
+              skillId: skill._id,
+              score: normalizedRating,
+            }))
+          : [],
+      managerAssessment: {
+        attendanceStatus: draft.attendanceStatus,
+        participationLevel: draft.participationLevel,
+        skillProgress: draft.skillProgress,
+        outcome: draft.outcome,
+        recommendation: draft.recommendation,
+        rating: normalizedRating,
+        comment: draft.comment || "",
+      },
     };
 
     try {
       await submitEvaluation(payload);
-      updateDraft(empId, { submitted: true, submitting: false });
-
-      // Move to next pending
-      const pending = data?.participants.filter(
-        (p) =>
-          !drafts[String(p.employee._id)]?.submitted &&
-          String(p.employee._id) !== empId
-      );
-      if (pending && pending.length > 0) {
-        setActiveEmployee(String(pending[0].employee._id));
-      }
-    } catch {
+      setDrafts((prev) => {
+        const next = {
+          ...prev,
+          [empId]: { ...prev[empId], submitted: true, submitting: false },
+        };
+        const nextPending = participants.find(
+          (p) => !next[String(p.employee._id)]?.submitted
+        );
+        if (nextPending) setActiveEmployee(String(nextPending.employee._id));
+        return next;
+      });
+    } catch (e: unknown) {
       updateDraft(empId, { submitting: false });
-      alert("Failed to submit evaluation. Please try again.");
+      setPageError(e instanceof Error ? e.message : "Failed to submit evaluation.");
     }
   };
 
-  // ─── Loading / Error ──────────────────────────────────────────────────────
+  function saveFinalReportDraft() {
+    if (!activityId || isReadOnly) return;
+    setMonitorDraft((prev) => ({ ...prev, finalReport: reportText }));
+    void saveMonitorDraftWithServer(activityId, { finalReport: reportText });
+    setReportMessage("Report draft saved.");
+    window.setTimeout(() => setReportMessage(""), 1800);
+  }
+
+  function sendFinalReport() {
+    if (!activityId || isReadOnly) return;
+    setMonitorDraft((prev) => ({ ...prev, finalReport: reportText }));
+    void saveMonitorDraftWithServer(activityId, { finalReport: reportText });
+    setReportMessage("Report updated successfully.");
+    window.setTimeout(() => setReportMessage(""), 1800);
+  }
+
+  function finalizeAllEvaluations() {
+    if (!activityId || isReadOnly) return;
+    setPageError("");
+    finalizeActivityEvaluations(activityId)
+      .then((res) => {
+        setData((prev) =>
+          prev
+            ? {
+                ...prev,
+                activity: res?.activity || prev.activity,
+              }
+            : prev
+        );
+        setReportMessage(
+          res?.message || "Final evaluation sent to HR and Super Manager."
+        );
+      })
+      .catch((e: unknown) => {
+        setPageError(
+          e instanceof Error
+            ? e.message
+            : "Failed to finalize evaluations."
+        );
+      });
+  }
+
+  function exportFinalReport() {
+    const title = (activity?.title || "activity").replace(/[^\w\s-]/g, "").trim() || "activity";
+    const fileName = `${title.replace(/\s+/g, "_")}_final_report.txt`;
+    const blob = new Blob([reportText], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 
   if (loading) {
     return (
@@ -181,57 +471,57 @@ export default function ManagerEvaluateActivityPage() {
     return (
       <div className="page">
         <div className="container" style={{ textAlign: "center", padding: 60 }}>
-          <p style={{ color: "var(--muted)" }}>Activity not found or not accessible.</p>
-          <button onClick={() => navigate(-1)} style={{ marginTop: 16, cursor: "pointer" }}>
-            ← Go back
-          </button>
+          <p style={{ color: "color-mix(in srgb, var(--text) 78%, #b91c1c)" }}>
+            {pageError || "Activity not found or not accessible."}
+          </p>
         </div>
       </div>
     );
   }
 
-  const { activity, participants } = data;
-  const totalReviewed = participants.filter(
-    (p) => drafts[String(p.employee._id)]?.submitted
-  ).length;
-  const pct =
-    participants.length > 0
-      ? Math.round((totalReviewed / participants.length) * 100)
-      : 0;
-
-  const activitySkills: Array<{ _id: string; name: string; category: string }> =
-    activity.skills || [];
-
   return (
     <div className="page">
       <div className="container">
-        {/* Header */}
-        <div style={{ marginBottom: 28 }}>
-          <button
-            onClick={() => navigate(-1)}
-            style={{
-              background: "none",
-              border: "none",
-              color: "var(--muted)",
-              cursor: "pointer",
-              fontSize: 14,
-              fontWeight: 700,
-              marginBottom: 12,
-              padding: 0,
-            }}
-          >
-            ← Back to activities
-          </button>
+        <div style={{ marginBottom: 20 }}>
           <h1 className="page-title" style={{ marginBottom: 4 }}>
-            {activity.title}
+            {activity?.title}
           </h1>
           <p className="page-subtitle">
-            Evaluate participants · {participants.length} employee
-            {participants.length !== 1 ? "s" : ""}
+            Evaluate participants and prepare final report for HR.
           </p>
+          {isFinalized ? (
+            <div style={{ marginTop: 8 }}>
+              <span
+                className="badge"
+                style={{
+                  background:
+                    "color-mix(in srgb, var(--surface) 86%, var(--sidebar-link-active-pill))",
+                  color:
+                    "color-mix(in srgb, var(--text) 84%, var(--sidebar-link-active-pill))",
+                  border:
+                    "1px solid color-mix(in srgb, var(--border) 68%, var(--sidebar-link-active-pill))",
+                }}
+              >
+                Finalized • read-only
+              </span>
+            </div>
+          ) : null}
         </div>
 
-        {/* Global progress bar */}
+        {pageError ? (
+          <div
+            style={{
+              ...card,
+              borderColor: "color-mix(in srgb, var(--border) 66%, #ef4444)",
+              background: "color-mix(in srgb, var(--surface) 92%, #ef4444)",
+              color: "color-mix(in srgb, var(--text) 78%, #b91c1c)",
+              marginBottom: 18,
+            }}
+          >
+            {pageError}
+          </div>
+        ) : null}
+
         <div style={{ ...card, marginBottom: 24, padding: 18 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
             <span style={{ fontWeight: 700, fontSize: 14, color: "var(--text)" }}>
@@ -254,28 +544,90 @@ export default function ManagerEvaluateActivityPage() {
                 height: "100%",
                 width: `${pct}%`,
                 borderRadius: 999,
-                background: pct === 100 ? "#22c55e" : "#3b82f6",
+                background:
+                  pct === 100
+                    ? "color-mix(in srgb, var(--text) 35%, var(--sidebar-link-active-pill))"
+                    : "color-mix(in srgb, var(--text) 35%, #3b82f6)",
                 transition: "width 0.4s",
               }}
             />
           </div>
-          {pct === 100 && (
-            <p style={{ marginTop: 10, fontSize: 13, color: "#22c55e", fontWeight: 700 }}>
-              ✓ All participants have been evaluated!
-            </p>
+        </div>
+
+        <div style={{ ...card, marginBottom: 16, display: "grid", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 24, fontWeight: 900 }}>Attendance history</div>
+            <div style={{ color: "var(--muted)", fontSize: 14 }}>
+              Review all tracked days before finalizing evaluations.
+            </div>
+          </div>
+          {attendanceSnapshot.days.length === 0 ? (
+            <div style={{ color: "var(--muted)" }}>
+              No attendance days found yet for this activity.
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", minWidth: 980, borderCollapse: "separate", borderSpacing: 0 }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: "left", padding: "12px 10px", fontSize: 12, color: "var(--muted)", borderBottom: "1px solid var(--border)" }}>
+                      Employee
+                    </th>
+                    {attendanceSnapshot.days.map((day, idx) => (
+                      <th
+                        key={day}
+                        style={{ textAlign: "left", padding: "12px 10px", fontSize: 12, color: "var(--muted)", borderBottom: "1px solid var(--border)" }}
+                      >
+                        D{idx + 1}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {participants.map((p) => {
+                    const empId = String(p.employee._id);
+                    const name = p.employee.user_id?.name || "Unknown";
+                    return (
+                      <tr key={empId}>
+                        <td style={{ padding: "12px 10px", borderBottom: "1px solid var(--border)", fontWeight: 800 }}>
+                          {name}
+                        </td>
+                        {attendanceSnapshot.days.map((day) => {
+                          const status =
+                            monitorDraft.attendanceByParticipant?.[empId]?.[day] || "ABSENT";
+                          return (
+                            <td key={day} style={{ padding: "12px 10px", borderBottom: "1px solid var(--border)" }}>
+                              <span
+                                style={{
+                                  ...getAttendanceBadgeStyle(status),
+                                  borderRadius: 999,
+                                  padding: "4px 10px",
+                                  fontWeight: 800,
+                                  fontSize: 12,
+                                }}
+                              >
+                                {status}
+                              </span>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
-        {/* Two-column layout */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "280px 1fr",
-            gap: 20,
+            gridTemplateColumns: "260px minmax(0, 1fr)",
+            gap: 16,
             alignItems: "start",
           }}
         >
-          {/* Left: participant list */}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {participants.map((p) => {
               const empId = String(p.employee._id);
@@ -293,40 +645,30 @@ export default function ManagerEvaluateActivityPage() {
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 12,
-                    padding: "12px 14px",
+                    gap: 10,
+                    padding: "10px 12px",
                     borderRadius: 12,
-                    border: `1.5px solid ${isSelected ? "#3b82f6" : "var(--border)"}`,
+                    border: `1.5px solid ${
+                      isSelected
+                        ? "color-mix(in srgb, var(--text) 38%, #3b82f6)"
+                        : "var(--border)"
+                    }`,
                     background: isSelected
                       ? "color-mix(in srgb, #3b82f6 8%, var(--surface))"
                       : "var(--surface)",
                     cursor: "pointer",
-                    transition: "all 0.15s",
                   }}
                 >
-                  <div style={avatarStyle(36)}>
+                  <div style={avatarStyle(34)}>
                     {userAvatar ? (
-                      <img
-                        src={userAvatar}
-                        alt=""
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                      />
+                      <img src={userAvatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     ) : (
                       userName[0]?.toUpperCase() || "?"
                     )}
                   </div>
 
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontWeight: 800,
-                        fontSize: 14,
-                        color: "var(--text)",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
+                    <div style={{ fontWeight: 800, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {userName}
                     </div>
                     <div style={{ fontSize: 12, color: "var(--muted)" }}>{userEmail}</div>
@@ -337,7 +679,9 @@ export default function ManagerEvaluateActivityPage() {
                       width: 10,
                       height: 10,
                       borderRadius: "50%",
-                      background: isDone ? "#22c55e" : "#f59e0b",
+                      background: isDone
+                        ? "color-mix(in srgb, var(--text) 38%, var(--sidebar-link-active-pill))"
+                        : "color-mix(in srgb, var(--text) 38%, #f59e0b)",
                       flexShrink: 0,
                     }}
                   />
@@ -346,57 +690,132 @@ export default function ManagerEvaluateActivityPage() {
             })}
           </div>
 
-          {/* Right: evaluation form */}
-          {activeEmployee && drafts[activeEmployee] ? (
-            <EvaluationForm
-              participant={
-                participants.find((p) => String(p.employee._id) === activeEmployee)!
-              }
-              draft={drafts[activeEmployee]}
-              activitySkills={activitySkills}
-              onChange={(patch) => updateDraft(activeEmployee, patch)}
-              onSubmit={() =>
-                handleSubmit(
-                  participants.find((p) => String(p.employee._id) === activeEmployee)!
-                )
-              }
-            />
-          ) : (
-            <div
-              style={{ ...card, textAlign: "center", color: "var(--muted)", padding: 48 }}
-            >
-              Select an employee to evaluate
+          <div>
+            {activeEmployee && drafts[activeEmployee] ? (
+              <EvaluationForm
+                participant={participants.find((p) => String(p.employee._id) === activeEmployee)!}
+                draft={drafts[activeEmployee]}
+                readOnly={isReadOnly}
+                onChange={(patch) => updateDraft(activeEmployee, patch)}
+                onSubmit={() =>
+                  handleSubmit(participants.find((p) => String(p.employee._id) === activeEmployee)!)
+                }
+              />
+            ) : (
+              <div style={{ ...card, textAlign: "center", color: "var(--muted)", padding: 48 }}>
+                Select an employee to evaluate
+              </div>
+            )}
+          </div>
+
+        </div>
+
+        <div style={{ ...card, display: "grid", gap: 14, alignContent: "start", marginTop: 16 }}>
+          <div>
+            <div style={{ fontSize: 24, fontWeight: 900 }}>Final report to HR</div>
+            <div style={{ color: "var(--muted)", marginTop: 4, fontSize: 14 }}>
+              Keep this summary up-to-date while you evaluate participants.
             </div>
-          )}
+          </div>
+
+          <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: 12, background: "var(--surface-2)" }}>
+            <div style={{ fontWeight: 700, marginBottom: 8 }}>Quick summary</div>
+            <div style={{ color: "var(--muted)", fontSize: 13, lineHeight: 1.6 }}>
+              <div>Total participants: {totalCount}</div>
+              <div>Evaluated: {totalReviewed}</div>
+              <div>Pending: {Math.max(totalCount - totalReviewed, 0)}</div>
+              <div>Tracked days: {attendanceSnapshot.days.length}</div>
+              <div>
+                Attendance totals:{" "}
+                {(
+                  ["PRESENT", "LATE", "EXCUSED", "ABSENT"] as DailyAttendanceStatus[]
+                )
+                  .map((s) => `${toStatusLabel(s)} ${attendanceSnapshot.totals[s]}`)
+                  .join(" · ")}
+              </div>
+            </div>
+          </div>
+
+          <label style={{ display: "grid", gap: 8 }}>
+            <span style={{ fontWeight: 700 }}>Manager final note</span>
+            <textarea
+              value={reportText}
+              onChange={(e) => setReportText(e.target.value)}
+              disabled={isReadOnly}
+              rows={12}
+              placeholder="Write the summary that HR will receive..."
+              style={{
+                border: "1px solid var(--border)",
+                borderRadius: 12,
+                padding: "12px 14px",
+                resize: "vertical",
+                background: "var(--surface)",
+                fontFamily: "inherit",
+                boxSizing: "border-box",
+              }}
+            />
+          </label>
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button type="button" className="btn btn-ghost" onClick={saveFinalReportDraft}>
+              Save report draft
+            </button>
+            <button type="button" className="btn btn-primary" onClick={sendFinalReport} disabled={isReadOnly}>
+              Mark report ready for HR
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={finalizeAllEvaluations}
+              disabled={isReadOnly}
+              style={{
+                background:
+                  "color-mix(in srgb, var(--text) 28%, var(--sidebar-link-active-pill))",
+              }}
+            >
+              Final evaluation
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={exportFinalReport}>
+              Export report
+            </button>
+            {reportMessage ? (
+              <div
+                style={{
+                  fontSize: 13,
+                  color:
+                    "color-mix(in srgb, var(--text) 84%, var(--sidebar-link-active-pill))",
+                  fontWeight: 700,
+                  alignSelf: "center",
+                }}
+              >
+                {reportMessage}
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-// ─── Evaluation Form Sub-component ───────────────────────────────────────────
-
 function EvaluationForm({
   participant,
   draft,
-  activitySkills,
+  readOnly,
   onChange,
   onSubmit,
 }: {
   participant: ParticipantEvalStatus;
   draft: EvalDraft;
-  activitySkills: Array<{ _id: string; name: string; category: string }>;
+  readOnly: boolean;
   onChange: (patch: Partial<EvalDraft>) => void;
   onSubmit: () => void;
 }) {
   const emp = participant.employee;
   const userName = emp.user_id?.name || "Unknown";
-  const userEmail = emp.user_id?.email || "";
-  const userAvatar = emp.user_id?.avatarUrl;
   const isDone = draft.submitted;
-
-  const scoreLabel = (s: number) =>
-    ["", "Very Low", "Low", "Medium", "High", "Expert"][s] || "";
+  const [savedHint, setSavedHint] = useState("");
+  const recommendationScore = Math.max(1, Math.min(5, Math.round(draft.rating || 3))) * 20;
 
   return (
     <div
@@ -404,161 +823,165 @@ function EvaluationForm({
         background: "var(--surface)",
         border: "1px solid var(--border)",
         borderRadius: 16,
-        padding: 28,
-        boxShadow: "0 4px 16px rgba(15, 23, 42, 0.06)",
+        padding: 24,
+        boxShadow: "var(--shadow)",
       }}
     >
-      {/* Employee header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 28 }}>
-        <div style={avatarStyle(52)}>
-          {userAvatar ? (
-            <img
-              src={userAvatar}
-              alt=""
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            />
-          ) : (
-            userName[0]?.toUpperCase() || "?"
-          )}
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ fontSize: 32, fontWeight: 900, color: "var(--text)" }}>
+          Employee evaluation
         </div>
+        <div style={{ color: "var(--muted)", marginTop: 4 }}>
+          Use the full attendance history before submitting the final employee evaluation.
+        </div>
+      </div>
+
+      <div
+        style={{
+          border: "1px solid var(--border)",
+          borderRadius: 14,
+          padding: 16,
+          background: "var(--surface)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+          flexWrap: "wrap",
+          marginBottom: 16,
+        }}
+      >
         <div>
-          <div style={{ fontWeight: 900, fontSize: 20, color: "var(--text)" }}>
-            {userName}
-          </div>
-          <div style={{ fontSize: 14, color: "var(--muted)" }}>{userEmail}</div>
-          {emp.jobTitle && (
-            <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 2 }}>
-              {emp.jobTitle}
-            </div>
-          )}
+          <div style={{ fontWeight: 900, fontSize: 32, color: "var(--text)" }}>{userName}</div>
+          <div style={{ color: "var(--muted)", marginTop: 2 }}>{emp.jobTitle || "Participant"}</div>
         </div>
-        {isDone && (
-          <span
-            style={{
-              marginLeft: "auto",
-              padding: "6px 16px",
-              borderRadius: 999,
-              background: "color-mix(in srgb, #22c55e 15%, transparent)",
-              color: "#16a34a",
-              fontWeight: 800,
-              fontSize: 13,
-            }}
+        <div
+          style={{
+            borderRadius: 999,
+            padding: "10px 16px",
+            background: "color-mix(in srgb, var(--surface) 90%, #3b82f6)",
+            border: "1px solid color-mix(in srgb, var(--border) 68%, #3b82f6)",
+            color: "color-mix(in srgb, var(--text) 84%, #1d4ed8)",
+            fontWeight: 800,
+            fontSize: 13,
+          }}
+        >
+          Recommendation score: {recommendationScore}/100
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          gap: 12,
+          marginBottom: 14,
+        }}
+      >
+        <label style={{ display: "grid", gap: 6 }}>
+          <span style={{ fontWeight: 700 }}>Attendance</span>
+          <select
+            disabled={draft.submitting || readOnly}
+            value={draft.attendanceStatus}
+            onChange={(e) =>
+              onChange({ attendanceStatus: e.target.value as AttendanceStatus })
+            }
+            style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "var(--surface)" }}
           >
-            ✓ Evaluated
-          </span>
-        )}
+            <option value="EXCELLENT">Excellent</option>
+            <option value="GOOD">Good</option>
+            <option value="IRREGULAR">Irregular</option>
+            <option value="POOR">Poor</option>
+          </select>
+        </label>
+        <label style={{ display: "grid", gap: 6 }}>
+          <span style={{ fontWeight: 700 }}>Participation</span>
+          <select
+            disabled={draft.submitting || readOnly}
+            value={draft.participationLevel}
+            onChange={(e) =>
+              onChange({ participationLevel: e.target.value as ParticipationLevel })
+            }
+            style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "var(--surface)" }}
+          >
+            <option value="VERY_ACTIVE">Very active</option>
+            <option value="ACTIVE">Active</option>
+            <option value="MODERATE">Moderate</option>
+            <option value="LOW">Low</option>
+          </select>
+        </label>
+        <label style={{ display: "grid", gap: 6 }}>
+          <span style={{ fontWeight: 700 }}>Skill progress</span>
+          <select
+            disabled={draft.submitting || readOnly}
+            value={draft.skillProgress}
+            onChange={(e) =>
+              onChange({ skillProgress: e.target.value as SkillProgress })
+            }
+            style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "var(--surface)" }}
+          >
+            <option value="STRONG">Strong improvement</option>
+            <option value="MODERATE">Moderate improvement</option>
+            <option value="SLIGHT">Slight improvement</option>
+            <option value="NONE">No visible improvement</option>
+          </select>
+        </label>
+        <label style={{ display: "grid", gap: 6 }}>
+          <span style={{ fontWeight: 700 }}>Outcome</span>
+          <select
+            disabled={draft.submitting || readOnly}
+            value={draft.outcome}
+            onChange={(e) =>
+              onChange({ outcome: e.target.value as EvaluationOutcome })
+            }
+            style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "var(--surface)" }}
+          >
+            <option value="COMPLETED_SUCCESSFULLY">Completed successfully</option>
+            <option value="NEEDS_FOLLOW_UP">Needs follow-up</option>
+            <option value="DID_NOT_COMPLETE">Did not complete</option>
+          </select>
+        </label>
+        <label style={{ display: "grid", gap: 6 }}>
+          <span style={{ fontWeight: 700 }}>Recommendation</span>
+          <select
+            disabled={draft.submitting || readOnly}
+            value={draft.recommendation}
+            onChange={(e) =>
+              onChange({ recommendation: e.target.value as Recommendation })
+            }
+            style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "var(--surface)" }}
+          >
+            <option value="ADVANCED_TRAINING">Advanced training</option>
+            <option value="PROJECT_ASSIGNMENT">Project assignment</option>
+            <option value="MENTORING">Mentoring</option>
+            <option value="RETRY_LATER">Retry later</option>
+          </select>
+        </label>
+        <label style={{ display: "grid", gap: 6 }}>
+          <span style={{ fontWeight: 700 }}>Manager rating</span>
+          <select
+            disabled={draft.submitting || readOnly}
+            value={draft.rating}
+            onChange={(e) => onChange({ rating: Number(e.target.value) || 1 })}
+            style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "var(--surface)" }}
+          >
+            <option value={1}>1 / 5</option>
+            <option value={2}>2 / 5</option>
+            <option value={3}>3 / 5</option>
+            <option value={4}>4 / 5</option>
+            <option value={5}>5 / 5</option>
+          </select>
+        </label>
       </div>
 
-      {/* Presence */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 12, fontWeight: 800, color: "var(--muted)", marginBottom: 10 }}>
-          PRESENCE
-        </div>
-        <div style={{ display: "flex", gap: 10 }}>
-          {(["PRESENT", "ABSENT"] as EvaluationPresence[]).map((p) => (
-            <button
-              key={p}
-              disabled={isDone}
-              onClick={() => onChange({ presence: p })}
-              style={{
-                padding: "10px 24px",
-                borderRadius: 10,
-                border: `2px solid ${
-                  draft.presence === p
-                    ? p === "PRESENT" ? "#22c55e" : "#ef4444"
-                    : "var(--border)"
-                }`,
-                background:
-                  draft.presence === p
-                    ? p === "PRESENT"
-                      ? "color-mix(in srgb, #22c55e 12%, var(--surface))"
-                      : "color-mix(in srgb, #ef4444 12%, var(--surface))"
-                    : "var(--surface-2)",
-                color:
-                  draft.presence === p
-                    ? p === "PRESENT" ? "#16a34a" : "#dc2626"
-                    : "var(--muted)",
-                fontWeight: 800,
-                fontSize: 14,
-                cursor: isDone ? "default" : "pointer",
-                transition: "all 0.14s",
-                opacity: isDone ? 0.7 : 1,
-              }}
-            >
-              {p === "PRESENT" ? "✓ Present" : "✗ Absent"}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Skill scores — only if PRESENT */}
-      {draft.presence === "PRESENT" && activitySkills.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: "var(--muted)", marginBottom: 14 }}>
-            SKILL SCORES
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            {activitySkills.map((skill) => {
-              const currentScore = draft.skillScores[skill._id] || 0;
-              return (
-                <div key={skill._id}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                    <div>
-                      <span style={{ fontWeight: 700, fontSize: 14, color: "var(--text)" }}>
-                        {skill.name}
-                      </span>
-                      <span
-                        style={{
-                          marginLeft: 8,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          color: "var(--muted)",
-                          textTransform: "uppercase",
-                        }}
-                      >
-                        {skill.category}
-                      </span>
-                    </div>
-                    {currentScore > 0 && (
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "var(--muted)" }}>
-                        {scoreLabel(currentScore)}
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    {[1, 2, 3, 4, 5].map((v) => (
-                      <button
-                        key={v}
-                        disabled={isDone}
-                        onClick={() =>
-                          !isDone &&
-                          onChange({ skillScores: { ...draft.skillScores, [skill._id]: v } })
-                        }
-                        style={scoreBtn(currentScore === v, v)}
-                      >
-                        {v}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Feedback */}
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: 12, fontWeight: 800, color: "var(--muted)", marginBottom: 10 }}>
-          FEEDBACK <span style={{ fontWeight: 400 }}>(optional)</span>
-        </div>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontWeight: 700, marginBottom: 8 }}>Manager comment</div>
         <textarea
-          disabled={isDone}
-          value={draft.feedback}
-          onChange={(e) => onChange({ feedback: e.target.value })}
-          placeholder="Add any notes about this employee's performance…"
+          disabled={draft.submitting || readOnly}
+          value={draft.comment}
+          onChange={(e) => onChange({ comment: e.target.value })}
+          placeholder="Write your evaluation note here..."
           maxLength={2000}
-          rows={4}
+          rows={6}
           style={{
             width: "100%",
             padding: "12px 14px",
@@ -574,45 +997,74 @@ function EvaluationForm({
             boxSizing: "border-box",
           }}
         />
-        <div style={{ textAlign: "right", fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
-          {draft.feedback.length}/2000
-        </div>
       </div>
 
-      {/* Submit */}
-      {!isDone ? (
-        <button
-          onClick={onSubmit}
-          disabled={draft.submitting}
-          style={{
-            width: "100%",
-            padding: "14px",
-            borderRadius: 12,
-            border: "none",
-            background: draft.submitting ? "var(--border)" : "#3b82f6",
-            color: "#fff",
-            fontWeight: 900,
-            fontSize: 15,
-            cursor: draft.submitting ? "default" : "pointer",
-            transition: "background 0.15s",
-          }}
-        >
-          {draft.submitting ? "Submitting…" : "Submit Evaluation"}
-        </button>
+      {!draft.submitting ? (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={draft.submitting || readOnly}
+            onClick={() => {
+              setSavedHint("Draft saved locally.");
+              window.setTimeout(() => setSavedHint(""), 1500);
+            }}
+          >
+            Save draft
+          </button>
+          <button
+            onClick={onSubmit}
+            disabled={draft.submitting || readOnly}
+            style={{
+              padding: "11px 16px",
+              borderRadius: 10,
+              border: "none",
+              background: draft.submitting
+                ? "var(--border)"
+                : "color-mix(in srgb, var(--text) 28%, var(--sidebar-link-active-pill))",
+              color: "var(--surface)",
+              fontWeight: 900,
+              fontSize: 14,
+              cursor: draft.submitting ? "default" : "pointer",
+            }}
+          >
+            {draft.submitting
+              ? "Submitting…"
+              : isDone
+              ? "Update evaluation"
+              : "Submit evaluation"}
+          </button>
+          {savedHint ? (
+            <span
+              style={{
+                color:
+                  "color-mix(in srgb, var(--text) 84%, var(--sidebar-link-active-pill))",
+                fontWeight: 700,
+                fontSize: 13,
+                alignSelf: "center",
+              }}
+            >
+              {savedHint}
+            </span>
+          ) : null}
+        </div>
       ) : (
         <div
           style={{
             textAlign: "center",
-            padding: "14px",
+            padding: "12px",
             borderRadius: 12,
-            background: "color-mix(in srgb, #22c55e 10%, var(--surface))",
-            color: "#16a34a",
+            background:
+              "color-mix(in srgb, var(--surface) 88%, var(--sidebar-link-active-pill))",
+            color:
+              "color-mix(in srgb, var(--text) 84%, var(--sidebar-link-active-pill))",
             fontWeight: 800,
             fontSize: 15,
-            border: "1.5px solid #22c55e",
+            border:
+              "1.5px solid color-mix(in srgb, var(--border) 66%, var(--sidebar-link-active-pill))",
           }}
         >
-          ✓ Evaluation submitted successfully
+          Submitting evaluation...
         </div>
       )}
     </div>

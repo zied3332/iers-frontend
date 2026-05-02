@@ -45,10 +45,6 @@ export default function HrEmployeeDetails() {
   return (
     <div className="hr-page">
       <div className="hr-topbar">
-        <Link to="/hr/employees" className="hr-back">
-          Back to Employees
-        </Link>
-
         <div className="hr-actions">
           <button className="btn btn-ghost">Message</button>
           <button className="btn btn-primary">Invite to Activity</button>

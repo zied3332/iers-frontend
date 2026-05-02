@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiPlus, FiSearch, FiX } from 'react-icons/fi';
+import * as XLSX from 'xlsx';
 import {
   createDomain,
   deleteDomain,
@@ -378,6 +379,9 @@ export default function DomainManagementPage() {
     description: '',
   });
   const [currentPage, setCurrentPage] = useState(1);
+  const [importingExcel, setImportingExcel] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
+  const importFileRef = useRef<HTMLInputElement | null>(null);
 
   const loadDomains = async () => {
     try {
@@ -486,6 +490,93 @@ export default function DomainManagementPage() {
     }
   };
 
+  const normalizeText = (value: unknown) => String(value ?? '').trim();
+
+  const parseExcelFile = async (file: File) => {
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: 'array' });
+    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+    if (!firstSheet) return [];
+    return XLSX.utils.sheet_to_json<Record<string, unknown>>(firstSheet, { defval: '' });
+  };
+
+  const handleExportDomainsExcel = async () => {
+    try {
+      setExportingExcel(true);
+      const rows = domains.map((domain) => ({
+        Domain_Name: String(domain.name || ''),
+        Domain_Description: String(domain.description || ''),
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Domains');
+      XLSX.writeFile(workbook, 'domains.xlsx');
+    } catch (err) {
+      setDomainError((err as Error)?.message || 'Failed to export domains.');
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
+  const handleImportClick = () => importFileRef.current?.click();
+
+  const handleImportDomainsExcel = async (file: File) => {
+    try {
+      setImportingExcel(true);
+      setDomainError('');
+      const rows = await parseExcelFile(file);
+      if (!rows.length) {
+        setDomainError('Excel file is empty.');
+        return;
+      }
+
+      const latestDomains = await getAllDomains();
+      const byName = new Map(latestDomains.map((d) => [normalizeText(d.name).toLowerCase(), d]));
+
+      let created = 0;
+      let updated = 0;
+      let skipped = 0;
+
+      for (const row of rows) {
+        const name = normalizeText(row.Domain_Name ?? row.domain_name ?? row.name);
+        const description = normalizeText(
+          row.Domain_Description ?? row.domain_description ?? row.description,
+        );
+        if (!name) {
+          skipped += 1;
+          continue;
+        }
+
+        const existing = byName.get(name.toLowerCase());
+        if (existing) {
+          await updateDomain(existing._id, {
+            name,
+            description,
+          });
+          updated += 1;
+        } else {
+          const createdDomain = await createDomain({
+            name,
+            description: description || undefined,
+          });
+          byName.set(name.toLowerCase(), createdDomain);
+          created += 1;
+        }
+      }
+
+      await loadDomains();
+      window.alert(
+        `Domains import completed.\nCreated: ${created}\nUpdated: ${updated}\nSkipped: ${skipped}`,
+      );
+    } catch (err) {
+      setDomainError((err as Error)?.message || 'Failed to import domains.');
+    } finally {
+      setImportingExcel(false);
+      if (importFileRef.current) importFileRef.current.value = '';
+    }
+  };
+
   return (
     <div style={styles.page}>
       <div style={styles.container}>
@@ -567,6 +658,47 @@ export default function DomainManagementPage() {
                     Cancel edit
                   </button>
                 )}
+                <div style={{ marginLeft: 'auto', display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    style={{
+                      ...styles.btn,
+                      border: '1px solid var(--primary-border)',
+                      background: 'var(--primary-weak)',
+                      color: 'var(--primary-soft-text)',
+                      boxShadow: '0 8px 18px rgba(15, 23, 42, 0.12)',
+                    }}
+                    onClick={handleImportClick}
+                    disabled={importingExcel}
+                  >
+                    {importingExcel ? 'Importing...' : 'Import Excel'}
+                  </button>
+                  <button
+                    type="button"
+                    style={{
+                      ...styles.btn,
+                      border: '1px solid var(--primary-border)',
+                      background: 'var(--primary-weak)',
+                      color: 'var(--primary-soft-text)',
+                      boxShadow: '0 8px 18px rgba(15, 23, 42, 0.12)',
+                    }}
+                    onClick={handleExportDomainsExcel}
+                    disabled={exportingExcel}
+                  >
+                    {exportingExcel ? 'Exporting...' : 'Export Excel'}
+                  </button>
+                  <input
+                    ref={importFileRef}
+                    type="file"
+                    accept=".xlsx,.xls"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      void handleImportDomainsExcel(file);
+                    }}
+                  />
+                </div>
               </div>
             </form>
 

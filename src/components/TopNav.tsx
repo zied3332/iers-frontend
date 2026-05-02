@@ -5,6 +5,7 @@ const item = ({ isActive }: any) => ({
   borderRadius: 12,
   textDecoration: "none",
   fontWeight: 800,
+  fontSize: "var(--fz-14)",
   color: isActive ? "white" : "#0f172a",
   background: isActive ? "#1f7a5a" : "transparent",
 });
@@ -32,7 +33,7 @@ export default function TopNav() {
       >
         {/* Left */}
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ fontWeight: 900, fontSize: 18 }}>IntelliHR</div>
+          <div style={{ fontWeight: 900, fontSize: "var(--fz-18)" }}>IntelliHR</div>
 
           <nav style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <NavLink to="/hr/dashboard" style={item}>HR Dashboard</NavLink>
@@ -52,6 +53,7 @@ export default function TopNav() {
               borderRadius: 12,
               border: "1px solid #eaecef",
               outline: "none",
+              fontSize: "var(--fz-14)",
             }}
           />
           <div

@@ -605,6 +605,8 @@ export default function NotificationsPage() {
   const openedFromStateRef = useRef<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
+  const fz = useCallback((px: number) => `var(--fz-${px})`, []);
+
   const notificationsBasePath = useMemo(() => getNotificationsBasePath(location.pathname), [location.pathname]);
   const notificationsRole = useMemo(() => getNotificationsRoleFromPath(location.pathname), [location.pathname]);
   const canFilterByDepartment = notificationsRole === 'hr' || notificationsRole === 'super-manager';
@@ -1083,14 +1085,14 @@ export default function NotificationsPage() {
       <div className="container">
         <div className="section-head" style={{ marginBottom: 12 }}>
           <div>
-            <div className="header-title" style={{ fontSize: 34 }}>
+            <div className="header-title" style={{ fontSize: fz(34) }}>
               {activeSideView === 'unread'
                 ? 'Unread Notifications Page'
                 : activeSideView === 'read'
                   ? 'Read Notifications Page'
                   : 'Notifications Center'}
             </div>
-            <div className="muted" style={{ marginTop: 8, fontSize: 18 }}>
+            <div className="muted" style={{ marginTop: 8, fontSize: fz(18) }}>
               {activeSideView
                 ? 'Dedicated page for this notification status.'
                 : 'Stay updated with requests, approvals, skill changes, and activity alerts.'}
@@ -1262,7 +1264,7 @@ export default function NotificationsPage() {
               )}
               {!loading && feedNotifications.length > 0 ? (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
-                  <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 600 }}>
+                  <span style={{ color: 'var(--muted)', fontSize: fz(13), fontWeight: 600 }}>
                     Showing {startItem} to {endItem} of {feedNotifications.length}
                   </span>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

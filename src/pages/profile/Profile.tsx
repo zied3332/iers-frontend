@@ -6,6 +6,10 @@ import { patchMe } from "./profile.api";
 import { getMyEmployeeRecord, patchMyEmployeeRecord } from "../../services/employee.service";
 import { getAllSkills } from "../../services/skills.service";
 import { getAllDomains, type Domain } from "../../services/domains.service";
+import {
+  getEvaluationsByEmployee,
+  type PostActivityEvaluation,
+} from "../../services/post-activity-evaluations.service";
 import type { ExperienceSegmentInput } from "../../utils/experienceSegments";
 import {
   ExperienceSegmentsEditor,
@@ -19,7 +23,7 @@ import { PILL_TONES, S, type Tone } from "./profile.styles";
 import ProfileHero from "./components/ProfileHero";
 import ProfileTabs, { type ProfileTabKey } from "./components/ProfileTabs";
 import OverviewTab from "./components/OverviewTab";
-import FeedbackTab from "./components/FeedbackTab";
+import FeedbackTab, { type FeedbackItem } from "./components/FeedbackTab";
 import HistoryTab from "./components/HistoryTab";
 
 const AVATAR_STORAGE_KEY = "intellihr_avatar";
@@ -201,6 +205,9 @@ export default function Profile() {
   const [experienceSegments, setExperienceSegments] = useState<ExperienceSegmentInput[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [skillOptions, setSkillOptions] = useState<SkillOption[]>([]);
+  const [feedbackItems, setFeedbackItems] = useState<FeedbackItem[]>([]);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackError, setFeedbackError] = useState("");
 
   const [viewportWidth, setViewportWidth] = useState<number>(() =>
     typeof window !== "undefined" ? window.innerWidth : 1400
@@ -486,6 +493,76 @@ export default function Profile() {
     }
   }, [user, telephone]);
 
+  useEffect(() => {
+    const userId = String(user?._id || "").trim();
+    if (!userId) {
+      setFeedbackItems([]);
+      setFeedbackLoading(false);
+      setFeedbackError("");
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      setFeedbackLoading(true);
+      setFeedbackError("");
+      try {
+        const rows = await getEvaluationsByEmployee(userId);
+        if (cancelled) return;
+
+        const mapped = (Array.isArray(rows) ? rows : [])
+          .map((row: PostActivityEvaluation) => {
+            const activityTitle =
+              (row.activityId && typeof row.activityId === "object" && (row.activityId as any).title) ||
+              "Activity";
+            const managerName =
+              (row.reviewedBy && typeof row.reviewedBy === "object" && (row.reviewedBy as any).name) ||
+              "Manager";
+            const ratingRaw = Number((row as any)?.managerAssessment?.rating || 0);
+            const rating: FeedbackItem["rating"] =
+              ratingRaw >= 5 ? "Excellent" : ratingRaw >= 4 ? "Very Good" : ratingRaw > 0 ? "Good" : "Not Rated";
+            const createdTs = Date.parse(String(row.createdAt || ""));
+
+            return {
+              ts: Number.isNaN(createdTs) ? 0 : createdTs,
+              item: {
+                id: String(row._id || `${activityTitle}-${row.createdAt || ""}`),
+                activity: String(activityTitle),
+                manager: String(managerName),
+                date: row.createdAt
+                  ? new Date(row.createdAt).toLocaleDateString(undefined, {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })
+                  : "—",
+                rating,
+                text:
+                  String((row as any)?.managerAssessment?.comment || "").trim() ||
+                  String(row.feedback || "").trim() ||
+                  "No feedback comment provided.",
+              },
+            };
+          })
+          .sort((a, b) => b.ts - a.ts)
+          .map((entry) => entry.item);
+
+        setFeedbackItems(mapped);
+      } catch (e: unknown) {
+        if (!cancelled) {
+          setFeedbackItems([]);
+          setFeedbackError(e instanceof Error ? e.message : "Failed to load feedback.");
+        }
+      } finally {
+        if (!cancelled) setFeedbackLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?._id]);
+
   return (
     <div style={{ ...S.page, padding: 0, maxWidth: "none" }}>
       <div style={pageWrapStyle}>
@@ -537,7 +614,7 @@ export default function Profile() {
             <ProfileTabs
               activeTab={tab as ProfileTabKey}
               onChange={(next) => setTab(next)}
-              feedbackCount={3}
+              feedbackCount={feedbackItems.length}
             />
 
             {isEditingBasics && tab === "overview" && (
@@ -722,7 +799,13 @@ export default function Profile() {
               />
             )}
 
-            {tab === "feedback" && <FeedbackTab />}
+            {tab === "feedback" && (
+              <FeedbackTab
+                items={feedbackItems}
+                loading={feedbackLoading}
+                error={feedbackError}
+              />
+            )}
 
             {tab === "history" && (
               <HistoryTab

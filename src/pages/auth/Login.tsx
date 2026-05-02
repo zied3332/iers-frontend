@@ -5,8 +5,8 @@ import { loginUser, loginWithGoogle, verifyLoginTwoFactor } from "../../services
 import SiteNav from "../../components/SiteNav";
 import AuthFooter from "../../components/AuthFooter";
 import "../../auth-pages.css";
-const logoSrc = "/images/logo.png";
-const logoSrc1 = "/images/logo1.png";
+const logoSrc = "/images/logo-160.webp";
+const logoSrc1 = "/images/logo1-160.webp";
 function redirectByRole(nav: ReturnType<typeof useNavigate>, roleRaw: unknown) {
   const role = String(roleRaw || "").toLowerCase().replace(/\s+/g, "_");
 
@@ -25,7 +25,7 @@ export default function Login() {
   const nav = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const heroImages = ["/images/bg1.png", "/images/bg2.png", "/images/bg3.png", "/images/bg4.png"];
+  const heroImages = ["/images/bg1.webp", "/images/bg2.webp", "/images/bg3.webp", "/images/bg4.webp"];
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -133,7 +133,7 @@ export default function Login() {
 
         <div className="modern-auth-card">
        <div className="brand-icon">
-<img src="/images/logo1.png" alt="IntelliHR Logo" /></div>
+<img src={logoSrc1} alt="IntelliHR Logo" width={160} height={107} /></div>
           <h2>Let's login</h2>
           <p className="auth-subtitle">Access your HR workspace securely.</p>
 

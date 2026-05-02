@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiArrowRight, FiCalendar, FiUsers } from "react-icons/fi";
+import { FiArrowRight, FiCalendar, FiSearch, FiUsers } from "react-icons/fi";
 import {
   listActivities,
   type ActivityRecord,
   type ListActivitiesQuery,
 } from "../../services/activities.service";
+import { getFinalizedActivitiesForEvaluation } from "../../services/post-activity-evaluations.service";
 
 const META: Record<
   NonNullable<ListActivitiesQuery["managerView"]>,
@@ -19,7 +20,7 @@ const META: Record<
   past: {
     title: "Past activities",
     subtitle:
-      "Completed or cancelled activities you were responsible for. Open to view details in read-only mode.",
+      "Completed activities waiting for final evaluation submission. Once finalized, they move to Evaluated activities.",
   },
 };
 
@@ -34,9 +35,16 @@ function ManagerFilteredActivitiesInner({
 }) {
   const navigate = useNavigate();
   const [items, setItems] = useState<ActivityRecord[]>([]);
+  const [finalizedActivityIds, setFinalizedActivityIds] = useState<Set<string>>(
+    new Set()
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"all" | ActivityRecord["type"]>(
+    "all"
+  );
   const ITEMS_PER_PAGE = 8;
 
   useEffect(() => {
@@ -48,7 +56,21 @@ function ManagerFilteredActivitiesInner({
 
       try {
         const data = await listActivities({ managerView: mode });
-        if (!cancelled) setItems(data || []);
+        let finalized = new Set<string>();
+        if (mode === "past") {
+          try {
+            const finalizedRows = await getFinalizedActivitiesForEvaluation();
+            finalized = new Set(
+              (finalizedRows || []).map((row) => String(row.activity?._id || ""))
+            );
+          } catch {
+            finalized = new Set();
+          }
+        }
+        if (!cancelled) {
+          setItems(data || []);
+          setFinalizedActivityIds(finalized);
+        }
       } catch (e: unknown) {
         if (!cancelled) {
           setError(
@@ -71,22 +93,43 @@ function ManagerFilteredActivitiesInner({
     return copy;
   }, [items]);
 
+  const filteredSorted = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return sorted.filter((a) => {
+      if (typeFilter !== "all" && a.type !== typeFilter) return false;
+      if (mode === "past" && finalizedActivityIds.has(String(a._id))) return false;
+
+      if (!q) return true;
+      const haystack = [
+        a.title,
+        a.type,
+        a.status,
+        a.workflowStatus || "",
+        a.startDate,
+        a.endDate,
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [sorted, search, mode, typeFilter, finalizedActivityIds]);
+
   useEffect(() => {
     setCurrentPage(1);
-  }, [mode, items.length]);
+  }, [mode, items.length, search, typeFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(sorted.length / ITEMS_PER_PAGE));
+  const totalPages = Math.max(1, Math.ceil(filteredSorted.length / ITEMS_PER_PAGE));
 
   const paginated = useMemo(() => {
     const safePage = Math.min(currentPage, totalPages);
     const start = (safePage - 1) * ITEMS_PER_PAGE;
-    return sorted.slice(start, start + ITEMS_PER_PAGE);
-  }, [sorted, currentPage, totalPages]);
+    return filteredSorted.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredSorted, currentPage, totalPages]);
 
   const safePage = Math.min(currentPage, totalPages);
   const startItem =
-    sorted.length === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1;
-  const endItem = Math.min(safePage * ITEMS_PER_PAGE, sorted.length);
+    filteredSorted.length === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1;
+  const endItem = Math.min(safePage * ITEMS_PER_PAGE, filteredSorted.length);
 
   const page = META[mode];
 
@@ -96,7 +139,95 @@ function ManagerFilteredActivitiesInner({
       return;
     }
 
-    navigate(`/manager/activities/${activityId}/review`);
+    navigate(`/manager/activities/${activityId}/evaluate`);
+  }
+
+  function renderActivityCard(a: ActivityRecord) {
+    return (
+      <button
+        key={a._id}
+        type="button"
+        onClick={() => handleOpenActivity(a._id)}
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr auto",
+          gap: "16px",
+          alignItems: "center",
+          textAlign: "left",
+          padding: "18px 20px",
+          borderRadius: "16px",
+          border: "1px solid var(--border)",
+          background: "var(--card)",
+          cursor: "pointer",
+          boxShadow: "var(--shadow)",
+          color: "var(--text)",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              fontWeight: 800,
+              fontSize: "17px",
+              marginBottom: "6px",
+            }}
+          >
+            {a.title}
+          </div>
+
+          <div
+            style={{
+              fontSize: "13px",
+              color: "var(--muted)",
+              fontWeight: 600,
+            }}
+          >
+            {formatLabel(a.type)} · {formatLabel(a.status)}
+            {a.workflowStatus
+              ? ` · ${formatLabel(a.workflowStatus)}`
+              : ""}
+          </div>
+
+          <div
+            style={{
+              marginTop: "10px",
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "14px",
+              fontSize: "13px",
+              color: "var(--muted)",
+            }}
+          >
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <FiCalendar size={14} /> {a.startDate} → {a.endDate}
+            </span>
+
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <FiUsers size={14} /> {a.availableSlots} seats
+            </span>
+          </div>
+        </div>
+
+        <FiArrowRight
+          size={22}
+          style={{
+            color: "var(--sidebar-link-active-pill)",
+            flexShrink: 0,
+          }}
+        />
+      </button>
+    );
   }
 
   return (
@@ -115,7 +246,11 @@ function ManagerFilteredActivitiesInner({
           </h1>
           <p
             className="page-subtitle"
-            style={{ maxWidth: "720px", marginTop: "8px" }}
+            style={{
+              maxWidth: "720px",
+              marginTop: "8px",
+              color: "color-mix(in srgb, var(--text) 86%, var(--muted))",
+            }}
           >
             {page.subtitle}
           </p>
@@ -137,11 +272,87 @@ function ManagerFilteredActivitiesInner({
           </div>
         ) : null}
 
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr auto",
+            gap: "12px",
+            marginBottom: "14px",
+          }}
+        >
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              border: "1px solid var(--border)",
+              borderRadius: "12px",
+              padding: "10px 12px",
+              background: "var(--card)",
+            }}
+          >
+            <FiSearch size={16} style={{ color: "var(--muted)" }} />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by title, type, status, or date..."
+              style={{
+                width: "100%",
+                border: "none",
+                outline: "none",
+                background: "transparent",
+                color: "var(--text)",
+              }}
+            />
+          </label>
+
+          <select
+            value={typeFilter}
+            onChange={(e) =>
+              setTypeFilter(
+                e.target.value as "all" | ActivityRecord["type"]
+              )
+            }
+            style={{
+              border: "1px solid var(--border)",
+              borderRadius: "12px",
+              padding: "10px 12px",
+              background: "var(--card)",
+              color: "var(--text)",
+              fontWeight: 600,
+            }}
+          >
+            <option value="all">All activity types</option>
+            <option value="TRAINING">Training</option>
+            <option value="CERTIFICATION">Certification</option>
+            <option value="PROJECT">Project</option>
+            <option value="MISSION">Mission</option>
+            <option value="AUDIT">Audit</option>
+          </select>
+        </div>
+
+        {mode === "past" ? (
+          <div
+            style={{
+              borderRadius: "10px",
+              padding: "8px 12px",
+              border: "1px solid var(--border)",
+              background: "var(--surface-2)",
+              marginBottom: "14px",
+              color: "var(--muted)",
+              fontSize: "13px",
+              fontWeight: 600,
+            }}
+          >
+            Past activities list only includes completed activities not finalized yet.
+          </div>
+        ) : null}
+
         {loading ? (
           <div style={{ color: "var(--muted)", padding: "40px 0" }}>
             Loading…
           </div>
-        ) : sorted.length === 0 ? (
+        ) : filteredSorted.length === 0 ? (
           <div
             style={{
               padding: "48px 24px",
@@ -156,91 +367,7 @@ function ManagerFilteredActivitiesInner({
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            {paginated.map((a) => (
-              <button
-                key={a._id}
-                type="button"
-                onClick={() => handleOpenActivity(a._id)}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr auto",
-                  gap: "16px",
-                  alignItems: "center",
-                  textAlign: "left",
-                  padding: "18px 20px",
-                  borderRadius: "16px",
-                  border: "1px solid var(--border)",
-                  background: "var(--card)",
-                  cursor: "pointer",
-                  boxShadow: "var(--shadow)",
-                  color: "var(--text)",
-                }}
-              >
-                <div>
-                  <div
-                    style={{
-                      fontWeight: 800,
-                      fontSize: "17px",
-                      marginBottom: "6px",
-                    }}
-                  >
-                    {a.title}
-                  </div>
-
-                  <div
-                    style={{
-                      fontSize: "13px",
-                      color: "var(--muted)",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {formatLabel(a.type)} · {formatLabel(a.status)}
-                    {a.workflowStatus
-                      ? ` · ${formatLabel(a.workflowStatus)}`
-                      : ""}
-                  </div>
-
-                  <div
-                    style={{
-                      marginTop: "10px",
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: "14px",
-                      fontSize: "13px",
-                      color: "var(--muted)",
-                    }}
-                  >
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "6px",
-                      }}
-                    >
-                      <FiCalendar size={14} /> {a.startDate} → {a.endDate}
-                    </span>
-
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "6px",
-                      }}
-                    >
-                      <FiUsers size={14} /> {a.availableSlots} seats
-                    </span>
-                  </div>
-                </div>
-
-                <FiArrowRight
-                  size={22}
-                  style={{
-                    color: "var(--sidebar-link-active-pill)",
-                    flexShrink: 0,
-                  }}
-                />
-              </button>
-            ))}
+            {paginated.map((a) => renderActivityCard(a))}
 
             <div
               style={{
@@ -254,12 +381,12 @@ function ManagerFilteredActivitiesInner({
             >
               <span
                 style={{
-                  color: "var(--muted)",
+                  color: "color-mix(in srgb, var(--text) 70%, var(--muted))",
                   fontSize: "13px",
-                  fontWeight: 600,
+                  fontWeight: 700,
                 }}
               >
-                Showing {startItem} to {endItem} of {sorted.length}
+                Showing {startItem} to {endItem} of {filteredSorted.length}
               </span>
 
               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>

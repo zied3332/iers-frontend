@@ -229,6 +229,56 @@ function isIsoDate(s: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(s);
 }
 
+function toYmd(date: Date): string {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function normalizeExcelDate(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const parsed = XLSX.SSF.parse_date_code(value);
+    if (parsed && parsed.y && parsed.m && parsed.d) {
+      const y = String(parsed.y).padStart(4, "0");
+      const m = String(parsed.m).padStart(2, "0");
+      const d = String(parsed.d).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+  }
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return toYmd(value);
+  }
+
+  const text = toStr(value);
+  if (!text) return "";
+  if (isIsoDate(text)) return text;
+
+  const slashOrDash = text.match(/^(\d{1,4})[/-](\d{1,2})[/-](\d{1,4})$/);
+  if (slashOrDash) {
+    const a = Number(slashOrDash[1]);
+    const b = Number(slashOrDash[2]);
+    const c = Number(slashOrDash[3]);
+
+    // yyyy-mm-dd
+    if (slashOrDash[1].length === 4) {
+      const dt = new Date(Date.UTC(a, b - 1, c));
+      if (!Number.isNaN(dt.getTime())) return toYmd(dt);
+    }
+    // dd-mm-yyyy
+    if (slashOrDash[3].length === 4) {
+      const dt = new Date(Date.UTC(c, b - 1, a));
+      if (!Number.isNaN(dt.getTime())) return toYmd(dt);
+    }
+  }
+
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return toYmd(parsed);
+}
+
 function buildImportFileFromRows(rows: PreviewRow[]): File {
   const headers = ["name", "email", "matricule", "telephone", "date_embauche", "role"];
   const data = rows.map((r) => ({
@@ -285,7 +335,7 @@ export function ImportUsersModal({ open, onClose, onImported }: Props) {
       const mat = toStr(r.matricule);
       const tel = toStr(r.telephone);
       const role = normalizeRole(toStr(r.role));
-      const dateEmb = toStr(r.date_embauche);
+      const dateEmb = normalizeExcelDate(r.date_embauche);
 
       if (!name) e.push("name is required");
 
@@ -355,7 +405,7 @@ export function ImportUsersModal({ open, onClose, onImported }: Props) {
       }
       out.role = normalizeRole(toStr(out.role || "EMPLOYEE"));
       out.status = normalizeStatus(toStr(out.status || "ACTIVE")); 
-      out.date_embauche = toStr(out.date_embauche);
+      out.date_embauche = normalizeExcelDate(out.date_embauche);
       return out as PreviewRow;
     });
 

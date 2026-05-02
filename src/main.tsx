@@ -4,8 +4,10 @@ import App from './App';
 import { NotificationProvider } from './context/NotificationContext';
 import './index.css';
 import { applyThemePreferences } from './utils/themePreferences';
+import { applyFontPreferences } from './utils/fontPreferences';
 
 applyThemePreferences({ persist: false });
+applyFontPreferences({ persist: false });
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

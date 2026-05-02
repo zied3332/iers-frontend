@@ -1,43 +1,13 @@
 import React from "react";
 
-type FeedbackItem = {
-  id: number;
+export type FeedbackItem = {
+  id: string;
   activity: string;
   manager: string;
   date: string;
-  rating: "Excellent" | "Very Good" | "Good";
+  rating: "Excellent" | "Very Good" | "Good" | "Not Rated";
   text: string;
 };
-
-const feedbackItems: FeedbackItem[] = [
-  {
-    id: 1,
-    activity: "Leadership Workshop",
-    manager: "Sarah Ben Ali",
-    date: "12 Apr 2026",
-    rating: "Excellent",
-    text:
-      "Zied showed strong participation during the workshop, communicated clearly with the team, and demonstrated good leadership potential during the case-study session.",
-  },
-  {
-    id: 2,
-    activity: "Employee Analytics Training",
-    manager: "Mohamed Rahal",
-    date: "02 Mar 2026",
-    rating: "Very Good",
-    text:
-      "He completed all assigned tasks successfully and understood the reporting workflow well. More confidence during presentation would make the result even stronger.",
-  },
-  {
-    id: 3,
-    activity: "Internal Recruitment Process Review",
-    manager: "Amal Trabelsi",
-    date: "18 Jan 2026",
-    rating: "Good",
-    text:
-      "Good collaboration and follow-up across the recruitment steps. Needs to improve response time on documentation updates during busy periods.",
-  },
-];
 
 function getRatingStyles(rating: FeedbackItem["rating"]): React.CSSProperties {
   if (rating === "Excellent") {
@@ -63,12 +33,21 @@ function getRatingStyles(rating: FeedbackItem["rating"]): React.CSSProperties {
   };
 }
 
-export default function FeedbackTab() {
+type FeedbackTabProps = {
+  items: FeedbackItem[];
+  loading?: boolean;
+  error?: string;
+};
+
+export default function FeedbackTab({ items, loading = false, error = "" }: FeedbackTabProps) {
+  const feedbackItems = items;
   const totalReviews = feedbackItems.length;
   const positiveHighlights = feedbackItems.filter(
     (item) => item.rating === "Excellent" || item.rating === "Very Good"
   ).length;
-  const improvementNotes = feedbackItems.filter((item) => item.rating === "Good").length;
+  const improvementNotes = feedbackItems.filter(
+    (item) => item.rating === "Good" || item.rating === "Not Rated"
+  ).length;
 
   return (
     <div
@@ -111,7 +90,47 @@ export default function FeedbackTab() {
           </div>
         </div>
 
-        {feedbackItems.map((item) => (
+        {loading ? (
+          <div
+            style={{
+              background: "var(--surface)",
+              border: "1px solid color-mix(in srgb, var(--border) 78%, transparent)",
+              borderRadius: 24,
+              padding: 28,
+              boxShadow: "0 18px 50px rgba(15,23,42,0.06)",
+              color: "var(--muted)",
+              fontWeight: 700,
+            }}
+          >
+            Loading feedback...
+          </div>
+        ) : error ? (
+          <div
+            style={{
+              background: "color-mix(in srgb, var(--surface) 90%, #ef4444)",
+              border: "1px solid color-mix(in srgb, var(--border) 66%, #ef4444)",
+              borderRadius: 24,
+              padding: 20,
+              color: "var(--text)",
+              fontWeight: 700,
+            }}
+          >
+            {error}
+          </div>
+        ) : feedbackItems.length === 0 ? (
+          <div
+            style={{
+              background: "var(--surface)",
+              border: "1px dashed var(--border)",
+              borderRadius: 24,
+              padding: 28,
+              color: "var(--muted)",
+              fontWeight: 700,
+            }}
+          >
+            No feedback available yet.
+          </div>
+        ) : feedbackItems.map((item) => (
           <div
             key={item.id}
             style={{
