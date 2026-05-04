@@ -1,4 +1,4 @@
-// jest.config.js
+// jest.config.cjs
 module.exports = {
   testEnvironment: 'jsdom',
   transform: {
@@ -12,9 +12,6 @@ module.exports = {
       },
       diagnostics: false,
     }],
-  },
-  moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1',
   },
   globals: {
     'import.meta': {
