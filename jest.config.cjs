@@ -1,4 +1,3 @@
-// jest.config.cjs
 module.exports = {
   testEnvironment: 'jsdom',
   transform: {
@@ -15,10 +14,15 @@ module.exports = {
   },
   globals: {
     'import.meta': {
-      env: {
-        VITE_API_URL: 'http://localhost:3000',
-      },
+      env: { VITE_API_URL: 'http://localhost:3000' },
     },
   },
   testRegex: '.*\\.spec\\.ts$',
+  reporters: [
+    'default',
+    ['jest-junit', {
+      outputDirectory: './test-results',
+      outputName: 'junit.xml',
+    }],
+  ],
 };
