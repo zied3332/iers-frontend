@@ -1,5 +1,5 @@
-// jest.config.ts
-export default {
+// jest.config.js
+module.exports = {
   testEnvironment: 'jsdom',
   transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', {
@@ -13,7 +13,6 @@ export default {
       diagnostics: false,
     }],
   },
-  // ✅ Remplace import.meta.env par un objet simple
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
