@@ -309,7 +309,7 @@ export default function AppShell({
             ) : (
               <span className="search-shortcut">/</span>
             )}
-          </label>
+          </label>  
         </div>
 
         <div className="sidebar-menu">
