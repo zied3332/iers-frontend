@@ -1,21 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="8" failures="0" errors="0" time="2.123">
-  <testsuite name="domains.service" errors="0" failures="0" skipped="0" timestamp="2026-05-05T16:00:22" time="0.45" tests="8">
-    <testcase classname="domains.service getAllDomains() should return public domains on success" name="domains.service getAllDomains() should return public domains on success" time="0.009">
+<testsuites name="jest tests" tests="12" failures="0" errors="0" time="2.292">
+  <testsuite name="activityReviews.service" errors="0" failures="0" skipped="0" timestamp="2026-05-05T20:27:20" time="1.428" tests="12">
+    <testcase classname="activityReviews.service getActivityReview() should fetch activity review" name="activityReviews.service getActivityReview() should fetch activity review" time="0.005">
     </testcase>
-    <testcase classname="domains.service getAllDomains() should fallback to private endpoint if public fails" name="domains.service getAllDomains() should fallback to private endpoint if public fails" time="0.003">
+    <testcase classname="activityReviews.service getActivityReview() should return null on 404" name="activityReviews.service getActivityReview() should return null on 404" time="0.003">
     </testcase>
-    <testcase classname="domains.service getAllDomains() should return empty array if both fail" name="domains.service getAllDomains() should return empty array if both fail" time="0.002">
+    <testcase classname="activityReviews.service getActivityReview() should throw on other errors" name="activityReviews.service getActivityReview() should throw on other errors" time="0.009">
     </testcase>
-    <testcase classname="domains.service createDomain() should POST with auth" name="domains.service createDomain() should POST with auth" time="0.002">
+    <testcase classname="activityReviews.service saveHrShortlist() should POST with employeeIds and optional fields" name="activityReviews.service saveHrShortlist() should POST with employeeIds and optional fields" time="0.001">
     </testcase>
-    <testcase classname="domains.service updateDomain() should PATCH correctly" name="domains.service updateDomain() should PATCH correctly" time="0.002">
+    <testcase classname="activityReviews.service saveHrShortlist() should URL encode activityId" name="activityReviews.service saveHrShortlist() should URL encode activityId" time="0.001">
     </testcase>
-    <testcase classname="domains.service deleteDomain() should DELETE correctly" name="domains.service deleteDomain() should DELETE correctly" time="0.002">
+    <testcase classname="activityReviews.service submitHrShortlistToManager() should PATCH submit-to-manager endpoint" name="activityReviews.service submitHrShortlistToManager() should PATCH submit-to-manager endpoint" time="0.001">
     </testcase>
-    <testcase classname="domains.service should use access_token fallback" name="domains.service should use access_token fallback" time="0.001">
+    <testcase classname="activityReviews.service approveActivityReview() should PATCH approve endpoint with manager selections" name="activityReviews.service approveActivityReview() should PATCH approve endpoint with manager selections" time="0.001">
     </testcase>
-    <testcase classname="domains.service should handle no token case" name="domains.service should handle no token case" time="0.002">
+    <testcase classname="activityReviews.service requestActivityReviewChanges() should PATCH request-changes endpoint" name="activityReviews.service requestActivityReviewChanges() should PATCH request-changes endpoint" time="0.001">
+    </testcase>
+    <testcase classname="activityReviews.service should handle 401 unauthorized with custom message" name="activityReviews.service should handle 401 unauthorized with custom message" time="0.001">
+    </testcase>
+    <testcase classname="activityReviews.service should handle error response with array message" name="activityReviews.service should handle error response with array message" time="0.002">
+    </testcase>
+    <testcase classname="activityReviews.service saveHrShortlist() should handle response with candidateSnapshots" name="activityReviews.service saveHrShortlist() should handle response with candidateSnapshots" time="0.001">
+    </testcase>
+    <testcase classname="activityReviews.service approveActivityReview() should work with minimal payload" name="activityReviews.service approveActivityReview() should work with minimal payload" time="0.001">
     </testcase>
   </testsuite>
 </testsuites>
