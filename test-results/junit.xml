@@ -1,15 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="5" failures="0" errors="0" time="4.776">
-  <testsuite name="departments.service" errors="0" failures="0" skipped="0" timestamp="2026-05-05T15:54:56" time="3.09" tests="5">
-    <testcase classname="departments.service getAllDepartments()" name="departments.service getAllDepartments()" time="0.007">
+<testsuites name="jest tests" tests="8" failures="0" errors="0" time="2.123">
+  <testsuite name="domains.service" errors="0" failures="0" skipped="0" timestamp="2026-05-05T16:00:22" time="0.45" tests="8">
+    <testcase classname="domains.service getAllDomains() should return public domains on success" name="domains.service getAllDomains() should return public domains on success" time="0.009">
     </testcase>
-    <testcase classname="departments.service createDepartment()" name="departments.service createDepartment()" time="0.003">
+    <testcase classname="domains.service getAllDomains() should fallback to private endpoint if public fails" name="domains.service getAllDomains() should fallback to private endpoint if public fails" time="0.003">
     </testcase>
-    <testcase classname="departments.service updateDepartment()" name="departments.service updateDepartment()" time="0.002">
+    <testcase classname="domains.service getAllDomains() should return empty array if both fail" name="domains.service getAllDomains() should return empty array if both fail" time="0.002">
     </testcase>
-    <testcase classname="departments.service deleteDepartment()" name="departments.service deleteDepartment()" time="0.002">
+    <testcase classname="domains.service createDomain() should POST with auth" name="domains.service createDomain() should POST with auth" time="0.002">
     </testcase>
-    <testcase classname="departments.service handles errors" name="departments.service handles errors" time="0.004">
+    <testcase classname="domains.service updateDomain() should PATCH correctly" name="domains.service updateDomain() should PATCH correctly" time="0.002">
+    </testcase>
+    <testcase classname="domains.service deleteDomain() should DELETE correctly" name="domains.service deleteDomain() should DELETE correctly" time="0.002">
+    </testcase>
+    <testcase classname="domains.service should use access_token fallback" name="domains.service should use access_token fallback" time="0.001">
+    </testcase>
+    <testcase classname="domains.service should handle no token case" name="domains.service should handle no token case" time="0.002">
     </testcase>
   </testsuite>
 </testsuites>
