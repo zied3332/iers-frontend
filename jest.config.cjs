@@ -1,7 +1,7 @@
 module.exports = {
   testEnvironment: 'jsdom',
-  rootDir: 'src',
-  testRegex: '.*\\.spec\\.ts$',
+  rootDir: '.',
+  testMatch: ['**/src/**/*.spec.ts', '**/src/**/*.spec.tsx'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', {
@@ -21,17 +21,18 @@ module.exports = {
       env: { VITE_API_URL: 'http://localhost:3000' },
     },
   },
+  collectCoverage: true,
   collectCoverageFrom: [
-    '**/*.{ts,tsx}',
-    '!**/*.spec.{ts,tsx}',
-    '!**/main.tsx',
-    '!**/*.d.ts'
+    'src/**/*.{ts,tsx}',
+    '!src/**/*.spec.{ts,tsx}',
+    '!src/main.tsx',
+    '!src/**/*.d.ts'
   ],
-  coverageDirectory: '../coverage',
+  coverageDirectory: 'coverage',
   reporters: [
     'default',
     ['jest-junit', {
-      outputDirectory: '../test-results',
+      outputDirectory: './test-results',
       outputName: 'junit.xml',
     }],
   ],
