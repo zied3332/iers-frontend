@@ -1,275 +1,221 @@
-// src/services/activityReviews.service.spec.ts
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { getModelToken } from '@nestjs/mongoose';
+import { Types } from 'mongoose';
 
-// ── 1. Mock fetch ──────────────────────────────────────────────
-const mockFetch = jest.fn();
-global.fetch = mockFetch;
+import { ActivityReviewsService } from './activity-reviews.service';
+import { ActivityReview, ActivityReviewStatus } from './schemas/activity-review.schema';
+import { ActivitiesService } from '../activities/activities.service';
+import { EmployeeService } from '../employee/employee.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { ActivityInvitationsService } from '../activity-invitations/activity-invitations.service';
+import { Activity } from '../activities/entities/activity.entity';
 
-// ── 2. Mock localStorage ───────────────────────────────────────
-const localStorageMock = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem:    (key: string) => store[key] || null,
-    setItem:    (key: string, value: string) => { store[key] = value; },
-    removeItem: (key: string) => { delete store[key]; },
-    clear:      () => { store = {}; },
-  };
-})();
-Object.defineProperty(global, 'localStorage', { value: localStorageMock });
+describe('ActivityReviewsService', () => {
+  let service: ActivityReviewsService;
+  let activityReviewModel: any;
+  let activityModel: any;
+  let activitiesService: any;
+  let employeeService: any;
+  let notificationsService: any;
+  let activityInvitationsService: any;
 
-// ── 3. ✅ Import direct du VRAI service (pas de jest.mock) ──────
-import {
-  approveActivityReview,
-  getActivityReview,
-  requestActivityReviewChanges,
-  saveHrShortlist,
-  submitHrShortlistToManager,
-} from './activityReviews.service';
+  const createQuery = (result: any) => ({
+    lean: jest.fn().mockResolvedValue(result),
+    select: jest.fn().mockReturnThis(),
+    sort: jest.fn().mockReturnThis(),
+    exec: jest.fn().mockResolvedValue(result),
+  });
 
-// ── Helpers ────────────────────────────────────────────────────
-function fakeJsonResponse(body: any, status = 200): Response {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    text: () => Promise.resolve(JSON.stringify(body)),
-  } as unknown as Response;
-}
-
-function fakeTextErrorResponse(message: string, status: number): Response {
-  return {
-    ok: false,
-    status,
-    text: () => Promise.resolve(message),
-  } as unknown as Response;
-}
-
-beforeEach(() => {
-  jest.clearAllMocks();
-  localStorageMock.clear();
-  localStorageMock.setItem('token', 'fake-jwt-token');
-});
-
-// ── Tests ──────────────────────────────────────────────────────
-describe('activityReviews.service', () => {
-
-  it('getActivityReview() should fetch activity review', async () => {
-    const fakeReview = {
-      _id: 'review-1',
-      activityId: 'act-1',
-      hrShortlist: ['emp-1', 'emp-2'],
-      status: 'PENDING_MANAGER_REVIEW',
+  beforeEach(async () => {
+    activityReviewModel = {
+      findOne: jest.fn(),
+      findOneAndUpdate: jest.fn(),
+      find: jest.fn(),
     };
 
-    mockFetch.mockResolvedValueOnce(fakeJsonResponse(fakeReview));
-
-    const review = await getActivityReview('act-1');
-
-    expect(review).toEqual(fakeReview);
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:3000/activity-reviews/act-1',
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          Authorization: 'Bearer fake-jwt-token',
-        }),
-      })
-    );
-  });
-
-  it('getActivityReview() should return null on 404', async () => {
-    mockFetch.mockResolvedValueOnce(fakeJsonResponse({ error: 'Not found' }, 404));
-
-    const review = await getActivityReview('act-notfound');
-
-    expect(review).toBeNull();
-  });
-
-  it('getActivityReview() should throw on other errors', async () => {
-    mockFetch.mockResolvedValueOnce(fakeTextErrorResponse('Database error', 500));
-
-    await expect(getActivityReview('act-1')).rejects.toThrow('Database error');
-  });
-
-  it('saveHrShortlist() should POST with employeeIds and optional fields', async () => {
-    const fakeResponse = {
-      message: 'Shortlist saved',
-      review: { _id: 'review-1', status: 'HR_SHORTLIST_SAVED' },
+    activityModel = {
+      findByIdAndUpdate: jest.fn(),
     };
 
-    mockFetch.mockResolvedValueOnce(fakeJsonResponse(fakeResponse));
-
-    const payload = {
-      employeeIds: ['emp-1', 'emp-2', 'emp-3'],
-      hrNote: 'Top candidates selected',
-      hrInvitationResponseDays: 3,
+    activitiesService = {
+      findOne: jest.fn(),
     };
 
-    const result = await saveHrShortlist('act-1', payload);
-
-    expect(result.message).toBe('Shortlist saved');
-    expect(result.review._id).toBe('review-1');
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:3000/activity-reviews/act-1/hr-shortlist',
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({
-          Authorization: 'Bearer fake-jwt-token',
-        }),
-        body: JSON.stringify(payload),
-      })
-    );
-  });
-
-  it('saveHrShortlist() should URL encode activityId', async () => {
-    mockFetch.mockResolvedValueOnce(fakeJsonResponse({ message: 'OK', review: {} }));
-
-    await saveHrShortlist('act/special-id', { employeeIds: ['emp-1'] });
-
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:3000/activity-reviews/act%2Fspecial-id/hr-shortlist',
-      expect.any(Object)
-    );
-  });
-
-  it('submitHrShortlistToManager() should PATCH submit-to-manager endpoint', async () => {
-    const fakeResponse = {
-      message: 'Submitted to manager',
-      review: { _id: 'review-1', status: 'PENDING_MANAGER_REVIEW' },
+    employeeService = {
+      findAll: jest.fn(),
+      findOne: jest.fn(),
     };
 
-    mockFetch.mockResolvedValueOnce(fakeJsonResponse(fakeResponse));
-
-    const result = await submitHrShortlistToManager('act-1');
-
-    expect(result.message).toBe('Submitted to manager');
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:3000/activity-reviews/act-1/submit-to-manager',
-      expect.objectContaining({
-        method: 'PATCH',
-        headers: expect.objectContaining({
-          Authorization: 'Bearer fake-jwt-token',
-        }),
-      })
-    );
-  });
-
-  it('approveActivityReview() should PATCH approve endpoint with manager selections', async () => {
-    const fakeResponse = {
-      message: 'Activity approved',
-      review: { _id: 'review-1', status: 'MANAGER_APPROVED' },
+    notificationsService = {
+      createOne: jest.fn(),
     };
 
-    mockFetch.mockResolvedValueOnce(fakeJsonResponse(fakeResponse));
-
-    const payload = {
-      managerSelectedEmployeeIds: ['emp-1', 'emp-2'],
-      managerNote: 'Excellent candidates',
-      managerReplacementResponseDays: 7,
+    activityInvitationsService = {
+      createInvitations: jest.fn(),
     };
 
-    const result = await approveActivityReview('act-1', payload);
-
-    expect(result.message).toBe('Activity approved');
-    expect(result.review.status).toBe('MANAGER_APPROVED');
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:3000/activity-reviews/act-1/approve',
-      expect.objectContaining({
-        method: 'PATCH',
-        headers: expect.objectContaining({
-          Authorization: 'Bearer fake-jwt-token',
-        }),
-        body: JSON.stringify(payload),
-      })
-    );
-  });
-
-  it('requestActivityReviewChanges() should PATCH request-changes endpoint', async () => {
-    const fakeResponse = {
-      message: 'Changes requested',
-      review: { _id: 'review-1', status: 'CHANGES_REQUESTED' },
-    };
-
-    mockFetch.mockResolvedValueOnce(fakeJsonResponse(fakeResponse));
-
-    const payload = {
-      managerSelectedEmployeeIds: ['emp-2', 'emp-3'],
-      managerNote: 'Need different candidates',
-    };
-
-    const result = await requestActivityReviewChanges('act-1', payload);
-
-    expect(result.message).toBe('Changes requested');
-    expect(result.review.status).toBe('CHANGES_REQUESTED');
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:3000/activity-reviews/act-1/request-changes',
-      expect.objectContaining({
-        method: 'PATCH',
-        headers: expect.objectContaining({
-          Authorization: 'Bearer fake-jwt-token',
-        }),
-        body: JSON.stringify(payload),
-      })
-    );
-  });
-
-  it('should handle 401 unauthorized with custom message', async () => {
-    mockFetch.mockResolvedValueOnce(fakeTextErrorResponse('Unauthorized', 401));
-
-    await expect(getActivityReview('act-1')).rejects.toThrow(
-      'Unauthorized session. Please sign in with an HR account.'
-    );
-  });
-
-  it('should handle error response with array message', async () => {
-    mockFetch.mockResolvedValueOnce(
-      fakeJsonResponse({ message: ['Error 1', 'Error 2', 'Error 3'] }, 400)
-    );
-
-    await expect(saveHrShortlist('act-1', { employeeIds: [] })).rejects.toThrow(
-      'Error 1, Error 2, Error 3'
-    );
-  });
-
-  it('saveHrShortlist() should handle response with candidateSnapshots', async () => {
-    const fakeResponse = {
-      message: 'Saved',
-      review: { _id: 'review-1' },
-    };
-
-    mockFetch.mockResolvedValueOnce(fakeJsonResponse(fakeResponse));
-
-    const payload = {
-      employeeIds: ['emp-1', 'emp-2'],
-      candidateSnapshots: [
-        { employeeId: 'emp-1', score: 95 },
-        { employeeId: 'emp-2', score: 88 },
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ActivityReviewsService,
+        { provide: getModelToken(ActivityReview.name), useValue: activityReviewModel },
+        { provide: getModelToken(Activity.name), useValue: activityModel },
+        { provide: ActivitiesService, useValue: activitiesService },
+        { provide: EmployeeService, useValue: employeeService },
+        { provide: NotificationsService, useValue: notificationsService },
+        { provide: ActivityInvitationsService, useValue: activityInvitationsService },
       ],
-    };
+    }).compile();
 
-    const result = await saveHrShortlist('act-1', payload);
-
-    expect(result.review._id).toBe('review-1');
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({
-        body: JSON.stringify(payload),
-      })
-    );
+    service = module.get(ActivityReviewsService);
   });
 
-  it('approveActivityReview() should work with minimal payload', async () => {
-    mockFetch.mockResolvedValueOnce(
-      fakeJsonResponse({ message: 'OK', review: {} })
-    );
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
 
-    await approveActivityReview('act-1', {
-      managerSelectedEmployeeIds: ['emp-1'],
+  it('saveHrShortlist should throw when activity is missing', async () => {
+    activitiesService.findOne.mockResolvedValue(null);
+
+    await expect(
+      service.saveHrShortlist('invalid', { employeeIds: [] } as any, { role: 'HR' } as any),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('saveHrShortlist should reject non HR users', async () => {
+    activitiesService.findOne.mockResolvedValue({ _id: 'a1', workflowStatus: 'DRAFT' });
+
+    await expect(
+      service.saveHrShortlist(
+        new Types.ObjectId().toHexString(),
+        { employeeIds: [new Types.ObjectId().toHexString()] } as any,
+        { role: 'MANAGER' } as any,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('saveHrShortlist should dedupe and persist shortlist', async () => {
+    const activityId = new Types.ObjectId().toHexString();
+    const employeeId = new Types.ObjectId().toHexString();
+
+    activitiesService.findOne.mockResolvedValue({
+      _id: activityId,
+      title: 'Activity',
+      workflowStatus: 'DRAFT',
+      created_by: new Types.ObjectId().toHexString(),
+    });
+    employeeService.findAll.mockResolvedValue([
+      { _id: employeeId, user_id: { _id: employeeId } },
+    ]);
+    activityReviewModel.findOne.mockResolvedValue(null);
+    activityReviewModel.findOneAndUpdate.mockResolvedValue({
+      activityId,
+      hrSelectedEmployeeIds: [employeeId],
+      status: ActivityReviewStatus.HR_DRAFT,
+      revisionNumber: 1,
     });
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({
-        method: 'PATCH',
-      })
+    const result = await service.saveHrShortlist(
+      activityId,
+      { employeeIds: [employeeId, employeeId], hrNote: 'Note' } as any,
+      { _id: new Types.ObjectId(), role: 'HR' } as any,
     );
+
+    expect(activityReviewModel.findOneAndUpdate).toHaveBeenCalled();
+    expect(activityModel.findByIdAndUpdate).toHaveBeenCalledWith(activityId, expect.objectContaining({ workflowStatus: 'DRAFT' }));
+    expect(result.message).toBe('HR shortlist saved successfully');
   });
 
+  it('submitToManager should throw when review is missing', async () => {
+    activitiesService.findOne.mockResolvedValue({ _id: 'a1', workflowStatus: 'DRAFT' });
+    activityReviewModel.findOne.mockResolvedValue(null);
+
+    await expect(
+      service.submitToManager(new Types.ObjectId().toHexString(), { _id: new Types.ObjectId(), role: 'HR' } as any),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('submitToManager should submit a valid review', async () => {
+    const activityId = new Types.ObjectId().toHexString();
+    const managerId = new Types.ObjectId().toHexString();
+    const hrId = new Types.ObjectId().toHexString();
+
+    activitiesService.findOne.mockResolvedValue({
+      _id: activityId,
+      title: 'Activity',
+      workflowStatus: 'DRAFT',
+      created_by: hrId,
+      responsible_manager: managerId,
+    });
+    activityReviewModel.findOne.mockResolvedValue({
+      activityId,
+      status: ActivityReviewStatus.HR_DRAFT,
+      revisionNumber: 1,
+      hrSelectedEmployeeIds: [new Types.ObjectId().toHexString()],
+      save: jest.fn().mockResolvedValue(true),
+    });
+
+    const result = await service.submitToManager(activityId, { _id: hrId, role: 'HR' } as any);
+
+    expect(activityModel.findByIdAndUpdate).toHaveBeenCalled();
+    expect(notificationsService.createOne).toHaveBeenCalled();
+    expect(result.message).toBe('Activity submitted to manager successfully');
+  });
+
+  it('getReviewByActivity should throw when no review exists', async () => {
+    activityReviewModel.findOne.mockReturnValue(createQuery(null));
+
+    await expect(service.getReviewByActivity(new Types.ObjectId().toHexString())).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('getPendingManagerReviews should return pending reviews', async () => {
+    const pending = [{ _id: 'r1' }];
+    activityReviewModel.find.mockReturnValue({
+      sort: jest.fn().mockReturnValue({
+        lean: jest.fn().mockResolvedValue(pending),
+      }),
+    });
+
+    await expect(service.getPendingManagerReviews()).resolves.toEqual(pending);
+  });
+
+  it('requestChanges should throw when review is missing', async () => {
+    activitiesService.findOne.mockResolvedValue({ _id: 'a1' });
+    activityReviewModel.findOne.mockResolvedValue(null);
+
+    await expect(
+      service.requestChanges(new Types.ObjectId().toHexString(), { managerSelectedEmployeeIds: [new Types.ObjectId().toHexString()] } as any, new Types.ObjectId().toHexString()),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('approveFinalList should finalize and create invitations', async () => {
+    const activityId = new Types.ObjectId().toHexString();
+    const managerUserId = new Types.ObjectId().toHexString();
+    const employeeId = new Types.ObjectId().toHexString();
+
+    activitiesService.findOne.mockResolvedValue({
+      _id: activityId,
+      title: 'Activity',
+      created_by: new Types.ObjectId().toHexString(),
+    });
+    activityReviewModel.findOne.mockResolvedValue({
+      activityId,
+      status: ActivityReviewStatus.CHANGES_REQUESTED,
+      revisionNumber: 2,
+      managerSelectedEmployeeIds: [],
+      save: jest.fn().mockResolvedValue(true),
+    });
+    employeeService.findAll.mockResolvedValue([{ _id: employeeId, user_id: { _id: employeeId } }]);
+
+    const result = await service.approveFinalList(
+      activityId,
+      { managerSelectedEmployeeIds: [employeeId], managerReplacementResponseDays: 7 } as any,
+      managerUserId,
+    );
+
+    expect(activityInvitationsService.createInvitations).toHaveBeenCalled();
+    expect(notificationsService.createOne).toHaveBeenCalled();
+    expect(result.message).toBe('Manager approved final participants and invitations sent');
+  });
 });
