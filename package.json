@@ -45,33 +45,5 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0",
     "vite": "^7.3.1"
-  },
-  "jest": {
-    "preset": "ts-jest",
-    "testEnvironment": "jsdom",
-    "rootDir": "src",
-    "testRegex": ".*\\.spec\\.ts$",
-    "moduleFileExtensions": ["ts", "tsx", "js", "jsx", "json"],
-    "transform": {
-      "^.+\\.(t|j)sx?$": ["ts-jest", {
-        "tsconfig": {
-          "jsx": "react-jsx"
-        }
-      }]
-    },
-    "collectCoverageFrom": [
-      "**/*.{ts,tsx}",
-      "!**/*.spec.{ts,tsx}",
-      "!**/main.tsx",
-      "!**/*.d.ts"
-    ],
-    "coverageDirectory": "../coverage",
-    "reporters": [
-      "default",
-      ["jest-junit", {
-        "outputDirectory": "../test-results",
-        "outputName": "junit.xml"
-      }]
-    ]
   }
 }

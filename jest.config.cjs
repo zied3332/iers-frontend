@@ -1,5 +1,8 @@
 module.exports = {
   testEnvironment: 'jsdom',
+  rootDir: 'src',
+  testRegex: '.*\\.spec\\.ts$',
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', {
       tsconfig: {
@@ -8,6 +11,7 @@ module.exports = {
         target: 'ES2020',
         esModuleInterop: true,
         allowSyntheticDefaultImports: true,
+        jsx: 'react-jsx'
       },
       diagnostics: false,
     }],
@@ -17,11 +21,17 @@ module.exports = {
       env: { VITE_API_URL: 'http://localhost:3000' },
     },
   },
-  testRegex: '.*\\.spec\\.ts$',
+  collectCoverageFrom: [
+    '**/*.{ts,tsx}',
+    '!**/*.spec.{ts,tsx}',
+    '!**/main.tsx',
+    '!**/*.d.ts'
+  ],
+  coverageDirectory: '../coverage',
   reporters: [
     'default',
     ['jest-junit', {
-      outputDirectory: './test-results',
+      outputDirectory: '../test-results',
       outputName: 'junit.xml',
     }],
   ],
