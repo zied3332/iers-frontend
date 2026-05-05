@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="9" failures="0" errors="0" time="2.699">
+  <testsuite name="notifications.service" errors="0" failures="0" skipped="0" timestamp="2026-05-05T15:46:22" time="1.635" tests="9">
+    <testcase classname="notifications.service getMyNotifications() should fetch notifications and return array" name="notifications.service getMyNotifications() should fetch notifications and return array" time="0.005">
+    </testcase>
+    <testcase classname="notifications.service getMyNotifications() should handle response.data?.data structure" name="notifications.service getMyNotifications() should handle response.data?.data structure" time="0.004">
+    </testcase>
+    <testcase classname="notifications.service getMyNotifications() should pass AbortSignal when provided" name="notifications.service getMyNotifications() should pass AbortSignal when provided" time="0.001">
+    </testcase>
+    <testcase classname="notifications.service markNotificationAsRead() should make PATCH call to specific notification" name="notifications.service markNotificationAsRead() should make PATCH call to specific notification" time="0.001">
+    </testcase>
+    <testcase classname="notifications.service markAllNotificationsAsRead() should make PATCH call to read-all endpoint" name="notifications.service markAllNotificationsAsRead() should make PATCH call to read-all endpoint" time="0.001">
+    </testcase>
+    <testcase classname="notifications.service deleteNotification() should make DELETE call for single notification" name="notifications.service deleteNotification() should make DELETE call for single notification" time="0.001">
+    </testcase>
+    <testcase classname="notifications.service deleteNotifications() should make DELETE call with array of IDs" name="notifications.service deleteNotifications() should make DELETE call with array of IDs" time="0">
+    </testcase>
+    <testcase classname="notifications.service should include auth token from localStorage" name="notifications.service should include auth token from localStorage" time="0.001">
+    </testcase>
+    <testcase classname="notifications.service should handle missing token gracefully" name="notifications.service should handle missing token gracefully" time="0.001">
+    </testcase>
+  </testsuite>
+</testsuites>
