@@ -1,10 +1,14 @@
 // src/services/activities.service.spec.ts
 
-const mockFetch = jest.fn();
-global.fetch = mockFetch;
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { getActivityById, listActivities } from './activities.service';
+
+const mockFetch = jest.fn<any>();
+(globalThis as any).fetch = mockFetch;
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
+
   return {
     getItem: (key: string) => store[key] || null,
     setItem: (key: string, value: string) => {
@@ -18,131 +22,26 @@ const localStorageMock = (() => {
     },
   };
 })();
-Object.defineProperty(global, 'localStorage', { value: localStorageMock });
 
-jest.mock('./activities.service', () => {
-  const BASE = 'http://localhost:3000';
-
-  function authHeaders() {
-    const rawToken = localStorage.getItem('token') || localStorage.getItem('access_token');
-    const normalizedToken = String(rawToken || '')
-      .replace(/^Bearer\s+/i, '')
-      .trim();
-
-    return {
-      'Content-Type': 'application/json',
-      ...(normalizedToken ? { Authorization: `Bearer ${normalizedToken}` } : {}),
-    };
-  }
-
-  async function handle(res: Response) {
-    const txt = await res.text();
-    if (!res.ok) {
-      let msg = txt || 'Request failed';
-      try {
-        const parsed = txt ? JSON.parse(txt) : {};
-        const raw = Array.isArray(parsed?.message)
-          ? parsed.message.join(', ')
-          : parsed?.message || parsed?.error;
-        if (typeof raw === 'string' && raw.trim()) msg = raw;
-      } catch {
-        // keep fallback
-      }
-
-      if (res.status === 401) {
-        msg = 'Unauthorized session. Please sign out and log in again.';
-      }
-
-      throw new Error(msg);
-    }
-
-    return txt ? JSON.parse(txt) : null;
-  }
-
-  function mapApiActivity(raw: any) {
-    const toEnum = (value: any, allowed: readonly string[], fallback: string): string => {
-      const normalized = String(value || '').toUpperCase();
-      return allowed.includes(normalized) ? normalized : fallback;
-    };
-
-    return {
-      _id: String(raw?._id || ''),
-      title: String(raw?.title || ''),
-      type: toEnum(raw?.type, ['TRAINING', 'CERTIFICATION', 'PROJECT', 'MISSION', 'AUDIT'], 'TRAINING'),
-      requiredSkills: Array.isArray(raw?.requiredSkills) ? raw.requiredSkills : [],
-      availableSlots: Number(raw?.seats || 0),
-      description: String(raw?.description || ''),
-      location: String(raw?.location || ''),
-      startDate: String(raw?.startDate || ''),
-      endDate: String(raw?.endDate || ''),
-      duration: String(raw?.duration || ''),
-      status: toEnum(
-        raw?.status,
-        ['PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
-        'PLANNED'
-      ),
-      responsibleManagerId: raw?.responsible_manager?._id || undefined,
-      responsibleManagerName: raw?.responsible_manager?.name || undefined,
-      departmentId: raw?.department?._id || undefined,
-      departmentName: raw?.department?.name || undefined,
-      priorityContext: toEnum(raw?.context, ['UPSKILLING', 'EXPERTISE', 'DEVELOPMENT'], 'DEVELOPMENT'),
-      targetLevel: toEnum(
-        raw?.priority_level,
-        ['LOW', 'MEDIUM', 'HIGH'],
-        'MEDIUM'
-      ),
-      createdAt: String(raw?.created_at || raw?.createdAt || ''),
-      workflowStatus: raw?.workflowStatus ? String(raw.workflowStatus) : undefined,
-      rosterReadyForHrAt: raw?.rosterReadyForHrAt || null,
-      hrFinalLaunchAt: raw?.hrFinalLaunchAt || null,
-    };
-  }
-
-  return {
-    listActivities: async (params?: any) => {
-      const searchParams = new URLSearchParams();
-      if (params?.hrView != null) searchParams.set('hrView', params.hrView);
-      if (params?.managerView != null) searchParams.set('managerView', params.managerView);
-      const qs = searchParams.toString() ? `?${searchParams.toString()}` : '';
-      const res = await fetch(`${BASE}/activities${qs}`, {
-        method: 'GET',
-        headers: authHeaders(),
-      });
-
-      const data = await handle(res);
-      const arr = Array.isArray(data) ? data : [];
-      return arr.map(mapApiActivity);
-    },
-
-    getActivityById: async (activityId: string) => {
-      const encodedId = encodeURIComponent(activityId);
-      const res = await fetch(`${BASE}/activities/${encodedId}`, {
-        method: 'GET',
-        headers: authHeaders(),
-      });
-
-      const data = await handle(res);
-      return mapApiActivity(data);
-    },
-  };
+Object.defineProperty(globalThis, 'localStorage', {
+  value: localStorageMock,
+  writable: true,
 });
 
-import { getActivityById, listActivities } from './activities.service';
-
-function fakeJsonResponse(body: any, status = 200): Response {
+function fakeJsonResponse(body: any, status = 200): any {
   return {
     ok: status >= 200 && status < 300,
     status,
     text: () => Promise.resolve(JSON.stringify(body)),
-  } as unknown as Response;
+  };
 }
 
-function fakeTextErrorResponse(message: string, status: number): Response {
+function fakeTextErrorResponse(message: string, status: number): any {
   return {
     ok: false,
     status,
     text: () => Promise.resolve(message),
-  } as unknown as Response;
+  };
 }
 
 beforeEach(() => {
@@ -189,7 +88,7 @@ describe('activities.service', () => {
         headers: expect.objectContaining({
           Authorization: 'Bearer fake-jwt-token',
         }),
-      })
+      }),
     );
   });
 
@@ -200,7 +99,7 @@ describe('activities.service', () => {
 
     expect(mockFetch).toHaveBeenCalledWith(
       'http://localhost:3000/activities?hrView=drafts',
-      expect.objectContaining({ method: 'GET' })
+      expect.objectContaining({ method: 'GET' }),
     );
   });
 
@@ -211,7 +110,7 @@ describe('activities.service', () => {
 
     expect(mockFetch).toHaveBeenCalledWith(
       'http://localhost:3000/activities?managerView=running',
-      expect.objectContaining({ method: 'GET' })
+      expect.objectContaining({ method: 'GET' }),
     );
   });
 
@@ -222,11 +121,12 @@ describe('activities.service', () => {
 
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('hrView=pipeline'),
-      expect.any(Object)
+      expect.any(Object),
     );
+
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('managerView=past'),
-      expect.any(Object)
+      expect.any(Object),
     );
   });
 
@@ -279,18 +179,20 @@ describe('activities.service', () => {
         headers: expect.objectContaining({
           Authorization: 'Bearer fake-jwt-token',
         }),
-      })
+      }),
     );
   });
 
   it('getActivityById() should encode special characters in ID', async () => {
-    mockFetch.mockResolvedValueOnce(fakeJsonResponse({ _id: 'act/123', title: 'Test' }));
+    mockFetch.mockResolvedValueOnce(
+      fakeJsonResponse({ _id: 'act/123', title: 'Test' }),
+    );
 
     await getActivityById('act/123');
 
     expect(mockFetch).toHaveBeenCalledWith(
       'http://localhost:3000/activities/act%2F123',
-      expect.any(Object)
+      expect.any(Object),
     );
   });
 
@@ -306,7 +208,7 @@ describe('activities.service', () => {
           priority_level: 'low',
           seats: 15,
         },
-      ])
+      ]),
     );
 
     const activities = await listActivities();
@@ -318,22 +220,20 @@ describe('activities.service', () => {
   });
 
   it('listActivities() should handle 401 unauthorized error', async () => {
-    mockFetch.mockResolvedValueOnce(
-      fakeTextErrorResponse('Unauthorized', 401)
-    );
+    mockFetch.mockResolvedValueOnce(fakeTextErrorResponse('Unauthorized', 401));
 
     await expect(listActivities()).rejects.toThrow(
-      'Unauthorized session. Please sign out and log in again.'
+      'Unauthorized session. Please sign out and log in again.',
     );
   });
 
   it('getActivityById() should handle 403 forbidden error', async () => {
     mockFetch.mockResolvedValueOnce(
-      fakeTextErrorResponse('You do not have permission', 403)
+      fakeTextErrorResponse('You do not have permission', 403),
     );
 
     await expect(getActivityById('act-1')).rejects.toThrow(
-      'You do not have permission'
+      'You do not have permission',
     );
   });
 
@@ -356,7 +256,7 @@ describe('activities.service', () => {
           responsible_manager: { _id: 'mgr-2', name: 'Jane' },
           department: { _id: 'dep-2', name: 'DevOps' },
         },
-      ])
+      ]),
     );
 
     const activities = await listActivities();
