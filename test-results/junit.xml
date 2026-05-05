@@ -1,29 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="12" failures="0" errors="0" time="2.292">
-  <testsuite name="activityReviews.service" errors="0" failures="0" skipped="0" timestamp="2026-05-05T20:27:20" time="1.428" tests="12">
-    <testcase classname="activityReviews.service getActivityReview() should fetch activity review" name="activityReviews.service getActivityReview() should fetch activity review" time="0.005">
+<testsuites name="jest tests" tests="13" failures="0" errors="0" time="1.014">
+  <testsuite name="post-activity-evaluations.service" errors="0" failures="0" skipped="0" timestamp="2026-05-05T20:50:45" time="0.185" tests="13">
+    <testcase classname="post-activity-evaluations.service getCompletedActivitiesForEvaluation() should fetch list of activities" name="post-activity-evaluations.service getCompletedActivitiesForEvaluation() should fetch list of activities" time="0.004">
     </testcase>
-    <testcase classname="activityReviews.service getActivityReview() should return null on 404" name="activityReviews.service getActivityReview() should return null on 404" time="0.003">
+    <testcase classname="post-activity-evaluations.service getFinalizedActivitiesForEvaluation() should fetch finalized activities" name="post-activity-evaluations.service getFinalizedActivitiesForEvaluation() should fetch finalized activities" time="0.001">
     </testcase>
-    <testcase classname="activityReviews.service getActivityReview() should throw on other errors" name="activityReviews.service getActivityReview() should throw on other errors" time="0.009">
+    <testcase classname="post-activity-evaluations.service getParticipantsForEvaluation() should fetch participants with eval status" name="post-activity-evaluations.service getParticipantsForEvaluation() should fetch participants with eval status" time="0.001">
     </testcase>
-    <testcase classname="activityReviews.service saveHrShortlist() should POST with employeeIds and optional fields" name="activityReviews.service saveHrShortlist() should POST with employeeIds and optional fields" time="0.001">
+    <testcase classname="post-activity-evaluations.service submitEvaluation() should POST single evaluation with all fields" name="post-activity-evaluations.service submitEvaluation() should POST single evaluation with all fields" time="0.001">
     </testcase>
-    <testcase classname="activityReviews.service saveHrShortlist() should URL encode activityId" name="activityReviews.service saveHrShortlist() should URL encode activityId" time="0.001">
+    <testcase classname="post-activity-evaluations.service submitEvaluation() should work with minimal payload" name="post-activity-evaluations.service submitEvaluation() should work with minimal payload" time="0.001">
     </testcase>
-    <testcase classname="activityReviews.service submitHrShortlistToManager() should PATCH submit-to-manager endpoint" name="activityReviews.service submitHrShortlistToManager() should PATCH submit-to-manager endpoint" time="0.001">
+    <testcase classname="post-activity-evaluations.service submitBulkEvaluations() should POST multiple evaluations" name="post-activity-evaluations.service submitBulkEvaluations() should POST multiple evaluations" time="0">
     </testcase>
-    <testcase classname="activityReviews.service approveActivityReview() should PATCH approve endpoint with manager selections" name="activityReviews.service approveActivityReview() should PATCH approve endpoint with manager selections" time="0.001">
+    <testcase classname="post-activity-evaluations.service finalizeActivityEvaluations() should POST finalize endpoint" name="post-activity-evaluations.service finalizeActivityEvaluations() should POST finalize endpoint" time="0">
     </testcase>
-    <testcase classname="activityReviews.service requestActivityReviewChanges() should PATCH request-changes endpoint" name="activityReviews.service requestActivityReviewChanges() should PATCH request-changes endpoint" time="0.001">
+    <testcase classname="post-activity-evaluations.service getEvaluationsByEmployee() should fetch all evaluations for employee" name="post-activity-evaluations.service getEvaluationsByEmployee() should fetch all evaluations for employee" time="0">
     </testcase>
-    <testcase classname="activityReviews.service should handle 401 unauthorized with custom message" name="activityReviews.service should handle 401 unauthorized with custom message" time="0.001">
+    <testcase classname="post-activity-evaluations.service should handle API errors and throw with error message" name="post-activity-evaluations.service should handle API errors and throw with error message" time="0.009">
     </testcase>
-    <testcase classname="activityReviews.service should handle error response with array message" name="activityReviews.service should handle error response with array message" time="0.002">
+    <testcase classname="post-activity-evaluations.service should return empty object when json parsing fails" name="post-activity-evaluations.service should return empty object when json parsing fails" time="0.001">
     </testcase>
-    <testcase classname="activityReviews.service saveHrShortlist() should handle response with candidateSnapshots" name="activityReviews.service saveHrShortlist() should handle response with candidateSnapshots" time="0.001">
+    <testcase classname="post-activity-evaluations.service submitEvaluation() should handle update action" name="post-activity-evaluations.service submitEvaluation() should handle update action" time="0">
     </testcase>
-    <testcase classname="activityReviews.service approveActivityReview() should work with minimal payload" name="activityReviews.service approveActivityReview() should work with minimal payload" time="0.001">
+    <testcase classname="post-activity-evaluations.service should include auth token in all requests" name="post-activity-evaluations.service should include auth token in all requests" time="0.001">
+    </testcase>
+    <testcase classname="post-activity-evaluations.service should work without token" name="post-activity-evaluations.service should work without token" time="0.001">
     </testcase>
   </testsuite>
 </testsuites>
