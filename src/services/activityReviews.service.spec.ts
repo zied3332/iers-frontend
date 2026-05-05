@@ -1,9 +1,8 @@
 // src/services/activityReviews.service.spec.ts
 
 // ── 1. Mock fetch ──────────────────────────────────────────────
-const mockFetch = jest.fn();
-global.fetch = mockFetch;
-
+import { API_URL } from '../config';
+const BASE = API_URL;
 // ── 2. Mock localStorage ───────────────────────────────────────
 const localStorageMock = (() => {
   let store: Record<string, string> = {};

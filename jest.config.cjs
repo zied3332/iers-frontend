@@ -4,7 +4,8 @@ module.exports = {
   testMatch: ['**/src/**/*.spec.ts', '**/src/**/*.spec.tsx'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
 
-  // ✅ Remplace import.meta.env au niveau du transform
+  setupFiles: ['<rootDir>/jest.setup.cjs'],
+
   transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', {
       tsconfig: {
@@ -17,22 +18,8 @@ module.exports = {
         types: ['jest', 'node'],
       },
       diagnostics: false,
-      // ✅ Remplace import.meta.env.VITE_API_URL avant compilation
-      astTransformers: {
-        before: [],
-      },
     }],
   },
-
-  // ✅ Remplace import.meta par un objet compatible Jest
-  globals: {
-    'ts-jest': {
-      diagnostics: false,
-    },
-  },
-
-  // ✅ Exécuté avant chaque fichier de test
-  setupFiles: ['<rootDir>/jest.setup.cjs'],
 
   collectCoverage: true,
   collectCoverageFrom: [
