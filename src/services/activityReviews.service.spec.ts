@@ -1,120 +1,22 @@
 // src/services/activityReviews.service.spec.ts
 
+// ── 1. Mock fetch ──────────────────────────────────────────────
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
+// ── 2. Mock localStorage ───────────────────────────────────────
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
   return {
-    getItem: (key: string) => store[key] || null,
-    setItem: (key: string, value: string) => {
-      store[key] = value;
-    },
-    removeItem: (key: string) => {
-      delete store[key];
-    },
-    clear: () => {
-      store = {};
-    },
+    getItem:    (key: string) => store[key] || null,
+    setItem:    (key: string, value: string) => { store[key] = value; },
+    removeItem: (key: string) => { delete store[key]; },
+    clear:      () => { store = {}; },
   };
 })();
 Object.defineProperty(global, 'localStorage', { value: localStorageMock });
 
-jest.mock('./activityReviews.service', () => {
-  const BASE = 'http://localhost:3000';
-
-  function authHeaders() {
-    const rawToken = localStorage.getItem('token') || localStorage.getItem('access_token');
-    const normalizedToken = String(rawToken || '')
-      .replace(/^Bearer\s+/i, '')
-      .trim();
-
-    return {
-      'Content-Type': 'application/json',
-      ...(normalizedToken ? { Authorization: `Bearer ${normalizedToken}` } : {}),
-    };
-  }
-
-  async function handle(res: Response) {
-    const txt = await res.text();
-    if (!res.ok) {
-      let msg = txt || 'Request failed';
-      try {
-        const parsed = txt ? JSON.parse(txt) : {};
-        const raw = Array.isArray(parsed?.message)
-          ? parsed.message.join(', ')
-          : parsed?.message || parsed?.error;
-        if (typeof raw === 'string' && raw.trim()) msg = raw;
-      } catch {
-        // keep fallback
-      }
-      if (res.status === 401) {
-        msg = 'Unauthorized session. Please sign in with an HR account.';
-      }
-      throw new Error(msg);
-    }
-    return txt ? JSON.parse(txt) : null;
-  }
-
-  return {
-    getActivityReview: async (activityId: string) => {
-      const res = await fetch(`${BASE}/activity-reviews/${activityId}`, {
-        headers: authHeaders(),
-      });
-      if (res.status === 404) return null;
-      const data = await handle(res);
-      return data;
-    },
-
-    saveHrShortlist: async (activityId: string, body: any) => {
-      const res = await fetch(
-        `${BASE}/activity-reviews/${encodeURIComponent(activityId)}/hr-shortlist`,
-        {
-          method: 'POST',
-          headers: authHeaders(),
-          body: JSON.stringify(body),
-        }
-      );
-      return handle(res);
-    },
-
-    submitHrShortlistToManager: async (activityId: string) => {
-      const res = await fetch(
-        `${BASE}/activity-reviews/${encodeURIComponent(activityId)}/submit-to-manager`,
-        {
-          method: 'PATCH',
-          headers: authHeaders(),
-        }
-      );
-      return handle(res);
-    },
-
-    approveActivityReview: async (activityId: string, body: any) => {
-      const res = await fetch(
-        `${BASE}/activity-reviews/${encodeURIComponent(activityId)}/approve`,
-        {
-          method: 'PATCH',
-          headers: authHeaders(),
-          body: JSON.stringify(body),
-        }
-      );
-      return handle(res);
-    },
-
-    requestActivityReviewChanges: async (activityId: string, body: any) => {
-      const res = await fetch(
-        `${BASE}/activity-reviews/${encodeURIComponent(activityId)}/request-changes`,
-        {
-          method: 'PATCH',
-          headers: authHeaders(),
-          body: JSON.stringify(body),
-        }
-      );
-      return handle(res);
-    },
-  };
-});
-
+// ── 3. ✅ Import direct du VRAI service (pas de jest.mock) ──────
 import {
   approveActivityReview,
   getActivityReview,
@@ -123,6 +25,7 @@ import {
   submitHrShortlistToManager,
 } from './activityReviews.service';
 
+// ── Helpers ────────────────────────────────────────────────────
 function fakeJsonResponse(body: any, status = 200): Response {
   return {
     ok: status >= 200 && status < 300,
@@ -145,7 +48,9 @@ beforeEach(() => {
   localStorageMock.setItem('token', 'fake-jwt-token');
 });
 
+// ── Tests ──────────────────────────────────────────────────────
 describe('activityReviews.service', () => {
+
   it('getActivityReview() should fetch activity review', async () => {
     const fakeReview = {
       _id: 'review-1',
@@ -159,7 +64,6 @@ describe('activityReviews.service', () => {
     const review = await getActivityReview('act-1');
 
     expect(review).toEqual(fakeReview);
-
     expect(mockFetch).toHaveBeenCalledWith(
       'http://localhost:3000/activity-reviews/act-1',
       expect.objectContaining({
@@ -171,9 +75,7 @@ describe('activityReviews.service', () => {
   });
 
   it('getActivityReview() should return null on 404', async () => {
-    mockFetch.mockResolvedValueOnce(
-      fakeJsonResponse({ error: 'Not found' }, 404)
-    );
+    mockFetch.mockResolvedValueOnce(fakeJsonResponse({ error: 'Not found' }, 404));
 
     const review = await getActivityReview('act-notfound');
 
@@ -181,9 +83,7 @@ describe('activityReviews.service', () => {
   });
 
   it('getActivityReview() should throw on other errors', async () => {
-    mockFetch.mockResolvedValueOnce(
-      fakeTextErrorResponse('Database error', 500)
-    );
+    mockFetch.mockResolvedValueOnce(fakeTextErrorResponse('Database error', 500));
 
     await expect(getActivityReview('act-1')).rejects.toThrow('Database error');
   });
@@ -206,7 +106,6 @@ describe('activityReviews.service', () => {
 
     expect(result.message).toBe('Shortlist saved');
     expect(result.review._id).toBe('review-1');
-
     expect(mockFetch).toHaveBeenCalledWith(
       'http://localhost:3000/activity-reviews/act-1/hr-shortlist',
       expect.objectContaining({
@@ -241,7 +140,6 @@ describe('activityReviews.service', () => {
     const result = await submitHrShortlistToManager('act-1');
 
     expect(result.message).toBe('Submitted to manager');
-
     expect(mockFetch).toHaveBeenCalledWith(
       'http://localhost:3000/activity-reviews/act-1/submit-to-manager',
       expect.objectContaining({
@@ -271,7 +169,6 @@ describe('activityReviews.service', () => {
 
     expect(result.message).toBe('Activity approved');
     expect(result.review.status).toBe('MANAGER_APPROVED');
-
     expect(mockFetch).toHaveBeenCalledWith(
       'http://localhost:3000/activity-reviews/act-1/approve',
       expect.objectContaining({
@@ -301,7 +198,6 @@ describe('activityReviews.service', () => {
 
     expect(result.message).toBe('Changes requested');
     expect(result.review.status).toBe('CHANGES_REQUESTED');
-
     expect(mockFetch).toHaveBeenCalledWith(
       'http://localhost:3000/activity-reviews/act-1/request-changes',
       expect.objectContaining({
@@ -315,9 +211,7 @@ describe('activityReviews.service', () => {
   });
 
   it('should handle 401 unauthorized with custom message', async () => {
-    mockFetch.mockResolvedValueOnce(
-      fakeTextErrorResponse('Unauthorized', 401)
-    );
+    mockFetch.mockResolvedValueOnce(fakeTextErrorResponse('Unauthorized', 401));
 
     await expect(getActivityReview('act-1')).rejects.toThrow(
       'Unauthorized session. Please sign in with an HR account.'
@@ -326,10 +220,7 @@ describe('activityReviews.service', () => {
 
   it('should handle error response with array message', async () => {
     mockFetch.mockResolvedValueOnce(
-      fakeJsonResponse(
-        { message: ['Error 1', 'Error 2', 'Error 3'] },
-        400
-      )
+      fakeJsonResponse({ message: ['Error 1', 'Error 2', 'Error 3'] }, 400)
     );
 
     await expect(saveHrShortlist('act-1', { employeeIds: [] })).rejects.toThrow(
@@ -380,4 +271,5 @@ describe('activityReviews.service', () => {
       })
     );
   });
+
 });
