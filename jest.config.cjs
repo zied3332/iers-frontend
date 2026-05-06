@@ -27,12 +27,6 @@ module.exports = {
   },
 
   collectCoverage: true,
-  collectCoverageFrom: [
-    'src/**/*.{ts,tsx}',
-    '!src/**/*.spec.{ts,tsx}',
-    '!src/main.tsx',
-    '!src/**/*.d.ts',
-  ],
   coverageDirectory: 'coverage',
   coverageReporters: ['lcov', 'text'],
 
