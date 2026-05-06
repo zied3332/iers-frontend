@@ -9,13 +9,13 @@
   <testsuite name="post-activity-evaluations.service" errors="0" failures="0" skipped="0" timestamp="2026-05-06T07:37:32" time="0.731" tests="13">
     <testcase classname="post-activity-evaluations.service getCompletedActivitiesForEvaluation() should fetch list of activities" name="post-activity-evaluations.service getCompletedActivitiesForEvaluation() should fetch list of activities" time="0.004">
     </testcase>
-    <testcase classname="post-activity-evaluations.service getFinalizedActivitiesForEvaluation() should fetch finalized activities" name="post-activity-evaluations.service getFinalizedActivitiesForEvaluation() should fetch finalized activities" time="0.001">
+    <testcase classname="activities.service listActivities() should support hrView filter" name="activities.service listActivities() should support hrView filter" time="0.001">
     </testcase>
-    <testcase classname="post-activity-evaluations.service getParticipantsForEvaluation() should fetch participants with eval status" name="post-activity-evaluations.service getParticipantsForEvaluation() should fetch participants with eval status" time="0.001">
+    <testcase classname="activities.service listActivities() should support managerView filter" name="activities.service listActivities() should support managerView filter" time="0.001">
     </testcase>
-    <testcase classname="post-activity-evaluations.service submitEvaluation() should POST single evaluation with all fields" name="post-activity-evaluations.service submitEvaluation() should POST single evaluation with all fields" time="0.001">
+    <testcase classname="activities.service listActivities() should combine multiple query filters" name="activities.service listActivities() should combine multiple query filters" time="0.001">
     </testcase>
-    <testcase classname="post-activity-evaluations.service submitEvaluation() should work with minimal payload" name="post-activity-evaluations.service submitEvaluation() should work with minimal payload" time="0.001">
+    <testcase classname="activities.service getActivityById() should fetch specific activity by ID" name="activities.service getActivityById() should fetch specific activity by ID" time="0.001">
     </testcase>
     <testcase classname="post-activity-evaluations.service submitBulkEvaluations() should POST multiple evaluations" name="post-activity-evaluations.service submitBulkEvaluations() should POST multiple evaluations" time="0.001">
     </testcase>

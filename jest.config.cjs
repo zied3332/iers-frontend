@@ -19,16 +19,23 @@ module.exports = {
         target: 'ES2020',
         esModuleInterop: true,
         allowSyntheticDefaultImports: true,
+        jsx: 'react-jsx',
+        types: ['jest', 'node'],
       },
       diagnostics: false,
     }],
   },
-  globals: {
-    'import.meta': {
-      env: { VITE_API_URL: 'http://localhost:3000' },
-    },
-  },
-  testRegex: '.*\\.spec\\.ts$',
+
+  collectCoverage: true,
+  collectCoverageFrom: [
+    'src/**/*.{ts,tsx}',
+    '!src/**/*.spec.{ts,tsx}',
+    '!src/main.tsx',
+    '!src/**/*.d.ts',
+  ],
+  coverageDirectory: 'coverage',
+  coverageReporters: ['lcov', 'text'],
+
   reporters: [
     'default',
     ['jest-junit', {

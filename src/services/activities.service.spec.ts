@@ -1,10 +1,14 @@
 // src/services/activities.service.spec.ts
 
-const mockFetch = jest.fn();
-global.fetch = mockFetch;
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { getActivityById, listActivities } from './activities.service';
+
+const mockFetch = jest.fn<any>();
+(globalThis as any).fetch = mockFetch;
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
+
   return {
     getItem: (key: string) => store[key] || null,
     setItem: (key: string, value: string) => {
@@ -27,15 +31,15 @@ function fakeJsonResponse(body: any, status = 200): Response {
     ok: status >= 200 && status < 300,
     status,
     text: () => Promise.resolve(JSON.stringify(body)),
-  } as unknown as Response;
+  };
 }
 
-function fakeTextErrorResponse(message: string, status: number): Response {
+function fakeTextErrorResponse(message: string, status: number): any {
   return {
     ok: false,
     status,
     text: () => Promise.resolve(message),
-  } as unknown as Response;
+  };
 }
 
 beforeEach(() => {
@@ -82,7 +86,7 @@ describe('activities.service', () => {
         headers: expect.objectContaining({
           Authorization: 'Bearer fake-jwt-token',
         }),
-      })
+      }),
     );
   });
 
@@ -93,7 +97,7 @@ describe('activities.service', () => {
 
     expect(mockFetch).toHaveBeenCalledWith(
       'http://localhost:3000/activities?hrView=drafts',
-      expect.objectContaining({ method: 'GET' })
+      expect.objectContaining({ method: 'GET' }),
     );
   });
 
@@ -104,7 +108,7 @@ describe('activities.service', () => {
 
     expect(mockFetch).toHaveBeenCalledWith(
       'http://localhost:3000/activities?managerView=running',
-      expect.objectContaining({ method: 'GET' })
+      expect.objectContaining({ method: 'GET' }),
     );
   });
 
@@ -115,11 +119,12 @@ describe('activities.service', () => {
 
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('hrView=pipeline'),
-      expect.any(Object)
+      expect.any(Object),
     );
+
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('managerView=past'),
-      expect.any(Object)
+      expect.any(Object),
     );
   });
 
@@ -172,18 +177,20 @@ describe('activities.service', () => {
         headers: expect.objectContaining({
           Authorization: 'Bearer fake-jwt-token',
         }),
-      })
+      }),
     );
   });
 
   it('getActivityById() should encode special characters in ID', async () => {
-    mockFetch.mockResolvedValueOnce(fakeJsonResponse({ _id: 'act/123', title: 'Test' }));
+    mockFetch.mockResolvedValueOnce(
+      fakeJsonResponse({ _id: 'act/123', title: 'Test' }),
+    );
 
     await getActivityById('act/123');
 
     expect(mockFetch).toHaveBeenCalledWith(
       'http://localhost:3000/activities/act%2F123',
-      expect.any(Object)
+      expect.any(Object),
     );
   });
 
@@ -199,7 +206,7 @@ describe('activities.service', () => {
           priority_level: 'low',
           seats: 15,
         },
-      ])
+      ]),
     );
 
     const activities = await listActivities();
@@ -211,22 +218,20 @@ describe('activities.service', () => {
   });
 
   it('listActivities() should handle 401 unauthorized error', async () => {
-    mockFetch.mockResolvedValueOnce(
-      fakeTextErrorResponse('Unauthorized', 401)
-    );
+    mockFetch.mockResolvedValueOnce(fakeTextErrorResponse('Unauthorized', 401));
 
     await expect(listActivities()).rejects.toThrow(
-      'Unauthorized session. Please sign out and log in again.'
+      'Unauthorized session. Please sign out and log in again.',
     );
   });
 
   it('getActivityById() should handle 403 forbidden error', async () => {
     mockFetch.mockResolvedValueOnce(
-      fakeTextErrorResponse('You do not have permission', 403)
+      fakeTextErrorResponse('You do not have permission', 403),
     );
 
     await expect(getActivityById('act-1')).rejects.toThrow(
-      'You do not have permission'
+      'You do not have permission',
     );
   });
 
@@ -249,7 +254,7 @@ describe('activities.service', () => {
           responsible_manager: { _id: 'mgr-2', name: 'Jane' },
           department: { _id: 'dep-2', name: 'DevOps' },
         },
-      ])
+      ]),
     );
 
     const activities = await listActivities();
