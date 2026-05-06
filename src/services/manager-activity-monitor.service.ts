@@ -9,8 +9,10 @@ export type MonitorDraft = {
   updatedAt?: string;
 };
 
+import { getApiBaseUrl } from "../utils/apiBaseUrl";
+
 const STORAGE_PREFIX = "manager_activity_monitor_v1";
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const API_URL = getApiBaseUrl();
 
 function storageKey(activityId: string) {
   return `${STORAGE_PREFIX}:${activityId}`;

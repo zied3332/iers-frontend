@@ -1,9 +1,10 @@
 // src/utils/auth.ts
 import type { NavigateFunction } from "react-router-dom";
+import { getApiBaseUrl } from "./apiBaseUrl";
 
 async function backendLogout() {
   try {
-    const BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+    const BASE = getApiBaseUrl();
     const token = localStorage.getItem("token");
     if (!token) return;
 

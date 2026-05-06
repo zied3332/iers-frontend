@@ -1,5 +1,7 @@
 // src/services/auth.service.ts
-const BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+import { getApiBaseUrl } from "../utils/apiBaseUrl";
+
+const BASE = getApiBaseUrl();
 
 type ApiError = Error & { status?: number };
 

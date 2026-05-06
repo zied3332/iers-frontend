@@ -16,47 +16,6 @@ const localStorageMock = (() => {
 })();
 Object.defineProperty(global, 'localStorage', { value: localStorageMock });
 
-// ── Mock du module users.service pour éviter import.meta ────────
-jest.mock('./users.service', () => {
-  const BASE = 'http://localhost:3000';
-
-  function getToken() {
-    return localStorage.getItem('token');
-  }
-
-  function authHeaders(): Record<string, string> {
-    const token = getToken();
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    return headers;
-  }
-
-  async function handle(res: Response) {
-    const txt = await res.text();
-    if (!res.ok) {
-      throw new Error('Erreur serveur');
-    }
-    return txt ? JSON.parse(txt) : null;
-  }
-
-  return {
-    getUsers: async () => {
-      const res = await fetch(`${BASE}/users`, { headers: authHeaders() });
-      return handle(res);
-    },
-    createUser: async (payload: any) => {
-      const res = await fetch(`${BASE}/users`, {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify(payload),
-      });
-      return handle(res);
-    },
-  };
-});
-
 import { getUsers, createUser } from './users.service';
 
 // ── Helper ──────────────────────────────────────────────────────

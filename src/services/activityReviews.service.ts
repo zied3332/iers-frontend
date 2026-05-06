@@ -1,6 +1,7 @@
 import type { ActivityReviewRecord } from "../types/activity-review";
+import { getApiBaseUrl } from "../utils/apiBaseUrl";
 
-const BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const BASE = getApiBaseUrl();
 
 function authHeaders(): HeadersInit {
   const rawToken = localStorage.getItem("token") || localStorage.getItem("access_token");

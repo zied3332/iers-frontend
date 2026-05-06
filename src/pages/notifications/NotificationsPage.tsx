@@ -5,11 +5,12 @@ import { useNotifications } from '../../hooks/useNotifications';
 import type { AppNotification, NotificationChange } from '../../types/notification';
 import { getActivityById, type ActivityRecord } from '../../services/activities.service';
 import { getAllDepartments } from '../../services/departments.service';
+import { getApiBaseUrl } from '../../utils/apiBaseUrl';
 
 type FilterType = 'ALL' | 'UNREAD' | 'READ';
 type AccountApprovalDecision = 'PENDING' | 'APPROVED' | 'REJECTED' | 'UNKNOWN';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_BASE = getApiBaseUrl();
 
 function normalizeApprovalDecision(value: unknown): AccountApprovalDecision {
   const normalized = String(value || '').trim().toUpperCase();

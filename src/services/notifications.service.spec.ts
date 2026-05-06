@@ -22,59 +22,6 @@ const localStorageMock = (() => {
 })();
 Object.defineProperty(global, 'localStorage', { value: localStorageMock });
 
-jest.mock('./notifications.service', () => {
-  const API_URL = 'http://localhost:3000';
-
-  function authHeaders() {
-    const rawToken = localStorage.getItem('token') || localStorage.getItem('access_token');
-    const normalizedToken = String(rawToken || '').replace(/^Bearer\s+/i, '').trim();
-    return normalizedToken ? { Authorization: `Bearer ${normalizedToken}` } : {};
-  }
-
-  return {
-    getMyNotifications: async (signal?: AbortSignal) => {
-      const response = await axios.get(`${API_URL}/notifications/me`, {
-        headers: authHeaders(),
-        signal,
-      });
-      return Array.isArray(response.data) ? response.data : response.data?.data || [];
-    },
-
-    markNotificationAsRead: async (notificationId: string) => {
-      await axios.patch(
-        `${API_URL}/notifications/${notificationId}/read`,
-        {},
-        {
-          headers: authHeaders(),
-        }
-      );
-    },
-
-    markAllNotificationsAsRead: async () => {
-      await axios.patch(
-        `${API_URL}/notifications/read-all`,
-        {},
-        {
-          headers: authHeaders(),
-        }
-      );
-    },
-
-    deleteNotification: async (notificationId: string) => {
-      await axios.delete(`${API_URL}/notifications/${notificationId}`, {
-        headers: authHeaders(),
-      });
-    },
-
-    deleteNotifications: async (notificationIds: string[]) => {
-      await axios.delete(`${API_URL}/notifications`, {
-        headers: authHeaders(),
-        data: { notificationIds },
-      });
-    },
-  };
-});
-
 import {
   deleteNotification,
   deleteNotifications,

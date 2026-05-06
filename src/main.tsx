@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import './env';
 import App from './App';
 import { NotificationProvider } from './context/NotificationContext';
 import './index.css';

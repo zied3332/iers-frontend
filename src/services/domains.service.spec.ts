@@ -21,62 +21,6 @@ const localStorageMock = (() => {
 
 Object.defineProperty(global, 'localStorage', { value: localStorageMock });
 
-jest.mock('./domains.service', () => {
-  const API = 'http://localhost:3000';
-
-  function authHeaders() {
-    const rawToken =
-      localStorage.getItem('token') || localStorage.getItem('access_token');
-
-    const token = String(rawToken || '')
-      .replace(/^Bearer\s+/i, '')
-      .trim();
-
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  }
-
-  return {
-    getAllDomains: async () => {
-      try {
-        const res = await axios.get(`${API}/domains/public`);
-        if (Array.isArray(res.data)) return res.data;
-      } catch {
-        // ignore
-      }
-
-      try {
-        const res = await axios.get(`${API}/domains`, {
-          headers: authHeaders(),
-        });
-        return Array.isArray(res.data) ? res.data : [];
-      } catch {
-        return [];
-      }
-    },
-
-    createDomain: async (data: any) => {
-      const res = await axios.post(`${API}/domains`, data, {
-        headers: authHeaders(),
-      });
-      return res.data;
-    },
-
-    updateDomain: async (id: string, data: any) => {
-      const res = await axios.patch(`${API}/domains/${id}`, data, {
-        headers: authHeaders(),
-      });
-      return res.data;
-    },
-
-    deleteDomain: async (id: string) => {
-      const res = await axios.delete(`${API}/domains/${id}`, {
-        headers: authHeaders(),
-      });
-      return res.data;
-    },
-  };
-});
-
 import {
   createDomain,
   deleteDomain,

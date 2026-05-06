@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="13" failures="0" errors="0" time="1.014">
-  <testsuite name="post-activity-evaluations.service" errors="0" failures="0" skipped="0" timestamp="2026-05-05T20:50:45" time="0.185" tests="13">
+<testsuites name="jest tests" tests="66" failures="0" errors="0" time="9.799">
+  <testsuite name="users.service" errors="0" failures="0" skipped="0" timestamp="2026-05-06T07:37:29" time="3.71" tests="2">
+    <testcase classname="users.service getUsers() doit retourner un tableau de users" name="users.service getUsers() doit retourner un tableau de users" time="0.005">
+    </testcase>
+    <testcase classname="users.service createUser() doit envoyer POST avec le bon payload" name="users.service createUser() doit envoyer POST avec le bon payload" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="post-activity-evaluations.service" errors="0" failures="0" skipped="0" timestamp="2026-05-06T07:37:32" time="0.731" tests="13">
     <testcase classname="post-activity-evaluations.service getCompletedActivitiesForEvaluation() should fetch list of activities" name="post-activity-evaluations.service getCompletedActivitiesForEvaluation() should fetch list of activities" time="0.004">
     </testcase>
     <testcase classname="post-activity-evaluations.service getFinalizedActivitiesForEvaluation() should fetch finalized activities" name="post-activity-evaluations.service getFinalizedActivitiesForEvaluation() should fetch finalized activities" time="0.001">
@@ -11,21 +17,135 @@
     </testcase>
     <testcase classname="post-activity-evaluations.service submitEvaluation() should work with minimal payload" name="post-activity-evaluations.service submitEvaluation() should work with minimal payload" time="0.001">
     </testcase>
-    <testcase classname="post-activity-evaluations.service submitBulkEvaluations() should POST multiple evaluations" name="post-activity-evaluations.service submitBulkEvaluations() should POST multiple evaluations" time="0">
+    <testcase classname="post-activity-evaluations.service submitBulkEvaluations() should POST multiple evaluations" name="post-activity-evaluations.service submitBulkEvaluations() should POST multiple evaluations" time="0.001">
     </testcase>
-    <testcase classname="post-activity-evaluations.service finalizeActivityEvaluations() should POST finalize endpoint" name="post-activity-evaluations.service finalizeActivityEvaluations() should POST finalize endpoint" time="0">
+    <testcase classname="post-activity-evaluations.service finalizeActivityEvaluations() should POST finalize endpoint" name="post-activity-evaluations.service finalizeActivityEvaluations() should POST finalize endpoint" time="0.001">
     </testcase>
-    <testcase classname="post-activity-evaluations.service getEvaluationsByEmployee() should fetch all evaluations for employee" name="post-activity-evaluations.service getEvaluationsByEmployee() should fetch all evaluations for employee" time="0">
+    <testcase classname="post-activity-evaluations.service getEvaluationsByEmployee() should fetch all evaluations for employee" name="post-activity-evaluations.service getEvaluationsByEmployee() should fetch all evaluations for employee" time="0.001">
     </testcase>
-    <testcase classname="post-activity-evaluations.service should handle API errors and throw with error message" name="post-activity-evaluations.service should handle API errors and throw with error message" time="0.009">
+    <testcase classname="post-activity-evaluations.service should handle API errors and throw with error message" name="post-activity-evaluations.service should handle API errors and throw with error message" time="0.014">
     </testcase>
-    <testcase classname="post-activity-evaluations.service should return empty object when json parsing fails" name="post-activity-evaluations.service should return empty object when json parsing fails" time="0.001">
+    <testcase classname="post-activity-evaluations.service should return empty object when json parsing fails" name="post-activity-evaluations.service should return empty object when json parsing fails" time="0">
     </testcase>
-    <testcase classname="post-activity-evaluations.service submitEvaluation() should handle update action" name="post-activity-evaluations.service submitEvaluation() should handle update action" time="0">
+    <testcase classname="post-activity-evaluations.service submitEvaluation() should handle update action" name="post-activity-evaluations.service submitEvaluation() should handle update action" time="0.001">
     </testcase>
     <testcase classname="post-activity-evaluations.service should include auth token in all requests" name="post-activity-evaluations.service should include auth token in all requests" time="0.001">
     </testcase>
     <testcase classname="post-activity-evaluations.service should work without token" name="post-activity-evaluations.service should work without token" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="notifications.service" errors="0" failures="0" skipped="0" timestamp="2026-05-06T07:37:33" time="0.69" tests="9">
+    <testcase classname="notifications.service getMyNotifications() should fetch notifications and return array" name="notifications.service getMyNotifications() should fetch notifications and return array" time="0.003">
+    </testcase>
+    <testcase classname="notifications.service getMyNotifications() should handle response.data?.data structure" name="notifications.service getMyNotifications() should handle response.data?.data structure" time="0.001">
+    </testcase>
+    <testcase classname="notifications.service getMyNotifications() should pass AbortSignal when provided" name="notifications.service getMyNotifications() should pass AbortSignal when provided" time="0.001">
+    </testcase>
+    <testcase classname="notifications.service markNotificationAsRead() should make PATCH call to specific notification" name="notifications.service markNotificationAsRead() should make PATCH call to specific notification" time="0.001">
+    </testcase>
+    <testcase classname="notifications.service markAllNotificationsAsRead() should make PATCH call to read-all endpoint" name="notifications.service markAllNotificationsAsRead() should make PATCH call to read-all endpoint" time="0.001">
+    </testcase>
+    <testcase classname="notifications.service deleteNotification() should make DELETE call for single notification" name="notifications.service deleteNotification() should make DELETE call for single notification" time="0.003">
+    </testcase>
+    <testcase classname="notifications.service deleteNotifications() should make DELETE call with array of IDs" name="notifications.service deleteNotifications() should make DELETE call with array of IDs" time="0.001">
+    </testcase>
+    <testcase classname="notifications.service should include auth token from localStorage" name="notifications.service should include auth token from localStorage" time="0.001">
+    </testcase>
+    <testcase classname="notifications.service should handle missing token gracefully" name="notifications.service should handle missing token gracefully" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="employee.service" errors="0" failures="0" skipped="0" timestamp="2026-05-06T07:37:34" time="0.662" tests="6">
+    <testcase classname="employee.service getAllEmployees() should fetch and normalize employee records" name="employee.service getAllEmployees() should fetch and normalize employee records" time="0.005">
+    </testcase>
+    <testcase classname="employee.service getEmployeesByDepartment() should encode departmentId in query" name="employee.service getEmployeesByDepartment() should encode departmentId in query" time="0.001">
+    </testcase>
+    <testcase classname="employee.service getEmployeeByUserId() should return matching employee or null" name="employee.service getEmployeeByUserId() should return matching employee or null" time="0.001">
+    </testcase>
+    <testcase classname="employee.service getMyEmployeeRecord() should call /employee/me and normalize data" name="employee.service getMyEmployeeRecord() should call /employee/me and normalize data" time="0.001">
+    </testcase>
+    <testcase classname="employee.service patch functions should send PATCH with JSON body" name="employee.service patch functions should send PATCH with JSON body" time="0.001">
+    </testcase>
+    <testcase classname="employee.service deleteEmployeeById() should throw Error with status on API failure" name="employee.service deleteEmployeeById() should throw Error with status on API failure" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="domains.service" errors="0" failures="0" skipped="0" timestamp="2026-05-06T07:37:35" time="0.712" tests="8">
+    <testcase classname="domains.service getAllDomains() should return public domains on success" name="domains.service getAllDomains() should return public domains on success" time="0.004">
+    </testcase>
+    <testcase classname="domains.service getAllDomains() should fallback to private endpoint if public fails" name="domains.service getAllDomains() should fallback to private endpoint if public fails" time="0.001">
+    </testcase>
+    <testcase classname="domains.service getAllDomains() should return empty array if both fail" name="domains.service getAllDomains() should return empty array if both fail" time="0">
+    </testcase>
+    <testcase classname="domains.service createDomain() should POST with auth" name="domains.service createDomain() should POST with auth" time="0.001">
+    </testcase>
+    <testcase classname="domains.service updateDomain() should PATCH correctly" name="domains.service updateDomain() should PATCH correctly" time="0.001">
+    </testcase>
+    <testcase classname="domains.service deleteDomain() should DELETE correctly" name="domains.service deleteDomain() should DELETE correctly" time="0.001">
+    </testcase>
+    <testcase classname="domains.service should use access_token fallback" name="domains.service should use access_token fallback" time="0.001">
+    </testcase>
+    <testcase classname="domains.service should handle no token case" name="domains.service should handle no token case" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="departments.service" errors="0" failures="0" skipped="0" timestamp="2026-05-06T07:37:35" time="0.658" tests="5">
+    <testcase classname="departments.service getAllDepartments()" name="departments.service getAllDepartments()" time="0.002">
+    </testcase>
+    <testcase classname="departments.service createDepartment()" name="departments.service createDepartment()" time="0.001">
+    </testcase>
+    <testcase classname="departments.service updateDepartment()" name="departments.service updateDepartment()" time="0.001">
+    </testcase>
+    <testcase classname="departments.service deleteDepartment()" name="departments.service deleteDepartment()" time="0">
+    </testcase>
+    <testcase classname="departments.service handles errors" name="departments.service handles errors" time="0.003">
+    </testcase>
+  </testsuite>
+  <testsuite name="activityReviews.service" errors="0" failures="0" skipped="0" timestamp="2026-05-06T07:37:36" time="0.772" tests="12">
+    <testcase classname="activityReviews.service getActivityReview() should fetch activity review" name="activityReviews.service getActivityReview() should fetch activity review" time="0.004">
+    </testcase>
+    <testcase classname="activityReviews.service getActivityReview() should return null on 404" name="activityReviews.service getActivityReview() should return null on 404" time="0.001">
+    </testcase>
+    <testcase classname="activityReviews.service getActivityReview() should throw on other errors" name="activityReviews.service getActivityReview() should throw on other errors" time="0.011">
+    </testcase>
+    <testcase classname="activityReviews.service saveHrShortlist() should POST with employeeIds and optional fields" name="activityReviews.service saveHrShortlist() should POST with employeeIds and optional fields" time="0.001">
+    </testcase>
+    <testcase classname="activityReviews.service saveHrShortlist() should URL encode activityId" name="activityReviews.service saveHrShortlist() should URL encode activityId" time="0">
+    </testcase>
+    <testcase classname="activityReviews.service submitHrShortlistToManager() should PATCH submit-to-manager endpoint" name="activityReviews.service submitHrShortlistToManager() should PATCH submit-to-manager endpoint" time="0.001">
+    </testcase>
+    <testcase classname="activityReviews.service approveActivityReview() should PATCH approve endpoint with manager selections" name="activityReviews.service approveActivityReview() should PATCH approve endpoint with manager selections" time="0.001">
+    </testcase>
+    <testcase classname="activityReviews.service requestActivityReviewChanges() should PATCH request-changes endpoint" name="activityReviews.service requestActivityReviewChanges() should PATCH request-changes endpoint" time="0.001">
+    </testcase>
+    <testcase classname="activityReviews.service should handle 401 unauthorized with custom message" name="activityReviews.service should handle 401 unauthorized with custom message" time="0">
+    </testcase>
+    <testcase classname="activityReviews.service should handle error response with array message" name="activityReviews.service should handle error response with array message" time="0.001">
+    </testcase>
+    <testcase classname="activityReviews.service saveHrShortlist() should handle response with candidateSnapshots" name="activityReviews.service saveHrShortlist() should handle response with candidateSnapshots" time="0.001">
+    </testcase>
+    <testcase classname="activityReviews.service approveActivityReview() should work with minimal payload" name="activityReviews.service approveActivityReview() should work with minimal payload" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="activities.service" errors="0" failures="0" skipped="0" timestamp="2026-05-06T07:37:37" time="0.904" tests="11">
+    <testcase classname="activities.service listActivities() should fetch activities without filters" name="activities.service listActivities() should fetch activities without filters" time="0.004">
+    </testcase>
+    <testcase classname="activities.service listActivities() should support hrView filter" name="activities.service listActivities() should support hrView filter" time="0.001">
+    </testcase>
+    <testcase classname="activities.service listActivities() should support managerView filter" name="activities.service listActivities() should support managerView filter" time="0.001">
+    </testcase>
+    <testcase classname="activities.service listActivities() should combine multiple query filters" name="activities.service listActivities() should combine multiple query filters" time="0.001">
+    </testcase>
+    <testcase classname="activities.service getActivityById() should fetch specific activity by ID" name="activities.service getActivityById() should fetch specific activity by ID" time="0.001">
+    </testcase>
+    <testcase classname="activities.service getActivityById() should encode special characters in ID" name="activities.service getActivityById() should encode special characters in ID" time="0.001">
+    </testcase>
+    <testcase classname="activities.service listActivities() should normalize enum values to uppercase" name="activities.service listActivities() should normalize enum values to uppercase" time="0.001">
+    </testcase>
+    <testcase classname="activities.service listActivities() should handle 401 unauthorized error" name="activities.service listActivities() should handle 401 unauthorized error" time="0.025">
+    </testcase>
+    <testcase classname="activities.service getActivityById() should handle 403 forbidden error" name="activities.service getActivityById() should handle 403 forbidden error" time="0.001">
+    </testcase>
+    <testcase classname="activities.service should handle empty activities list" name="activities.service should handle empty activities list" time="0">
+    </testcase>
+    <testcase classname="activities.service should normalize manager and department objects" name="activities.service should normalize manager and department objects" time="0">
     </testcase>
   </testsuite>
 </testsuites>

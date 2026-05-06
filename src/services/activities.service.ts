@@ -1,4 +1,6 @@
-const BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+import { getApiBaseUrl } from "../utils/apiBaseUrl";
+
+const BASE = getApiBaseUrl();
 
 export type ActivityType = "TRAINING" | "CERTIFICATION" | "PROJECT" | "MISSION" | "AUDIT";
 export type SkillType = "KNOWLEDGE" | "KNOW_HOW" | "SOFT";
@@ -150,7 +152,11 @@ function mapApiActivity(raw: any): ActivityRecord {
   return {
     _id: String(raw?._id || ""),
     title: String(raw?.title || ""),
-    type: String(raw?.type || "TRAINING") as ActivityType,
+    type: toEnum<ActivityType>(
+      raw?.type,
+      ["TRAINING", "CERTIFICATION", "PROJECT", "MISSION", "AUDIT"] as const,
+      "TRAINING"
+    ),
     requiredSkills: Array.isArray(raw?.requiredSkills) ? raw.requiredSkills : [],
     availableSlots: Number(raw?.seats || 0),
     description: String(raw?.description || ""),

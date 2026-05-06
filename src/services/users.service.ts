@@ -1,7 +1,8 @@
 // src/services/users.service.ts
 import axios from "axios";
+import { getApiBaseUrl } from "../utils/apiBaseUrl";
 
-const BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const BASE = getApiBaseUrl();
 
 function getToken() {
   return localStorage.getItem("token");

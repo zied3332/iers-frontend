@@ -20,62 +20,6 @@ const localStorageMock = (() => {
 })();
 Object.defineProperty(global, 'localStorage', { value: localStorageMock });
 
-jest.mock('./post-activity-evaluations.service', () => {
-  const BASE = 'http://localhost:3000';
-
-  async function api(path: string, options: any = {}) {
-    const token = localStorage.getItem('token');
-    const res = await fetch(`${BASE}${path}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(options.headers || {}),
-      },
-      ...options,
-    });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json().catch(() => ({}));
-  }
-
-  return {
-    getCompletedActivitiesForEvaluation: async () => {
-      return api('/post-evaluations/activities');
-    },
-
-    getFinalizedActivitiesForEvaluation: async () => {
-      return api('/post-evaluations/finalized');
-    },
-
-    getParticipantsForEvaluation: async (activityId: string) => {
-      return api(`/post-evaluations/activity/${activityId}/participants`);
-    },
-
-    submitEvaluation: async (payload: any) => {
-      return api('/post-evaluations', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    },
-
-    submitBulkEvaluations: async (evaluations: any[]) => {
-      return api('/post-evaluations/bulk', {
-        method: 'POST',
-        body: JSON.stringify({ evaluations }),
-      });
-    },
-
-    finalizeActivityEvaluations: async (activityId: string) => {
-      return api(`/post-evaluations/activity/${activityId}/finalize`, {
-        method: 'POST',
-      });
-    },
-
-    getEvaluationsByEmployee: async (employeeId: string) => {
-      return api(`/post-evaluations/employee/${employeeId}`);
-    },
-  };
-});
-
 import {
   finalizeActivityEvaluations,
   getCompletedActivitiesForEvaluation,

@@ -4,8 +4,9 @@ import type {
   ChatSearchResponse,
   ExplanationResponse,
 } from "../types/hr-copilot";
+import { getApiBaseUrl } from "../utils/apiBaseUrl";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const API_URL = getApiBaseUrl();
 
 function authHeaders(): Record<string, string> {
   const raw =
