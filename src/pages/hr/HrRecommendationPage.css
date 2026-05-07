@@ -1,18 +1,18 @@
 .hr-rec-page {
-  --bg: #f6f8f7;
-  --surface: #ffffff;
-  --surface-soft: #f8fbf9;
-  --text: #132018;
-  --muted: #6b756f;
-  --border: #e0e7e3;
-  --primary: #2f8f5b;
-  --primary-dark: #226b43;
-  --primary-soft: #e8f6ee;
+  --bg: var(--bg, #f6f8f7);
+  --surface: var(--surface, #ffffff);
+  --surface-soft: var(--surface-2, #f8fbf9);
+  --text: var(--text, #132018);
+  --muted: var(--muted, #6b756f);
+  --border: var(--border, #e0e7e3);
+  --primary: var(--primary, #2f8f5b);
+  --primary-dark: var(--primary-soft-text, #226b43);
+  --primary-soft: var(--primary-weak, #e8f6ee);
   --warning: #a16207;
-  --warning-soft: #fff7e6;
+  --warning-soft: color-mix(in srgb, var(--surface) 82%, #f59e0b);
   --danger: #b42318;
-  --danger-soft: #fff1f0;
-  --info-soft: #eef6f2;
+  --danger-soft: color-mix(in srgb, var(--surface) 82%, #ef4444);
+  --info-soft: color-mix(in srgb, var(--surface) 88%, var(--primary));
   --shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
 
   width: 100%;
@@ -41,7 +41,11 @@
   gap: 24px;
   padding: 24px;
   margin-bottom: 18px;
-  background: linear-gradient(135deg, #ffffff 0%, #f5faf7 100%);
+  background: linear-gradient(
+    135deg,
+    var(--surface) 0%,
+    color-mix(in srgb, var(--surface-soft) 80%, var(--surface)) 100%
+  );
   border: 1px solid var(--border);
   border-radius: 22px;
   box-shadow: var(--shadow);
@@ -132,7 +136,7 @@
   font-weight: 900;
   cursor: pointer;
   transition: 0.18s ease;
-  background: #edf2ef;
+  background: var(--surface-soft);
   color: var(--text);
   white-space: nowrap;
 }
@@ -158,7 +162,7 @@
 }
 
 .hr-rec-btn-outline {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border);
 }
 
@@ -231,7 +235,7 @@
 }
 
 .hr-rec-kpi-grid .hr-rec-meta-item {
-  background: #fff;
+  background: var(--surface);
   padding: 18px;
 }
 
@@ -277,7 +281,7 @@
   padding: 13px;
   border: 1px solid var(--border);
   border-radius: 16px;
-  background: #fff;
+  background: var(--surface);
 }
 
 .hr-rec-skill p {
@@ -305,6 +309,10 @@
 .hr-rec-pill.danger {
   background: var(--danger-soft);
   color: var(--danger);
+}
+
+.hr-rec-low-confidence-pill {
+  margin-top: 6px;
 }
 
 .hr-rec-empty {
@@ -376,13 +384,13 @@
 }
 
 .hr-rec-step.active {
-  border-color: #b9dfc8;
-  background: #fbfffd;
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+  background: color-mix(in srgb, var(--surface) 88%, var(--primary-soft));
 }
 
 .hr-rec-step.done {
   background: var(--primary-soft);
-  border-color: #b9dfc8;
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
 }
 
 .hr-rec-step p {
@@ -395,16 +403,16 @@
   border-radius: 999px;
   display: grid;
   place-items: center;
-  background: #e8eeeb;
+  background: var(--surface-soft);
   color: var(--muted);
   font-weight: 900;
   flex: 0 0 auto;
 }
 
 .hr-rec-step.active .hr-rec-step-icon {
-  background: white;
+  background: var(--surface);
   color: var(--primary-dark);
-  outline: 3px solid #d7eadf;
+  outline: 3px solid color-mix(in srgb, var(--primary) 20%, var(--surface));
 }
 
 .hr-rec-step.done .hr-rec-step-icon {
@@ -429,12 +437,12 @@
 
 .hr-rec-seat.filled {
   background: var(--primary-soft);
-  border-color: #b9dfc8;
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
 }
 
 .hr-rec-seat.pending {
   background: var(--warning-soft);
-  border-color: #f3d38c;
+  border-color: color-mix(in srgb, var(--warning) 35%, var(--border));
 }
 
 .hr-rec-seat span {
@@ -469,7 +477,7 @@
 .hr-rec-view-toggle button,
 .hr-rec-filter-tabs button {
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   border-radius: 999px;
   padding: 8px 13px;
   color: var(--muted);
@@ -481,7 +489,7 @@
 .hr-rec-filter-tabs button.active {
   background: var(--primary-soft);
   color: var(--primary-dark);
-  border-color: #b9dfc8;
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
 }
 
 .hr-rec-filter-row {
@@ -508,7 +516,7 @@
   gap: 10px;
   padding: 16px 24px;
   border-bottom: 1px solid var(--border);
-  background: #fcfdfc;
+  background: color-mix(in srgb, var(--surface-soft) 85%, var(--surface));
 }
 
 .hr-rec-table-scroll {
@@ -567,13 +575,13 @@
   padding: 20px;
   border: 1px solid var(--border);
   border-radius: 22px;
-  background: #fbfdfc;
+  background: color-mix(in srgb, var(--surface-soft) 88%, var(--surface));
   box-shadow: 0 10px 26px rgba(15, 23, 42, 0.04);
 }
 
 .hr-rec-candidate-card.selected {
-  border-color: #9ed7b7;
-  background: #fbfffd;
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+  background: color-mix(in srgb, var(--surface) 86%, var(--primary-soft));
   box-shadow: 0 14px 30px rgba(47, 143, 91, 0.1);
 }
 
@@ -648,7 +656,7 @@
 .hr-rec-bar-row div {
   height: 8px;
   border-radius: 999px;
-  background: #edf1ee;
+  background: var(--surface-soft);
   overflow: hidden;
 }
 
@@ -706,7 +714,7 @@
   right: 0;
   width: min(480px, 100%);
   height: 100vh;
-  background: #fff;
+  background: var(--surface);
   z-index: 50;
   box-shadow: -20px 0 60px rgba(0, 0, 0, 0.16);
   overflow: auto;
@@ -739,7 +747,8 @@
   flex: 0 0 auto;
   border-radius: 13px;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
+  color: var(--text);
   cursor: pointer;
   font-size: 20px;
 }
@@ -828,8 +837,12 @@
 .hr-ai-loader-card {
   min-height: 520px;
   background:
-    radial-gradient(circle at top, #dcfce7 0%, transparent 38%),
-    #ffffff;
+    radial-gradient(
+      circle at top,
+      color-mix(in srgb, var(--primary-soft) 75%, transparent) 0%,
+      transparent 38%
+    ),
+    var(--surface);
 }
 
 .hr-ai-brain-box {
@@ -925,9 +938,9 @@
   min-width: min(340px, 100%);
   padding: 14px 18px;
   border-radius: 999px;
-  background: #ecfdf5;
-  border: 1px solid rgba(34, 197, 94, 0.25);
-  color: #047857;
+  background: color-mix(in srgb, var(--primary-soft) 78%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border));
+  color: var(--text);
   font-weight: 900;
   font-size: 15px;
 }
@@ -948,7 +961,7 @@
   margin: 22px auto 0;
   width: min(360px, 100%);
   height: 8px;
-  background: #e5e7eb;
+  background: var(--surface-soft);
   border-radius: 999px;
   overflow: hidden;
 }

@@ -53,6 +53,13 @@ function getCandidateKey(candidate: UiRecommendationItem) {
   return String(candidate.reviewEmployeeId || candidate.employeeId);
 }
 
+function isLowConfidenceBackup(candidate: UiRecommendationItem) {
+  return (
+    candidate.selectionGroup === "BACKUP" &&
+    candidate.decision === "NOT_RECOMMENDED"
+  );
+}
+
 function normalizeFinalResponse(
   result: RecommendationFinalResponse
 ): UiRecommendationFinalResponse {
@@ -837,6 +844,11 @@ function CandidateTable({
                 <td>
                   <strong>{candidate.fullName}</strong>
                   <p>{candidate.email}</p>
+                  {isLowConfidenceBackup(candidate) ? (
+                    <span className="hr-rec-pill warning hr-rec-low-confidence-pill">
+                      Low confidence backup
+                    </span>
+                  ) : null}
                 </td>
 
                 <td className="hr-rec-score">{percent(candidate.finalScore)}</td>
@@ -899,6 +911,11 @@ function CandidateCard({
           <div className="hr-rec-candidate-name">
             <h3>{candidate.fullName}</h3>
             <p>{candidate.email}</p>
+            {isLowConfidenceBackup(candidate) ? (
+              <span className="hr-rec-pill warning hr-rec-low-confidence-pill">
+                Low confidence backup
+              </span>
+            ) : null}
           </div>
         </div>
 
