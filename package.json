@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "jest"
+    "test": "jest",
+    "test:cov": "jest --coverage",
+    "test:ci": "jest --coverage --coverageReporters=lcov --coverageReporters=text --forceExit"
   },
   "dependencies": {
     "axios": "^1.13.5",
@@ -45,5 +47,38 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0",
     "vite": "^7.3.1"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "jsdom",
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "moduleFileExtensions": ["ts", "tsx", "js", "jsx", "json"],
+    "transform": {
+      "^.+\\.(t|j)sx?$": ["ts-jest", {
+        "useESM": false,
+        "tsconfig": {
+          "module": "commonjs",
+          "esModuleInterop": true
+        }
+      }]
+    },
+    "collectCoverageFrom": [
+      "services/**/*.ts",
+      "!services/**/*.spec.ts",
+      "!services/**/*.test.ts"
+    ],
+    "coverageDirectory": "../coverage",
+    "coverageReporters": ["lcov", "text", "text-summary"],
+    "reporters": [
+      "default",
+      ["jest-junit", {
+        "outputDirectory": "../test-results",
+        "outputName": "junit.xml"
+      }]
+    ],
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/$1"
+    }
   }
 }
