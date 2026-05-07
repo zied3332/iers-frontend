@@ -408,7 +408,7 @@ function toEditable(u: any): EditableUser {
     email: u.email ?? "",
     telephone: u.telephone ?? "",
     matricule: u.matricule ?? "",
-    department: u.department ?? u.departement_id ?? "",
+    department: getUserDepartmentValue(u),
     date_embauche: u.date_embauche ?? "",
     role: normalizeRole(u.role),
     departement_id: u.departement_id,
@@ -1328,6 +1328,7 @@ export default function UsersManagement() {
             onChangeRole={(role) =>
               setForm((p) => (p ? { ...p, role } : p))
             }
+            departmentOptions={departmentOptions}
           />
         )}
       </Modal>
@@ -1467,10 +1468,12 @@ function EditForm({
   value,
   onChange,
   onChangeRole,
+  departmentOptions,
 }: {
   value: EditableUser;
   onChange: React.Dispatch<React.SetStateAction<EditableUser | null>>;
   onChangeRole: (role: User["role"]) => void;
+  departmentOptions: Array<{ value: string; label: string }>;
 }) {
   return (
     <div style={S.formGrid}>
@@ -1512,11 +1515,18 @@ function EditForm({
         <div style={S.blockTitle}>Work</div>
 
         <Label text="Department *" />
-        <input
-          className="input"
+        <select
+          className="select"
           value={value.department || ""}
           onChange={(e) => onChange((p) => (p ? { ...p, department: e.target.value } : p))}
-        />
+        >
+          <option value="">Select department</option>
+          {departmentOptions.map((dept) => (
+            <option key={dept.value} value={dept.value}>
+              {dept.label}
+            </option>
+          ))}
+        </select>
 
         <div style={S.spacerSm} />
 
