@@ -123,12 +123,6 @@ export default function HrLayout() {
         icon: "history",
       },
       {
-        to: "/hr/copilot",
-        label: "HR Copilot",
-        group: "Intelligence",
-        icon: "copilot",
-      },
-      {
         to: "/hr/notifications",
         label: "Notifications",
         group: "System",

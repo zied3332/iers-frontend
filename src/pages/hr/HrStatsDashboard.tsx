@@ -449,14 +449,6 @@ export default function HrStatsDashboard() {
       });
     }
 
-    items.push({
-      title: "Open HR Copilot for recommendation review",
-      reason:
-        "Use the intelligence workspace to explain candidate ranking and recommendation logic for new activities.",
-      score: 96,
-      actionPath: "/hr/copilot",
-    });
-
     return items.slice(0, 4);
   }, [topRequiredSkills, recentActivities]);
 
@@ -565,13 +557,6 @@ export default function HrStatsDashboard() {
               Last 6 Months
             </div>
 
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => navigate("/hr/copilot")}
-            >
-              Open HR Copilot
-            </button>
           </div>
         </section>
 
@@ -787,13 +772,6 @@ export default function HrStatsDashboard() {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  className="btn btn-small"
-                  onClick={() => navigate("/hr/copilot")}
-                >
-                  Review with AI
-                </button>
               </div>
 
               <div style={{ display: "grid", gap: "12px" }}>

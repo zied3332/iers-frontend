@@ -28,7 +28,6 @@ const AssignSkillTablePage = lazy(() => import("../pages/hr/skills/AssignSkillTa
 const AssignExperiencePage = lazy(() => import("../pages/hr/experience/AssignExperiencePage"));
 const AssignExperienceTablePage = lazy(() => import("../pages/hr/experience/AssignExperienceTablePage"));
 const DomainManagementPage = lazy(() => import("../pages/hr/domains/DomainManagementPage"));
-const HrCopilotPage = lazy(() => import("../pages/hr/HrCopilotPage"));
 const HrStatsDashboard = lazy(() => import("../pages/hr/HrStatsDashboard"));
 const HrCalendarPage = lazy(() => import("../pages/hr/HrCalendarPage"));
 const ActivityStaffingPage = lazy(() => import("../pages/hr/ActivityStaffingPage"));
@@ -183,7 +182,6 @@ export const router = createBrowserRouter([
           { path: "activities/:activityId/evaluated", element: withSuspense(<PostActivityEvaluationReadOnlyPage />) },
           { path: "activities/evaluated", element: withSuspense(<PostActivityFinalizedPage />) },
           { path: "skills-dashboard", element: withSuspense(<HrSkillsDashboard />) },
-          { path: "copilot", element: withSuspense(<HrCopilotPage />) },
           { path: "skills", element: withSuspense(<SkillsManagementPage />) },
           { path: "domains", element: withSuspense(<DomainManagementPage />) },
           { path: "skills/assign", element: withSuspense(<AssignSkillPage />) },

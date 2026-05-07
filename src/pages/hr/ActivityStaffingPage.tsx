@@ -13,7 +13,6 @@ import {
   saveHrShortlist,
   submitHrShortlistToManager,
 } from "../../services/activityReviews.service";
-import type { CandidateItem } from "../../types/hr-copilot";
 import type { ActivityReviewRecord } from "../../types/activity-review";
 import type {
   ActivityInvitationItem,
@@ -30,6 +29,20 @@ type CandidateInsight = {
   previousActivityCount: number;
   managerFit: "Strong" | "Good" | "Average";
   riskLevel: "Low" | "Medium" | "High";
+};
+
+type CandidateItem = {
+  employeeId: string;
+  name: string;
+  semanticScore: number;
+  skillScore: number;
+  progressionScore: number;
+  experienceScore: number;
+  finalScore: number;
+  matchedSkills: string[];
+  shortReason: string;
+  recommendationType?: "PRIMARY" | "BACKUP";
+  rank?: number;
 };
 
 type SortOption =
