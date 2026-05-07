@@ -122,16 +122,16 @@ const styles = {
   } as React.CSSProperties,
 
   btnPrimary: {
-    background: "#065f46",
+    background: "var(--primary)",
     color: "var(--primary-on)",
-    border: "1px solid #065f46",
-    boxShadow: "0 10px 24px rgba(6, 95, 70, 0.28)",
+    border: "1px solid var(--primary-border)",
+    boxShadow: "0 10px 24px color-mix(in srgb, var(--primary) 35%, transparent)",
   } as React.CSSProperties,
 
   btnSecondary: {
-    background: "#f8fafc",
-    color: "#0f172a",
-    border: "1px solid #dbe3ee",
+    background: "var(--surface-2)",
+    color: "var(--text)",
+    border: "1px solid var(--border)",
   } as React.CSSProperties,
 
   btnGhost: {
@@ -175,7 +175,7 @@ const styles = {
     }) as React.CSSProperties,
 
   muted: {
-    color: "#334155",
+    color: "var(--muted)",
     fontWeight: 600,
   } as React.CSSProperties,
 
@@ -226,7 +226,7 @@ const styles = {
 
   activityCard: {
     background: "var(--card)",
-    border: "1px solid #e5eaf1",
+    border: "1px solid var(--border)",
     borderRadius: "18px",
     padding: "18px",
     display: "flex",
@@ -238,7 +238,7 @@ const styles = {
   } as React.CSSProperties,
 
   activityCardHover: {
-    borderColor: "#d5dde8",
+    borderColor: "var(--primary-border)",
     boxShadow: "0 12px 30px rgba(15, 23, 42, 0.08)",
     transform: "translateY(-2px)",
   } as React.CSSProperties,
@@ -263,9 +263,9 @@ const styles = {
     alignItems: "center",
     padding: "6px 10px",
     borderRadius: "999px",
-    background: "#f8fafc",
-    border: "1px solid #e6edf5",
-    color: "#475467",
+    background: "var(--surface-2)",
+    border: "1px solid var(--border)",
+    color: "var(--muted)",
     fontWeight: 700,
     fontSize: "12px",
   } as React.CSSProperties,
@@ -331,7 +331,7 @@ const calculateWorkingDays = (startDate: string, endDate: string): number => {
 };
 
 const statusPalette: Record<ActivityStatus, { bg: string; color: string; border: string }> = {
-  PLANNED: { bg: "#f5f7fa", color: "#475467", border: "#e4e7ec" },
+  PLANNED: { bg: "var(--surface-2)", color: "var(--muted)", border: "var(--border)" },
   IN_PROGRESS: { bg: "#fff7e6", color: "#b54708", border: "#f5d9a6" },
   COMPLETED: {
     bg: "var(--primary-weak)",
@@ -849,8 +849,8 @@ export default function ActivitiesManagement() {
           ...styles.card,
           marginTop: "16px",
           padding: "16px 18px",
-          borderLeft: `4px solid ${error ? "#d92d20" : "var(--primary)"}`,
-          background: error ? "#fff7f7" : "var(--primary-weak)",
+              borderLeft: `4px solid ${error ? "#d92d20" : "var(--primary-border)"}`,
+              background: error ? "#fff7f7" : "var(--primary-weak)",
         }}
       >
         <span style={{ color: error ? "#b42318" : "var(--primary-soft-text)", fontWeight: 700 }}>
@@ -871,7 +871,7 @@ export default function ActivitiesManagement() {
         style={styles.activityCard}
         onMouseEnter={(e) => Object.assign(e.currentTarget.style, styles.activityCardHover)}
         onMouseLeave={(e) => {
-          e.currentTarget.style.borderColor = "#e5eaf1";
+          e.currentTarget.style.borderColor = "var(--border)";
           e.currentTarget.style.boxShadow = "none";
           e.currentTarget.style.transform = "none";
         }}
@@ -1254,7 +1254,7 @@ export default function ActivitiesManagement() {
                         <span
                           style={{
                             ...styles.badge("#f8fafc", "#667085"),
-                            border: "1px solid #e6edf5",
+                            border: "1px solid var(--border)",
                           }}
                         >
                           {items.length} activities
@@ -1996,7 +1996,7 @@ export default function ActivitiesManagement() {
                     <span
                       style={{
                         ...styles.badge("#f8fafc", "#475467"),
-                        border: "1px solid #e6edf5",
+                        border: "1px solid var(--border)",
                       }}
                     >
                       {formatLabel(selectedActivity.priorityContext)}
