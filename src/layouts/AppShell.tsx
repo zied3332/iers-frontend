@@ -4,6 +4,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { signOut } from "../utils/auth";
 import "../index.css";
 import NotificationBell from "../components/notifications/NotificationBell";
+import { useThemeLogo } from "../hooks/useThemeLogo";
 
 type NavItem = {
   to: string;
@@ -137,6 +138,7 @@ export default function AppShell({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const logoSrc = useThemeLogo();
 
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
   const [sidebarSearch, setSidebarSearch] = React.useState("");
@@ -238,7 +240,7 @@ export default function AppShell({
               <div className="dash-logo-wrap">
                 <img
                   className="dash-logo-img"
-                  src="/images/logo-64.webp"
+                  src={logoSrc}
                   alt="IntelliHR logo"
                   width={54}
                   height={54}

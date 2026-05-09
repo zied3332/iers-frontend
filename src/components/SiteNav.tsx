@@ -1,14 +1,17 @@
 import { Link } from 'react-router-dom';
+import { useThemeLogo } from '../hooks/useThemeLogo';
 import './SiteNav.css';
 
 export default function SiteNav() {
+  const logoSrc = useThemeLogo();
+
   return (
     <header className="site-topbar">
       <div className="site-container site-nav-container">
         <Link to="/" className="site-brand" aria-label="IntelliHR home">
           <img
             className="site-brand-logo"
-            src="/images/logo-64.webp"
+            src={logoSrc}
             alt="IntelliHR logo"
             width={60}
             height={60}

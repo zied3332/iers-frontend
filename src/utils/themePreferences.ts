@@ -3,6 +3,7 @@ export type ThemeMode = "light" | "dark";
 export const THEME_STORAGE_KEY = "themeMode";
 export const THEME_COLOR_STORAGE_KEY = "themeColor";
 export const DEFAULT_THEME_COLOR = "#10b981";
+export const DEFAULT_THEME_LOGO_SRC = "/images/logo-64.webp";
 
 export const THEME_COLOR_OPTIONS: ReadonlyArray<{ label: string; value: string }> = [
   { label: "Emerald", value: "#10b981" },
@@ -15,6 +16,14 @@ export const THEME_COLOR_OPTIONS: ReadonlyArray<{ label: string; value: string }
 ];
 
 const COLOR_SET = new Set(THEME_COLOR_OPTIONS.map((item) => item.value.toLowerCase()));
+const THEME_LOGO_SOURCES = new Map<string, string>([
+  ["#06b6d4", "/images/logo_06b6d4.png"],
+  ["#38bdf8", "/images/logo_38bdf8.png"],
+  ["#6366f1", "/images/logo_6366f1.png"],
+  ["#8b5cf6", "/images/logo_8b5cf6.png"],
+  ["#f9a8d4", "/images/logo_f9a8d4.png"],
+  ["#f59e0b", "/images/logo_f59e0b.png"],
+]);
 
 function getCurrentUserScope(): string {
   try {
@@ -121,6 +130,11 @@ export function readStoredThemeColor(): string {
   }
 }
 
+export function getThemeLogoSrc(color?: string): string {
+  const resolvedColor = normalizeHexColor(color ?? readStoredThemeColor());
+  return THEME_LOGO_SOURCES.get(resolvedColor) ?? DEFAULT_THEME_LOGO_SRC;
+}
+
 export function applyThemePreferences({
   mode,
   color,
@@ -142,8 +156,8 @@ export function applyThemePreferences({
   const auth5 = mixHex(resolvedColor, "#000000", 0.42);
   const onPrimary = luminance(resolvedColor) > 0.58 ? "#0f172a" : "#ffffff";
 
-  document.documentElement.setAttribute("data-theme", resolvedMode);
-  document.body.setAttribute("data-theme", resolvedMode);
+  document.documentElement.dataset.theme = resolvedMode;
+  document.body.dataset.theme = resolvedMode;
   document.body.style.colorScheme = resolvedMode;
 
   document.documentElement.style.setProperty("--primary", resolvedColor);
@@ -173,7 +187,7 @@ export function applyThemePreferences({
     }
   }
 
-  window.dispatchEvent(
+  globalThis.dispatchEvent(
     new CustomEvent("app-theme-updated", {
       detail: { mode: resolvedMode, color: resolvedColor },
     }),
